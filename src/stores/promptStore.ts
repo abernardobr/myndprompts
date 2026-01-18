@@ -444,7 +444,8 @@ export const usePromptStore = defineStore('prompts', () => {
    */
   async function movePrompt(
     filePath: string,
-    targetDir: string
+    targetDir: string,
+    overwrite: boolean = false
   ): Promise<{ newFilePath: string; prompt: IPromptFile }> {
     if (!isElectron()) {
       throw new Error('Moving prompts is only available in the desktop app');
@@ -458,7 +459,7 @@ export const usePromptStore = defineStore('prompts', () => {
       const cached = promptCache.value.get(filePath);
 
       // Move via service
-      const movedPrompt = await promptService.movePromptToDirectory(filePath, targetDir);
+      const movedPrompt = await promptService.movePromptToDirectory(filePath, targetDir, overwrite);
 
       // Update cache - remove old path and add new path
       const newCache = new Map(promptCache.value);

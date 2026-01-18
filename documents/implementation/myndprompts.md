@@ -3630,7 +3630,7 @@ Task 18 (Testing) - Parallel with all tasks
 
 | Task                     | Dependencies | Deliverable           | Status |
 | ------------------------ | ------------ | --------------------- | ------ |
-| Task 11: Git Integration | Task 3       | Commit, diff, history | [ ]    |
+| Task 11: Git Integration | Task 3       | Commit, diff, history | [x]    |
 | Task 15: Sharing         | Task 6       | Copy to clipboard     | [ ]    |
 
 **Exit Criteria:** MVP complete. Users can manage prompts with Git versioning.

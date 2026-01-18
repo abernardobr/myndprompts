@@ -11,6 +11,21 @@ import type {
   IFileWatcherEvent,
   IFileStorageConfig,
 } from '../../services/file-system/types';
+import type {
+  IGitStatusSummary,
+  IGitCommit,
+  IGitBranch,
+  IGitRemote,
+  IGitCheckResult,
+  IGitRepoCheckResult,
+  IGitInitResult,
+  IGitCloneResult,
+  IGitCommitResult,
+  IGitOperationResult,
+  IGitLogOptions,
+  IStashEntry,
+  IStashResult,
+} from '../../services/git/types';
 
 // Dialog options
 export interface OpenDialogOptions {
@@ -95,6 +110,65 @@ export interface FileSystemAPI {
 
   // Events from main process
   onFileChange: (callback: (event: IFileWatcherEvent) => void) => () => void;
+}
+
+// Git API
+export interface GitAPI {
+  // Prerequisites
+  isInstalled: () => Promise<IGitCheckResult>;
+  isRepo: (path: string) => Promise<IGitRepoCheckResult>;
+
+  // Repository operations
+  init: (path: string) => Promise<IGitInitResult>;
+  clone: (repoUrl: string, targetPath: string) => Promise<IGitCloneResult>;
+  setWorkingDirectory: (path: string) => Promise<void>;
+
+  // Status and staging
+  status: (path?: string) => Promise<IGitStatusSummary>;
+  add: (files: string[] | 'all', path?: string) => Promise<IGitOperationResult>;
+  unstage: (files: string[], path?: string) => Promise<IGitOperationResult>;
+
+  // Commit operations
+  commit: (message: string, path?: string) => Promise<IGitCommitResult>;
+  log: (options?: IGitLogOptions, path?: string) => Promise<IGitCommit[]>;
+  diff: (
+    filePath?: string,
+    commitHash?: string,
+    cached?: boolean,
+    path?: string
+  ) => Promise<string>;
+  discardChanges: (filePath: string, path?: string) => Promise<IGitOperationResult>;
+
+  // Remote operations
+  push: (remote?: string, branch?: string, path?: string) => Promise<IGitOperationResult>;
+  pull: (remote?: string, branch?: string, path?: string) => Promise<IGitOperationResult>;
+  fetch: (remote?: string, path?: string) => Promise<IGitOperationResult>;
+  remotes: (path?: string) => Promise<IGitRemote[]>;
+  addRemote: (name: string, url: string, path?: string) => Promise<IGitOperationResult>;
+  removeRemote: (name: string, path?: string) => Promise<IGitOperationResult>;
+
+  // Branch operations
+  branches: (path?: string) => Promise<IGitBranch[]>;
+  createBranch: (name: string, path?: string) => Promise<IGitOperationResult>;
+  switchBranch: (name: string, path?: string) => Promise<IGitOperationResult>;
+  deleteBranch: (name: string, force?: boolean, path?: string) => Promise<IGitOperationResult>;
+
+  // Stash operations
+  stash: (message?: string, path?: string) => Promise<IGitOperationResult>;
+  stashPop: (path?: string) => Promise<IStashResult>;
+  stashList: (path?: string) => Promise<IStashEntry[]>;
+
+  // Configuration
+  getConfig: (path?: string) => Promise<{ name?: string; email?: string }>;
+  setConfig: (
+    name: string,
+    email: string,
+    global?: boolean,
+    path?: string
+  ) => Promise<IGitOperationResult>;
+
+  // Tracked files (files that have been committed)
+  getTrackedFiles: (path?: string) => Promise<string[]>;
 }
 
 // Expose protected methods that allow the renderer process to use
@@ -189,13 +263,81 @@ const fileSystemApi: FileSystemAPI = {
   },
 };
 
+const gitApi: GitAPI = {
+  // Prerequisites
+  isInstalled: () => ipcRenderer.invoke('git:is-installed') as Promise<IGitCheckResult>,
+  isRepo: (path) => ipcRenderer.invoke('git:is-repo', path) as Promise<IGitRepoCheckResult>,
+
+  // Repository operations
+  init: (path) => ipcRenderer.invoke('git:init', path) as Promise<IGitInitResult>,
+  clone: (repoUrl, targetPath) =>
+    ipcRenderer.invoke('git:clone', repoUrl, targetPath) as Promise<IGitCloneResult>,
+  setWorkingDirectory: (path) =>
+    ipcRenderer.invoke('git:set-working-directory', path) as Promise<void>,
+
+  // Status and staging
+  status: (path) => ipcRenderer.invoke('git:status', path) as Promise<IGitStatusSummary>,
+  add: (files, path) => ipcRenderer.invoke('git:add', files, path) as Promise<IGitOperationResult>,
+  unstage: (files, path) =>
+    ipcRenderer.invoke('git:unstage', files, path) as Promise<IGitOperationResult>,
+
+  // Commit operations
+  commit: (message, path) =>
+    ipcRenderer.invoke('git:commit', message, path) as Promise<IGitCommitResult>,
+  log: (options, path) =>
+    ipcRenderer.invoke('git:log', options ?? {}, path) as Promise<IGitCommit[]>,
+  diff: (filePath, commitHash, cached, path) =>
+    ipcRenderer.invoke('git:diff', filePath, commitHash, cached, path) as Promise<string>,
+  discardChanges: (filePath, path) =>
+    ipcRenderer.invoke('git:discard-changes', filePath, path) as Promise<IGitOperationResult>,
+
+  // Remote operations
+  push: (remote, branch, path) =>
+    ipcRenderer.invoke('git:push', remote, branch, path) as Promise<IGitOperationResult>,
+  pull: (remote, branch, path) =>
+    ipcRenderer.invoke('git:pull', remote, branch, path) as Promise<IGitOperationResult>,
+  fetch: (remote, path) =>
+    ipcRenderer.invoke('git:fetch', remote, path) as Promise<IGitOperationResult>,
+  remotes: (path) => ipcRenderer.invoke('git:remotes', path) as Promise<IGitRemote[]>,
+  addRemote: (name, url, path) =>
+    ipcRenderer.invoke('git:add-remote', name, url, path) as Promise<IGitOperationResult>,
+  removeRemote: (name, path) =>
+    ipcRenderer.invoke('git:remove-remote', name, path) as Promise<IGitOperationResult>,
+
+  // Branch operations
+  branches: (path) => ipcRenderer.invoke('git:branches', path) as Promise<IGitBranch[]>,
+  createBranch: (name, path) =>
+    ipcRenderer.invoke('git:create-branch', name, path) as Promise<IGitOperationResult>,
+  switchBranch: (name, path) =>
+    ipcRenderer.invoke('git:switch-branch', name, path) as Promise<IGitOperationResult>,
+  deleteBranch: (name, force, path) =>
+    ipcRenderer.invoke('git:delete-branch', name, force, path) as Promise<IGitOperationResult>,
+
+  // Stash operations
+  stash: (message, path) =>
+    ipcRenderer.invoke('git:stash', message, path) as Promise<IGitOperationResult>,
+  stashPop: (path) => ipcRenderer.invoke('git:stash-pop', path) as Promise<IStashResult>,
+  stashList: (path) => ipcRenderer.invoke('git:stash-list', path) as Promise<IStashEntry[]>,
+
+  // Configuration
+  getConfig: (path) =>
+    ipcRenderer.invoke('git:get-config', path) as Promise<{ name?: string; email?: string }>,
+  setConfig: (name, email, global, path) =>
+    ipcRenderer.invoke('git:set-config', name, email, global, path) as Promise<IGitOperationResult>,
+
+  // Tracked files (files that have been committed)
+  getTrackedFiles: (path) => ipcRenderer.invoke('git:tracked-files', path) as Promise<string[]>,
+};
+
 contextBridge.exposeInMainWorld('electronAPI', electronApi);
 contextBridge.exposeInMainWorld('fileSystemAPI', fileSystemApi);
+contextBridge.exposeInMainWorld('gitAPI', gitApi);
 
 // Type augmentation for window object
 declare global {
   interface Window {
     electronAPI: ElectronAPI;
     fileSystemAPI: FileSystemAPI;
+    gitAPI: GitAPI;
   }
 }

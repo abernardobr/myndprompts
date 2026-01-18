@@ -12,6 +12,7 @@ import { usePromptStore } from '@/stores/promptStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUIStore } from '@/stores/uiStore';
+import { useGitStore } from '@/stores/gitStore';
 import type { IPromptFile, ISnippetMetadata } from '@/services/file-system/types';
 import NewPromptDialog from '@/components/dialogs/NewPromptDialog.vue';
 import NewSnippetDialog from '@/components/dialogs/NewSnippetDialog.vue';
@@ -19,6 +20,9 @@ import NewProjectDialog from '@/components/dialogs/NewProjectDialog.vue';
 import NewDirectoryDialog from '@/components/dialogs/NewDirectoryDialog.vue';
 import DeleteConfirmDialog from '@/components/dialogs/DeleteConfirmDialog.vue';
 import RenameDialog from '@/components/dialogs/RenameDialog.vue';
+import GitSetupDialog from '@/components/dialogs/GitSetupDialog.vue';
+import GitHistoryDialog from '@/components/dialogs/GitHistoryDialog.vue';
+import BranchDialog from '@/components/dialogs/BranchDialog.vue';
 
 const $q = useQuasar();
 
@@ -27,6 +31,7 @@ const promptStore = usePromptStore();
 const snippetStore = useSnippetStore();
 const projectStore = useProjectStore();
 const uiStore = useUIStore();
+const gitStore = useGitStore();
 
 // Check if running in Electron
 const isElectron = computed(() => typeof window !== 'undefined' && !!window.fileSystemAPI);
@@ -38,6 +43,13 @@ const showNewProjectDialog = ref(false);
 const showNewDirectoryDialog = ref(false);
 const showDeleteConfirmDialog = ref(false);
 const showRenameDialog = ref(false);
+const showGitSetupDialog = ref(false);
+const showGitHistoryDialog = ref(false);
+const showBranchDialog = ref(false);
+
+// Git context for dialogs
+const gitProjectPath = ref('');
+const gitProjectName = ref('');
 
 // Dialog context
 const renameTarget = ref<{ node: ITreeNode; currentName: string } | null>(null);
@@ -57,6 +69,22 @@ const expandedFolders = ref<Set<string>>(new Set(['prompts']));
 // Drag state
 const draggedNode = ref<ITreeNode | null>(null);
 const dropTarget = ref<ITreeNode | null>(null);
+
+// Directory structure cache (for showing empty directories)
+const directoryStructures = ref<Map<string, string[]>>(new Map());
+const directoryStructureVersion = ref(0); // Used to trigger reactivity
+
+// Branch cache per project (projectPath -> branchName)
+const projectBranches = ref<Map<string, string>>(new Map());
+
+// File status cache per project (projectPath -> { staged: Set, modified: Set, untracked: Set, tracked: Set })
+interface IFileStatusCache {
+  staged: Set<string>;
+  modified: Set<string>;
+  untracked: Set<string>;
+  tracked: Set<string>; // Files that have been committed to git (from git ls-files)
+}
+const projectFileStatuses = ref<Map<string, IFileStatusCache>>(new Map());
 
 // Tree node interface
 interface ITreeNode {
@@ -92,6 +120,9 @@ onMounted(async () => {
 
 // Build tree structure
 const fileTree = computed<ITreeNode[]>(() => {
+  // Depend on directoryStructureVersion for reactivity when empty dirs are added
+  void directoryStructureVersion.value;
+
   const tree: ITreeNode[] = [];
 
   // Filter prompts based on search
@@ -288,8 +319,18 @@ function buildDirectoryChildren(
     }
   }
 
-  // Add subdirectories
-  for (const [subDirPath, subPrompts] of subDirs) {
+  // Also include empty directories from the structure cache
+  const emptyDirs = directoryStructures.value.get(dirPath) ?? [];
+  for (const emptyDirPath of emptyDirs) {
+    if (!subDirs.has(emptyDirPath)) {
+      subDirs.set(emptyDirPath, []);
+    }
+  }
+
+  // Add subdirectories (sorted alphabetically)
+  const sortedSubDirs = Array.from(subDirs.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
+  for (const [subDirPath, subPrompts] of sortedSubDirs) {
     const dirName = subDirPath.split('/').pop() ?? subDirPath;
     children.push({
       id: subDirPath,
@@ -330,11 +371,21 @@ function getPromptIcon(prompt: IPromptFile): string {
 }
 
 // Toggle folder expansion
-function toggleFolder(folderId: string): void {
+async function toggleFolder(folderId: string): Promise<void> {
   if (expandedFolders.value.has(folderId)) {
     expandedFolders.value.delete(folderId);
   } else {
     expandedFolders.value.add(folderId);
+    // Load directory structure when expanding a project or directory
+    if (folderId.startsWith('/')) {
+      await loadDirectoryStructure(folderId);
+      // Load branch info and file statuses for projects
+      const isProject = projectStore.allProjects.some((p) => p.folderPath === folderId);
+      if (isProject) {
+        await loadProjectBranch(folderId);
+        await loadProjectFileStatuses(folderId);
+      }
+    }
   }
   // Also toggle in project store for persistence
   if (folderId.startsWith('/')) {
@@ -342,6 +393,167 @@ function toggleFolder(folderId: string): void {
   }
   // Trigger reactivity
   expandedFolders.value = new Set(expandedFolders.value);
+}
+
+// Load current branch for a project
+async function loadProjectBranch(projectPath: string): Promise<void> {
+  if (!isElectron.value) return;
+  try {
+    // Quick check if it's a git repo and get branch
+    await gitStore.initialize(projectPath);
+    if (gitStore.isRepo) {
+      await gitStore.refreshStatus();
+      projectBranches.value.set(projectPath, gitStore.currentBranch);
+    }
+  } catch (err) {
+    console.warn('Failed to load branch for project:', err);
+  }
+}
+
+// Get the current branch for a project
+function getProjectBranch(projectPath: string): string | undefined {
+  return projectBranches.value.get(projectPath);
+}
+
+// Load file statuses for a project
+async function loadProjectFileStatuses(projectPath: string): Promise<void> {
+  if (!isElectron.value) return;
+  try {
+    await gitStore.initialize(projectPath);
+    if (gitStore.isRepo) {
+      await gitStore.refreshStatus();
+
+      // Build sets of file paths for each status
+      const staged = new Set<string>();
+      const modified = new Set<string>();
+      const untracked = new Set<string>();
+      const tracked = new Set<string>();
+
+      for (const file of gitStore.stagedFiles) {
+        staged.add(`${projectPath}/${file.filePath}`);
+      }
+      for (const file of gitStore.modifiedFiles) {
+        modified.add(`${projectPath}/${file.filePath}`);
+      }
+      for (const file of gitStore.untrackedFiles) {
+        untracked.add(`${projectPath}/${file.filePath}`);
+      }
+
+      // Get tracked files from git ls-files
+      const trackedFiles = await gitStore.getTrackedFiles();
+      for (const filePath of trackedFiles) {
+        tracked.add(filePath);
+      }
+
+      projectFileStatuses.value.set(projectPath, { staged, modified, untracked, tracked });
+    }
+  } catch (err) {
+    console.warn('Failed to load file statuses for project:', err);
+  }
+}
+
+// Get file status for a specific file
+function getFileStatus(filePath: string): {
+  isStaged: boolean;
+  isModified: boolean;
+  isUntracked: boolean;
+  isInProject: boolean;
+  isTracked: boolean;
+} {
+  const project = projectStore.getProjectForPath(filePath);
+  if (!project) {
+    return {
+      isStaged: false,
+      isModified: false,
+      isUntracked: false,
+      isInProject: false,
+      isTracked: false,
+    };
+  }
+
+  const statuses = projectFileStatuses.value.get(project.folderPath);
+  if (!statuses) {
+    // No status loaded yet - default to NOT tracked (safe default)
+    return {
+      isStaged: false,
+      isModified: false,
+      isUntracked: false,
+      isInProject: true,
+      isTracked: false,
+    };
+  }
+
+  const isStaged = statuses.staged.has(filePath);
+  const isModified = statuses.modified.has(filePath);
+  const isUntracked = statuses.untracked.has(filePath);
+
+  // File is tracked if it's in the tracked set (from git ls-files)
+  const isTracked = statuses.tracked.has(filePath);
+
+  return {
+    isStaged,
+    isModified,
+    isUntracked,
+    isInProject: true,
+    isTracked,
+  };
+}
+
+// Check if file needs to be added (modified or untracked, but not staged)
+function fileNeedsAdd(filePath: string): boolean {
+  const status = getFileStatus(filePath);
+  return status.isInProject && (status.isModified || status.isUntracked) && !status.isStaged;
+}
+
+// Check if file is staged (ready to commit)
+function fileIsStaged(filePath: string): boolean {
+  const status = getFileStatus(filePath);
+  return status.isStaged;
+}
+
+// Check if file can be ignored (untracked only)
+function fileCanBeIgnored(filePath: string): boolean {
+  const status = getFileStatus(filePath);
+  return status.isUntracked;
+}
+
+// Check if file is in a project
+function fileIsInProject(filePath: string): boolean {
+  const status = getFileStatus(filePath);
+  return status.isInProject;
+}
+
+// Check if file is tracked (committed to git, has history)
+function fileIsTracked(filePath: string): boolean {
+  const status = getFileStatus(filePath);
+  return status.isInProject && status.isTracked;
+}
+
+// Load directory structure from file system
+async function loadDirectoryStructure(dirPath: string): Promise<void> {
+  if (!isElectron.value) return;
+
+  try {
+    const tree = await projectStore.getDirectoryTree(dirPath);
+    // Extract immediate child directories (excluding hidden directories like .git)
+    const childDirs = tree.children
+      .filter((c) => !c.path.endsWith('.md') && !c.name.startsWith('.'))
+      .map((c) => c.path);
+
+    if (childDirs.length > 0) {
+      directoryStructures.value.set(dirPath, childDirs);
+      directoryStructureVersion.value++;
+    }
+
+    // Also recursively load child directories that are expanded
+    for (const childDir of childDirs) {
+      if (expandedFolders.value.has(childDir)) {
+        await loadDirectoryStructure(childDir);
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load directory structure:', err);
+  }
 }
 
 // Check if folder is expanded
@@ -575,12 +787,27 @@ async function handleCreateDirectory(data: { name: string; parentPath: string })
   try {
     const newPath = await projectStore.createDirectory(data.parentPath, data.name);
 
+    // Add new directory to the structure cache
+    const existingDirs = directoryStructures.value.get(data.parentPath) ?? [];
+    if (!existingDirs.includes(newPath)) {
+      existingDirs.push(newPath);
+      directoryStructures.value.set(data.parentPath, existingDirs);
+      directoryStructureVersion.value++; // Trigger reactivity
+    }
+
     // Expand parent and new directory
     expandedFolders.value.add(data.parentPath);
     expandedFolders.value.add(newPath);
     expandedFolders.value = new Set(expandedFolders.value);
 
     await promptStore.refreshAllPrompts();
+
+    $q.notify({
+      type: 'positive',
+      message: `Directory "${data.name}" created`,
+      position: 'top',
+      timeout: 2000,
+    });
   } catch (err) {
     console.error('Failed to create directory:', err);
     showError('Failed to create directory');
@@ -622,6 +849,415 @@ async function refreshFiles(): Promise<void> {
     snippetStore.refreshAllSnippets(),
     projectStore.refreshProjects(),
   ]);
+}
+
+// Initialize default personas
+async function handleInitializePersonas(): Promise<void> {
+  try {
+    await snippetStore.initializePersonas();
+    expandedFolders.value.add('personas');
+    expandedFolders.value = new Set(expandedFolders.value);
+    $q.notify({
+      type: 'positive',
+      message: 'Default personas created successfully',
+      position: 'top',
+      timeout: 3000,
+    });
+  } catch (err) {
+    console.error('Failed to initialize personas:', err);
+    showError('Failed to initialize personas');
+  }
+}
+
+// ================================
+// Git Operations
+// ================================
+
+// Open Git setup dialog for a project
+function openGitSetup(projectPath: string, projectName: string): void {
+  gitProjectPath.value = projectPath;
+  gitProjectName.value = projectName;
+  showGitSetupDialog.value = true;
+}
+
+// Quick Git push for a project
+async function handleGitPush(projectPath: string): Promise<void> {
+  try {
+    await gitStore.initialize(projectPath);
+
+    if (!gitStore.isRepo) {
+      showError('Not a Git repository');
+      return;
+    }
+
+    const success = await gitStore.push();
+    if (success) {
+      $q.notify({
+        type: 'positive',
+        message: 'Pushed to remote successfully',
+        position: 'top',
+        timeout: 3000,
+      });
+    } else {
+      showError(gitStore.error ?? 'Failed to push');
+    }
+  } catch (err) {
+    console.error('Failed to push:', err);
+    showError('Failed to push to remote');
+  }
+}
+
+// Quick Git pull for a project
+async function handleGitPull(projectPath: string): Promise<void> {
+  try {
+    await gitStore.initialize(projectPath);
+
+    if (!gitStore.isRepo) {
+      showError('Not a Git repository');
+      return;
+    }
+
+    const success = await gitStore.pull();
+    if (success) {
+      $q.notify({
+        type: 'positive',
+        message: 'Pulled from remote successfully',
+        position: 'top',
+        timeout: 3000,
+      });
+      // Refresh prompts in case files changed
+      await promptStore.refreshAllPrompts();
+    } else {
+      showError(gitStore.error ?? 'Failed to pull');
+    }
+  } catch (err) {
+    console.error('Failed to pull:', err);
+    showError('Failed to pull from remote');
+  }
+}
+
+// Quick Git fetch for a project
+async function handleGitFetch(projectPath: string): Promise<void> {
+  try {
+    await gitStore.initialize(projectPath);
+
+    if (!gitStore.isRepo) {
+      showError('Not a Git repository');
+      return;
+    }
+
+    const success = await gitStore.fetch();
+    if (success) {
+      $q.notify({
+        type: 'positive',
+        message: 'Fetched from remote successfully',
+        position: 'top',
+        timeout: 3000,
+      });
+    } else {
+      showError(gitStore.error ?? 'Failed to fetch');
+    }
+  } catch (err) {
+    console.error('Failed to fetch:', err);
+    showError('Failed to fetch from remote');
+  }
+}
+
+// Git sync (pull then push)
+async function handleGitSync(projectPath: string): Promise<void> {
+  try {
+    await gitStore.initialize(projectPath);
+
+    if (!gitStore.isRepo) {
+      showError('Not a Git repository');
+      return;
+    }
+
+    // First pull
+    const pullSuccess = await gitStore.pull();
+    if (!pullSuccess) {
+      showError(gitStore.error ?? 'Failed to pull during sync');
+      return;
+    }
+
+    // Then push
+    const pushSuccess = await gitStore.push();
+    if (pushSuccess) {
+      $q.notify({
+        type: 'positive',
+        message: 'Synced with remote successfully',
+        position: 'top',
+        timeout: 3000,
+      });
+      await promptStore.refreshAllPrompts();
+    } else {
+      showError(gitStore.error ?? 'Failed to push during sync');
+    }
+  } catch (err) {
+    console.error('Failed to sync:', err);
+    showError('Failed to sync with remote');
+  }
+}
+
+// Open branch dialog for a project
+function openBranchDialog(projectPath: string, projectName: string): void {
+  gitProjectPath.value = projectPath;
+  gitProjectName.value = projectName;
+  showBranchDialog.value = true;
+}
+
+// Handle branch change - refresh the branch cache
+async function handleBranchChanged(): Promise<void> {
+  if (gitProjectPath.value) {
+    projectBranches.value.set(gitProjectPath.value, gitStore.currentBranch);
+    // Refresh prompts in case files changed
+    await promptStore.refreshAllPrompts();
+  }
+}
+
+// Stage and commit a single file
+async function handleGitCommitFile(filePath: string): Promise<void> {
+  try {
+    // Get the project path for this file
+    const project = projectStore.getProjectForPath(filePath);
+    if (!project) {
+      showError('File is not in a project');
+      return;
+    }
+
+    await gitStore.initialize(project.folderPath);
+
+    if (!gitStore.isRepo) {
+      showError('Not a Git repository');
+      return;
+    }
+
+    // Get relative path from project root
+    const relativePath = filePath.slice(project.folderPath.length + 1);
+
+    // Stage the file
+    const stageSuccess = await gitStore.stageFiles([relativePath]);
+    if (!stageSuccess) {
+      showError(gitStore.error ?? 'Failed to stage file');
+      return;
+    }
+
+    // Prompt for commit message
+    $q.dialog({
+      title: 'Commit File',
+      message: `Enter commit message for: ${relativePath}`,
+      prompt: {
+        model: '',
+        type: 'text',
+        placeholder: 'Commit message...',
+      },
+      cancel: true,
+      persistent: true,
+    }).onOk((message: string) => {
+      if (!message.trim()) {
+        showError('Commit message is required');
+        return;
+      }
+
+      void gitStore.commit(message).then((commitSuccess) => {
+        if (commitSuccess) {
+          $q.notify({
+            type: 'positive',
+            message: 'File committed successfully',
+            position: 'top',
+            timeout: 3000,
+          });
+        } else {
+          showError(gitStore.error ?? 'Failed to commit');
+        }
+      });
+    });
+  } catch (err) {
+    console.error('Failed to commit file:', err);
+    showError('Failed to commit file');
+  }
+}
+
+// View Git history for a file (opens project history)
+function handleGitHistory(filePath: string): void {
+  const project = projectStore.getProjectForPath(filePath);
+  if (!project) {
+    showError('File is not in a project');
+    return;
+  }
+
+  gitProjectPath.value = project.folderPath;
+  gitProjectName.value = project.name;
+  showGitHistoryDialog.value = true;
+}
+
+// View Git history for an entire project
+function handleProjectGitHistory(projectPath: string, projectName: string): void {
+  gitProjectPath.value = projectPath;
+  gitProjectName.value = projectName;
+  showGitHistoryDialog.value = true;
+}
+
+// Discard changes in a file
+async function handleGitDiscardChanges(filePath: string): Promise<void> {
+  try {
+    const project = projectStore.getProjectForPath(filePath);
+    if (!project) {
+      showError('File is not in a project');
+      return;
+    }
+
+    await gitStore.initialize(project.folderPath);
+
+    if (!gitStore.isRepo) {
+      showError('Not a Git repository');
+      return;
+    }
+
+    // Confirm discard
+    $q.dialog({
+      title: 'Discard Changes',
+      message: 'Are you sure you want to discard all changes to this file? This cannot be undone.',
+      cancel: true,
+      persistent: true,
+      color: 'negative',
+    }).onOk(() => {
+      const relativePath = filePath.slice(project.folderPath.length + 1);
+      void gitStore.discardChanges(relativePath).then((success) => {
+        if (success) {
+          $q.notify({
+            type: 'positive',
+            message: 'Changes discarded',
+            position: 'top',
+            timeout: 3000,
+          });
+          // Refresh to show updated content
+          void promptStore.refreshAllPrompts();
+        } else {
+          showError(gitStore.error ?? 'Failed to discard changes');
+        }
+      });
+    });
+  } catch (err) {
+    console.error('Failed to discard changes:', err);
+    showError('Failed to discard changes');
+  }
+}
+
+// Stage a file (git add)
+async function handleGitAddFile(filePath: string): Promise<void> {
+  try {
+    const project = projectStore.getProjectForPath(filePath);
+    if (!project) {
+      showError('File is not in a project');
+      return;
+    }
+
+    await gitStore.initialize(project.folderPath);
+
+    if (!gitStore.isRepo) {
+      showError('Not a Git repository');
+      return;
+    }
+
+    const relativePath = filePath.slice(project.folderPath.length + 1);
+    const success = await gitStore.stageFiles([relativePath]);
+
+    if (success) {
+      $q.notify({
+        type: 'positive',
+        message: 'File staged for commit',
+        position: 'top',
+        timeout: 3000,
+      });
+      // Refresh file statuses
+      await loadProjectFileStatuses(project.folderPath);
+    } else {
+      showError(gitStore.error ?? 'Failed to stage file');
+    }
+  } catch (err) {
+    console.error('Failed to stage file:', err);
+    showError('Failed to stage file');
+  }
+}
+
+// Add file to .gitignore
+async function handleGitIgnoreFile(filePath: string): Promise<void> {
+  try {
+    const project = projectStore.getProjectForPath(filePath);
+    if (!project) {
+      showError('File is not in a project');
+      return;
+    }
+
+    await gitStore.initialize(project.folderPath);
+
+    if (!gitStore.isRepo) {
+      showError('Not a Git repository');
+      return;
+    }
+
+    const relativePath = filePath.slice(project.folderPath.length + 1);
+    const gitignorePath = `${project.folderPath}/.gitignore`;
+
+    // Read existing .gitignore or create new
+    let gitignoreContent = '';
+    try {
+      const exists = await window.fileSystemAPI.fileExists(gitignorePath);
+      if (exists) {
+        const result = await window.fileSystemAPI.readFile(gitignorePath);
+        if (result.success && result.content) {
+          gitignoreContent = result.content as string;
+        }
+      }
+    } catch {
+      // File doesn't exist, start with empty content
+    }
+
+    // Check if already in gitignore
+    const lines = gitignoreContent.split('\n');
+    if (lines.some((line) => line.trim() === relativePath)) {
+      $q.notify({
+        type: 'info',
+        message: 'File is already in .gitignore',
+        position: 'top',
+        timeout: 3000,
+      });
+      return;
+    }
+
+    // Add to gitignore
+    const newContent = gitignoreContent.trim()
+      ? `${gitignoreContent.trim()}\n${relativePath}\n`
+      : `${relativePath}\n`;
+
+    const writeResult = await window.fileSystemAPI.writeFile(gitignorePath, newContent);
+    if (writeResult.success) {
+      $q.notify({
+        type: 'positive',
+        message: 'File added to .gitignore',
+        position: 'top',
+        timeout: 3000,
+      });
+      // Refresh file statuses
+      await loadProjectFileStatuses(project.folderPath);
+    } else {
+      showError(writeResult.error ?? 'Failed to update .gitignore');
+    }
+  } catch (err) {
+    console.error('Failed to add to .gitignore:', err);
+    showError('Failed to add file to .gitignore');
+  }
+}
+
+// Check if a project is a Git repository (for conditional menu items)
+async function _checkProjectIsGitRepo(projectPath: string): Promise<boolean> {
+  try {
+    await gitStore.initialize(projectPath);
+    return gitStore.isRepo;
+  } catch {
+    return false;
+  }
 }
 
 // Toggle favorite
@@ -674,6 +1310,7 @@ async function handleDrop(event: DragEvent, targetNode: ITreeNode): Promise<void
 
   const sourceFilePath = draggedNode.value.filePath;
   const targetDirPath = targetNode.filePath ?? promptsDir.value;
+  const fileName = draggedNode.value.label;
 
   if (!sourceFilePath || !targetDirPath) return;
 
@@ -687,9 +1324,52 @@ async function handleDrop(event: DragEvent, targetNode: ITreeNode): Promise<void
   try {
     await promptStore.movePrompt(sourceFilePath, targetDirPath);
     projectStore.invalidateTreeCache(targetDirPath);
+
+    $q.notify({
+      type: 'positive',
+      message: 'File moved successfully',
+      position: 'top',
+      timeout: 2000,
+    });
   } catch (err) {
-    console.error('Failed to move prompt:', err);
-    showError('Failed to move prompt');
+    // Check if it's a FILE_EXISTS error
+    const error = err as Error & { code?: string };
+    if (error.code === 'FILE_EXISTS') {
+      // Show confirmation dialog
+      $q.dialog({
+        title: 'File Already Exists',
+        message: `A file named "${fileName}" already exists in the target location. Do you want to replace it?`,
+        cancel: {
+          label: 'Cancel',
+          flat: true,
+        },
+        ok: {
+          label: 'Replace',
+          color: 'negative',
+        },
+        persistent: true,
+      }).onOk(() => {
+        void promptStore
+          .movePrompt(sourceFilePath, targetDirPath, true)
+          .then(() => {
+            projectStore.invalidateTreeCache(targetDirPath);
+
+            $q.notify({
+              type: 'positive',
+              message: 'File replaced successfully',
+              position: 'top',
+              timeout: 2000,
+            });
+          })
+          .catch((retryErr) => {
+            console.error('Failed to replace file:', retryErr);
+            showError('Failed to replace file');
+          });
+      });
+    } else {
+      console.error('Failed to move prompt:', err);
+      showError('Failed to move prompt');
+    }
   }
 
   draggedNode.value = null;
@@ -726,6 +1406,11 @@ onMounted(async () => {
       projectStore.initialize(),
     ]);
     await promptStore.refreshAllPrompts();
+
+    // Load directory structures for all projects
+    for (const project of projectStore.allProjects) {
+      await loadDirectoryStructure(project.folderPath);
+    }
   } catch (err) {
     console.warn('Failed to initialize file stores:', err);
   }
@@ -943,6 +1628,20 @@ watch(
                     </q-item-section>
                     <q-item-section>New Snippet</q-item-section>
                   </q-item>
+                  <q-item
+                    v-if="folder.id === 'personas' && folder.children?.length === 0"
+                    v-close-popup
+                    clickable
+                    @click="handleInitializePersonas"
+                  >
+                    <q-item-section avatar>
+                      <q-icon
+                        name="auto_awesome"
+                        size="20px"
+                      />
+                    </q-item-section>
+                    <q-item-section>Initialize Personas</q-item-section>
+                  </q-item>
                   <q-separator />
                   <q-item
                     v-close-popup
@@ -998,6 +1697,21 @@ watch(
                     class="explorer-panel__folder-icon"
                   />
                   <span class="explorer-panel__folder-label">{{ child.label }}</span>
+                  <!-- Branch indicator for projects -->
+                  <q-chip
+                    v-if="child.type === 'project' && getProjectBranch(child.filePath!)"
+                    dense
+                    size="sm"
+                    color="grey-8"
+                    text-color="white"
+                    icon="mdi-source-branch"
+                    class="explorer-panel__branch-chip"
+                    clickable
+                    @click.stop="openBranchDialog(child.filePath!, child.label)"
+                  >
+                    {{ getProjectBranch(child.filePath!) }}
+                    <q-tooltip>Click to switch branches</q-tooltip>
+                  </q-chip>
                   <q-badge
                     v-if="child.count !== undefined && child.count > 0"
                     :label="child.count"
@@ -1010,7 +1724,7 @@ watch(
                   <q-menu context-menu>
                     <q-list
                       dense
-                      style="min-width: 150px"
+                      style="min-width: 180px"
                     >
                       <q-item
                         v-close-popup
@@ -1038,6 +1752,130 @@ watch(
                         </q-item-section>
                         <q-item-section>New Directory</q-item-section>
                       </q-item>
+
+                      <!-- Git submenu for projects -->
+                      <template v-if="child.type === 'project'">
+                        <q-separator />
+                        <q-item clickable>
+                          <q-item-section avatar>
+                            <q-icon
+                              name="mdi-git"
+                              size="20px"
+                              color="orange"
+                            />
+                          </q-item-section>
+                          <q-item-section>Git</q-item-section>
+                          <q-item-section side>
+                            <q-icon name="keyboard_arrow_right" />
+                          </q-item-section>
+
+                          <!-- Git submenu -->
+                          <q-menu
+                            anchor="top end"
+                            self="top start"
+                          >
+                            <q-list
+                              dense
+                              style="min-width: 160px"
+                            >
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="handleGitPull(child.filePath!)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-arrow-down"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Pull</q-item-section>
+                              </q-item>
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="handleGitPush(child.filePath!)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-arrow-up"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Push</q-item-section>
+                              </q-item>
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="handleGitFetch(child.filePath!)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-cloud-download"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Fetch</q-item-section>
+                              </q-item>
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="handleGitSync(child.filePath!)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-sync"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Sync</q-item-section>
+                              </q-item>
+                              <q-separator />
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="openBranchDialog(child.filePath!, child.label)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-source-branch"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Branches</q-item-section>
+                              </q-item>
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="handleProjectGitHistory(child.filePath!, child.label)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-history"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>History</q-item-section>
+                              </q-item>
+                              <q-separator />
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="openGitSetup(child.filePath!, child.label)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-cog"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Settings</q-item-section>
+                              </q-item>
+                            </q-list>
+                          </q-menu>
+                        </q-item>
+                      </template>
+
                       <q-separator />
                       <q-item
                         v-close-popup
@@ -1182,9 +2020,316 @@ watch(
                       </q-menu>
                     </div>
 
+                    <!-- Children of nested directory (recursive) -->
+                    <template v-if="isExpanded(nested.id) && nested.children">
+                      <template
+                        v-for="deepNested in nested.children"
+                        :key="deepNested.id"
+                      >
+                        <!-- Deep nested directory -->
+                        <div
+                          v-if="deepNested.type === 'directory'"
+                          class="explorer-panel__folder explorer-panel__folder--nested"
+                          :class="{
+                            'explorer-panel__folder--drop-target': isDropTargetActive(deepNested),
+                          }"
+                          :style="{ paddingLeft: `${(deepNested.depth ?? 2) * 16 + 24}px` }"
+                          @click="toggleFolder(deepNested.id)"
+                          @dragover="handleDragOver($event, deepNested)"
+                          @dragleave="handleDragLeave"
+                          @drop="handleDrop($event, deepNested)"
+                        >
+                          <q-icon
+                            :name="isExpanded(deepNested.id) ? 'expand_more' : 'chevron_right'"
+                            size="18px"
+                            class="explorer-panel__chevron"
+                          />
+                          <q-icon
+                            :name="isExpanded(deepNested.id) ? 'folder_open' : 'folder'"
+                            size="18px"
+                            class="explorer-panel__folder-icon"
+                          />
+                          <span class="explorer-panel__folder-label">{{ deepNested.label }}</span>
+                          <q-badge
+                            v-if="deepNested.count !== undefined && deepNested.count > 0"
+                            :label="deepNested.count"
+                            color="grey-7"
+                            text-color="white"
+                            class="explorer-panel__count"
+                          />
+
+                          <!-- Deep nested directory context menu -->
+                          <q-menu context-menu>
+                            <q-list
+                              dense
+                              style="min-width: 150px"
+                            >
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="openNewPromptDialogForDirectory(deepNested.filePath!)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="add"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>New Prompt</q-item-section>
+                              </q-item>
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="
+                                  openNewDirectoryDialog(deepNested.filePath!, deepNested.label)
+                                "
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="create_new_folder"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>New Directory</q-item-section>
+                              </q-item>
+                              <q-separator />
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="openRenameDialog(deepNested)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="edit"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Rename</q-item-section>
+                              </q-item>
+                              <q-separator />
+                              <q-item
+                                v-close-popup
+                                clickable
+                                class="text-negative"
+                                @click="confirmDelete(deepNested)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="delete"
+                                    size="20px"
+                                    color="negative"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Delete</q-item-section>
+                              </q-item>
+                            </q-list>
+                          </q-menu>
+                        </div>
+
+                        <!-- File in deep nested directory -->
+                        <div
+                          v-else
+                          class="explorer-panel__file"
+                          :style="{ paddingLeft: `${(deepNested.depth ?? 2) * 16 + 32}px` }"
+                          draggable="true"
+                          @click="openFile(deepNested)"
+                          @dblclick="openFile(deepNested)"
+                          @dragstart="handleDragStart($event, deepNested)"
+                          @dragend="handleDragEnd"
+                        >
+                          <q-icon
+                            :name="deepNested.icon"
+                            size="16px"
+                            class="explorer-panel__file-icon"
+                          />
+                          <span class="explorer-panel__file-label">{{ deepNested.label }}</span>
+
+                          <!-- File context menu -->
+                          <q-menu context-menu>
+                            <q-list
+                              dense
+                              style="min-width: 180px"
+                            >
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="openFile(deepNested)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="open_in_new"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Open</q-item-section>
+                              </q-item>
+                              <q-item
+                                v-if="deepNested.type === 'prompt'"
+                                v-close-popup
+                                clickable
+                                @click="toggleFavorite(deepNested)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="star"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Toggle Favorite</q-item-section>
+                              </q-item>
+                              <q-item
+                                v-close-popup
+                                clickable
+                                @click="openRenameDialog(deepNested)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="edit"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Rename</q-item-section>
+                              </q-item>
+
+                              <!-- Git submenu for files in projects -->
+                              <template
+                                v-if="
+                                  deepNested.type === 'prompt' &&
+                                  deepNested.filePath &&
+                                  fileIsInProject(deepNested.filePath)
+                                "
+                              >
+                                <q-separator />
+                                <q-item clickable>
+                                  <q-item-section avatar>
+                                    <q-icon
+                                      name="mdi-git"
+                                      size="20px"
+                                      color="orange"
+                                    />
+                                  </q-item-section>
+                                  <q-item-section>Git</q-item-section>
+                                  <q-item-section side>
+                                    <q-icon name="keyboard_arrow_right" />
+                                  </q-item-section>
+
+                                  <!-- Git submenu -->
+                                  <q-menu
+                                    anchor="top end"
+                                    self="top start"
+                                  >
+                                    <q-list
+                                      dense
+                                      style="min-width: 160px"
+                                    >
+                                      <!-- Add File (if not staged) -->
+                                      <q-item
+                                        v-if="fileNeedsAdd(deepNested.filePath)"
+                                        v-close-popup
+                                        clickable
+                                        @click="handleGitAddFile(deepNested.filePath)"
+                                      >
+                                        <q-item-section avatar>
+                                          <q-icon
+                                            name="mdi-plus-circle"
+                                            size="20px"
+                                            color="positive"
+                                          />
+                                        </q-item-section>
+                                        <q-item-section>Add</q-item-section>
+                                      </q-item>
+                                      <!-- Ignore File (if untracked) -->
+                                      <q-item
+                                        v-if="fileCanBeIgnored(deepNested.filePath)"
+                                        v-close-popup
+                                        clickable
+                                        @click="handleGitIgnoreFile(deepNested.filePath)"
+                                      >
+                                        <q-item-section avatar>
+                                          <q-icon
+                                            name="mdi-eye-off"
+                                            size="20px"
+                                            color="grey"
+                                          />
+                                        </q-item-section>
+                                        <q-item-section>Ignore</q-item-section>
+                                      </q-item>
+                                      <!-- Commit File (if staged) -->
+                                      <q-item
+                                        v-if="fileIsStaged(deepNested.filePath)"
+                                        v-close-popup
+                                        clickable
+                                        @click="handleGitCommitFile(deepNested.filePath)"
+                                      >
+                                        <q-item-section avatar>
+                                          <q-icon
+                                            name="mdi-source-commit"
+                                            size="20px"
+                                          />
+                                        </q-item-section>
+                                        <q-item-section>Commit</q-item-section>
+                                      </q-item>
+                                      <!-- Reject/Discard (if staged) -->
+                                      <q-item
+                                        v-if="fileIsStaged(deepNested.filePath)"
+                                        v-close-popup
+                                        clickable
+                                        @click="handleGitDiscardChanges(deepNested.filePath)"
+                                      >
+                                        <q-item-section avatar>
+                                          <q-icon
+                                            name="mdi-undo"
+                                            size="20px"
+                                            color="negative"
+                                          />
+                                        </q-item-section>
+                                        <q-item-section>Reject</q-item-section>
+                                      </q-item>
+                                      <!-- History (if tracked - has commits) -->
+                                      <q-item
+                                        v-if="fileIsTracked(deepNested.filePath)"
+                                        v-close-popup
+                                        clickable
+                                        @click="handleGitHistory(deepNested.filePath)"
+                                      >
+                                        <q-item-section avatar>
+                                          <q-icon
+                                            name="mdi-history"
+                                            size="20px"
+                                          />
+                                        </q-item-section>
+                                        <q-item-section>History</q-item-section>
+                                      </q-item>
+                                    </q-list>
+                                  </q-menu>
+                                </q-item>
+                              </template>
+
+                              <q-separator />
+                              <q-item
+                                v-close-popup
+                                clickable
+                                class="text-negative"
+                                @click="confirmDelete(deepNested)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="delete"
+                                    size="20px"
+                                    color="negative"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Delete</q-item-section>
+                              </q-item>
+                            </q-list>
+                          </q-menu>
+                        </div>
+                      </template>
+                    </template>
+
                     <!-- File in nested directory -->
                     <div
-                      v-else
+                      v-if="nested.type !== 'directory'"
                       class="explorer-panel__file"
                       :style="{ paddingLeft: `${(nested.depth ?? 1) * 16 + 32}px` }"
                       draggable="true"
@@ -1204,7 +2349,7 @@ watch(
                       <q-menu context-menu>
                         <q-list
                           dense
-                          style="min-width: 150px"
+                          style="min-width: 180px"
                         >
                           <q-item
                             v-close-popup
@@ -1246,6 +2391,115 @@ watch(
                             </q-item-section>
                             <q-item-section>Rename</q-item-section>
                           </q-item>
+
+                          <!-- Git submenu for files in projects -->
+                          <template v-if="nested.type === 'prompt' && nested.filePath">
+                            <q-separator />
+                            <q-item clickable>
+                              <q-item-section avatar>
+                                <q-icon
+                                  name="mdi-git"
+                                  size="20px"
+                                  color="orange"
+                                />
+                              </q-item-section>
+                              <q-item-section>Git</q-item-section>
+                              <q-item-section side>
+                                <q-icon name="keyboard_arrow_right" />
+                              </q-item-section>
+
+                              <!-- Git submenu -->
+                              <q-menu
+                                anchor="top end"
+                                self="top start"
+                              >
+                                <q-list
+                                  dense
+                                  style="min-width: 160px"
+                                >
+                                  <!-- Add File (if not staged) -->
+                                  <q-item
+                                    v-if="fileNeedsAdd(nested.filePath)"
+                                    v-close-popup
+                                    clickable
+                                    @click="handleGitAddFile(nested.filePath)"
+                                  >
+                                    <q-item-section avatar>
+                                      <q-icon
+                                        name="mdi-plus-circle"
+                                        size="20px"
+                                        color="positive"
+                                      />
+                                    </q-item-section>
+                                    <q-item-section>Add</q-item-section>
+                                  </q-item>
+                                  <!-- Ignore File (if untracked) -->
+                                  <q-item
+                                    v-if="fileCanBeIgnored(nested.filePath)"
+                                    v-close-popup
+                                    clickable
+                                    @click="handleGitIgnoreFile(nested.filePath)"
+                                  >
+                                    <q-item-section avatar>
+                                      <q-icon
+                                        name="mdi-eye-off"
+                                        size="20px"
+                                        color="grey"
+                                      />
+                                    </q-item-section>
+                                    <q-item-section>Ignore</q-item-section>
+                                  </q-item>
+                                  <!-- Commit File (if staged) -->
+                                  <q-item
+                                    v-if="fileIsStaged(nested.filePath)"
+                                    v-close-popup
+                                    clickable
+                                    @click="handleGitCommitFile(nested.filePath)"
+                                  >
+                                    <q-item-section avatar>
+                                      <q-icon
+                                        name="mdi-source-commit"
+                                        size="20px"
+                                      />
+                                    </q-item-section>
+                                    <q-item-section>Commit</q-item-section>
+                                  </q-item>
+                                  <!-- Reject/Discard (if staged) -->
+                                  <q-item
+                                    v-if="fileIsStaged(nested.filePath)"
+                                    v-close-popup
+                                    clickable
+                                    @click="handleGitDiscardChanges(nested.filePath)"
+                                  >
+                                    <q-item-section avatar>
+                                      <q-icon
+                                        name="mdi-undo"
+                                        size="20px"
+                                        color="negative"
+                                      />
+                                    </q-item-section>
+                                    <q-item-section>Reject</q-item-section>
+                                  </q-item>
+                                  <!-- History (if tracked - has commits) -->
+                                  <q-item
+                                    v-if="fileIsTracked(nested.filePath)"
+                                    v-close-popup
+                                    clickable
+                                    @click="handleGitHistory(nested.filePath)"
+                                  >
+                                    <q-item-section avatar>
+                                      <q-icon
+                                        name="mdi-history"
+                                        size="20px"
+                                      />
+                                    </q-item-section>
+                                    <q-item-section>History</q-item-section>
+                                  </q-item>
+                                </q-list>
+                              </q-menu>
+                            </q-item>
+                          </template>
+
                           <q-separator />
                           <q-item
                             v-close-popup
@@ -1299,7 +2553,7 @@ watch(
                   <q-menu context-menu>
                     <q-list
                       dense
-                      style="min-width: 150px"
+                      style="min-width: 180px"
                     >
                       <q-item
                         v-close-popup
@@ -1341,6 +2595,126 @@ watch(
                         </q-item-section>
                         <q-item-section>Rename</q-item-section>
                       </q-item>
+
+                      <!-- Git submenu for files in projects -->
+                      <template
+                        v-if="
+                          child.type === 'prompt' &&
+                          child.filePath &&
+                          fileIsInProject(child.filePath)
+                        "
+                      >
+                        <q-separator />
+                        <q-item clickable>
+                          <q-item-section avatar>
+                            <q-icon
+                              name="mdi-git"
+                              size="20px"
+                              color="orange"
+                            />
+                          </q-item-section>
+                          <q-item-section>Git</q-item-section>
+                          <q-item-section side>
+                            <q-icon name="keyboard_arrow_right" />
+                          </q-item-section>
+
+                          <!-- Git submenu -->
+                          <q-menu
+                            anchor="top end"
+                            self="top start"
+                          >
+                            <q-list
+                              dense
+                              style="min-width: 160px"
+                            >
+                              <!-- Add File (if not staged) -->
+                              <q-item
+                                v-if="fileNeedsAdd(child.filePath)"
+                                v-close-popup
+                                clickable
+                                @click="handleGitAddFile(child.filePath)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-plus-circle"
+                                    size="20px"
+                                    color="positive"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Add</q-item-section>
+                              </q-item>
+                              <!-- Ignore File (if untracked) -->
+                              <q-item
+                                v-if="fileCanBeIgnored(child.filePath)"
+                                v-close-popup
+                                clickable
+                                @click="handleGitIgnoreFile(child.filePath)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-eye-off"
+                                    size="20px"
+                                    color="grey"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Ignore</q-item-section>
+                              </q-item>
+                              <q-separator
+                                v-if="
+                                  fileNeedsAdd(child.filePath) || fileCanBeIgnored(child.filePath)
+                                "
+                              />
+                              <!-- Commit File (if staged) -->
+                              <q-item
+                                v-if="fileIsStaged(child.filePath)"
+                                v-close-popup
+                                clickable
+                                @click="handleGitCommitFile(child.filePath)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-source-commit"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Commit</q-item-section>
+                              </q-item>
+                              <!-- Reject/Discard (if staged) -->
+                              <q-item
+                                v-if="fileIsStaged(child.filePath)"
+                                v-close-popup
+                                clickable
+                                @click="handleGitDiscardChanges(child.filePath)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-undo"
+                                    size="20px"
+                                    color="negative"
+                                  />
+                                </q-item-section>
+                                <q-item-section>Reject</q-item-section>
+                              </q-item>
+                              <!-- History (if tracked - has commits) -->
+                              <q-item
+                                v-if="fileIsTracked(child.filePath)"
+                                v-close-popup
+                                clickable
+                                @click="handleGitHistory(child.filePath)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="mdi-history"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>History</q-item-section>
+                              </q-item>
+                            </q-list>
+                          </q-menu>
+                        </q-item>
+                      </template>
+
                       <q-separator />
                       <q-item
                         v-close-popup
@@ -1419,6 +2793,28 @@ watch(
       :current-name="renameTarget?.currentName ?? ''"
       :item-type="renameTarget?.node ? getRenameItemType(renameTarget.node) : 'prompt'"
       @rename="handleRename"
+    />
+
+    <GitSetupDialog
+      v-model="showGitSetupDialog"
+      :project-path="gitProjectPath"
+      :project-name="gitProjectName"
+      @setup-complete="refreshFiles"
+    />
+
+    <GitHistoryDialog
+      v-if="showGitHistoryDialog"
+      v-model="showGitHistoryDialog"
+      :project-path="gitProjectPath"
+      :project-name="gitProjectName"
+    />
+
+    <BranchDialog
+      v-if="showBranchDialog"
+      v-model="showBranchDialog"
+      :project-path="gitProjectPath"
+      :project-name="gitProjectName"
+      @branch-changed="handleBranchChanged"
     />
   </div>
 </template>
@@ -1522,6 +2918,19 @@ watch(
   &__count {
     font-size: 10px;
     padding: 2px 6px;
+  }
+
+  &__branch-chip {
+    margin-left: 4px;
+    font-size: 10px;
+    height: 18px;
+    max-width: 100px;
+
+    :deep(.q-chip__content) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   &__file {

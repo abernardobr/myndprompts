@@ -647,7 +647,11 @@ export class PromptFileService {
   /**
    * Move a prompt to a different directory
    */
-  async movePromptToDirectory(filePath: string, targetDir: string): Promise<IPromptFile> {
+  async movePromptToDirectory(
+    filePath: string,
+    targetDir: string,
+    overwrite: boolean = false
+  ): Promise<IPromptFile> {
     const api = this.getAPI();
 
     // Load the current prompt
@@ -659,9 +663,18 @@ export class PromptFileService {
     // Check if target already exists
     const exists = await api.fileExists(newFilePath);
     if (exists) {
-      throw new Error(
-        `A file with the name "${prompt.fileName}" already exists in the target directory`
-      );
+      if (!overwrite) {
+        // Throw a specific error that can be caught to show confirmation dialog
+        const error = new Error(
+          `A file with the name "${prompt.fileName}" already exists in the target directory`
+        ) as Error & { code: string; existingPath: string };
+        error.code = 'FILE_EXISTS';
+        error.existingPath = newFilePath;
+        throw error;
+      }
+
+      // Delete the existing file before moving
+      await api.deleteFile(newFilePath);
     }
 
     // Move the file

@@ -308,6 +308,12 @@ export const useUIStore = defineStore('ui', () => {
 
   // Tab actions
   function openTab(tab: Omit<IOpenTab, 'id'>): void {
+    // If panes exist, delegate to openTabInPane to ensure pane is updated
+    if (editorPanes.value.length > 0) {
+      openTabInPane(tab);
+      return;
+    }
+
     const existingTab = openTabs.value.find((t) => t.filePath === tab.filePath);
 
     if (existingTab) {
@@ -614,12 +620,21 @@ export const useUIStore = defineStore('ui', () => {
     ensurePaneExists();
 
     const targetPaneId = paneId ?? activePaneId.value;
-    const targetPane = editorPanes.value.find((p) => p.id === targetPaneId);
+    let targetPane = editorPanes.value.find((p) => p.id === targetPaneId);
 
+    // If target pane not found, use first available pane
     if (!targetPane) {
-      // Fallback to regular openTab
-      openTab(tab);
-      return;
+      targetPane = editorPanes.value[0];
+      if (!targetPane) {
+        // No panes available, add to global tabs only
+        const newTab: IOpenTab = { ...tab, id: tab.filePath };
+        if (!openTabs.value.some((t) => t.filePath === tab.filePath)) {
+          openTabs.value.push(newTab);
+        }
+        activeTabId.value = newTab.id;
+        void saveState();
+        return;
+      }
     }
 
     // Check if tab already exists in any pane

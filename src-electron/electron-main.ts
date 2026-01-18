@@ -11,11 +11,13 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import { getFileSystemService } from '../src/electron/main/services/file-system.service';
 import { getFileWatcherService } from '../src/electron/main/services/file-watcher.service';
+import { getGitService } from '../src/electron/main/services/git.service';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
   IWatcherOptions,
 } from '../src/services/file-system/types';
+import type { IGitLogOptions } from '../src/services/git/types';
 
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform();
@@ -27,6 +29,7 @@ let mainWindow: BrowserWindow | undefined;
 // Initialize services
 const fileSystemService = getFileSystemService();
 const fileWatcherService = getFileWatcherService();
+const gitService = getGitService();
 
 async function createWindow() {
   /**
@@ -285,4 +288,155 @@ ipcMain.handle('fs:unwatch-path', async (_event, watcherId: string) => {
 
 ipcMain.handle('fs:unwatch-all', async () => {
   return fileWatcherService.unwatchAll();
+});
+
+// Additional directory operations
+ipcMain.handle('fs:rename-directory', async (_event, dirPath: string, newName: string) => {
+  return fileSystemService.renameDirectory(dirPath, newName);
+});
+
+ipcMain.handle('fs:list-directory-tree', async (_event, dirPath: string) => {
+  return fileSystemService.listDirectoryTree(dirPath);
+});
+
+ipcMain.handle('fs:get-directory-contents-count', async (_event, dirPath: string) => {
+  return fileSystemService.getDirectoryContentsCount(dirPath);
+});
+
+ipcMain.handle('fs:is-directory-empty', async (_event, dirPath: string) => {
+  return fileSystemService.isDirectoryEmpty(dirPath);
+});
+
+// ================================
+// Git IPC Handlers
+// ================================
+
+// Prerequisites
+ipcMain.handle('git:is-installed', async () => {
+  return gitService.isGitInstalled();
+});
+
+ipcMain.handle('git:is-repo', async (_event, repoPath: string) => {
+  return gitService.isGitRepo(repoPath);
+});
+
+// Repository operations
+ipcMain.handle('git:init', async (_event, repoPath: string) => {
+  return gitService.init(repoPath);
+});
+
+ipcMain.handle('git:clone', async (_event, repoUrl: string, targetPath: string) => {
+  return gitService.clone(repoUrl, targetPath);
+});
+
+ipcMain.handle('git:set-working-directory', (_event, repoPath: string) => {
+  gitService.setWorkingDirectory(repoPath);
+});
+
+// Status and staging
+ipcMain.handle('git:status', async (_event, repoPath?: string) => {
+  return gitService.status(repoPath);
+});
+
+ipcMain.handle('git:add', async (_event, files: string[] | 'all', repoPath?: string) => {
+  return gitService.add(files, repoPath);
+});
+
+ipcMain.handle('git:unstage', async (_event, files: string[], repoPath?: string) => {
+  return gitService.unstage(files, repoPath);
+});
+
+// Commit operations
+ipcMain.handle('git:commit', async (_event, message: string, repoPath?: string) => {
+  return gitService.commit(message, repoPath);
+});
+
+ipcMain.handle('git:log', async (_event, options: IGitLogOptions, repoPath?: string) => {
+  return gitService.log(options, repoPath);
+});
+
+ipcMain.handle(
+  'git:diff',
+  async (_event, filePath?: string, commitHash?: string, cached?: boolean, repoPath?: string) => {
+    return gitService.diff(filePath, commitHash, cached, repoPath);
+  }
+);
+
+ipcMain.handle('git:discard-changes', async (_event, filePath: string, repoPath?: string) => {
+  return gitService.discardChanges(filePath, repoPath);
+});
+
+// Remote operations
+ipcMain.handle('git:push', async (_event, remote?: string, branch?: string, repoPath?: string) => {
+  return gitService.push(remote, branch, repoPath);
+});
+
+ipcMain.handle('git:pull', async (_event, remote?: string, branch?: string, repoPath?: string) => {
+  return gitService.pull(remote, branch, repoPath);
+});
+
+ipcMain.handle('git:fetch', async (_event, remote?: string, repoPath?: string) => {
+  return gitService.fetch(remote, repoPath);
+});
+
+ipcMain.handle('git:remotes', async (_event, repoPath?: string) => {
+  return gitService.remotes(repoPath);
+});
+
+ipcMain.handle('git:add-remote', async (_event, name: string, url: string, repoPath?: string) => {
+  return gitService.addRemote(name, url, repoPath);
+});
+
+ipcMain.handle('git:remove-remote', async (_event, name: string, repoPath?: string) => {
+  return gitService.removeRemote(name, repoPath);
+});
+
+// Branch operations
+ipcMain.handle('git:branches', async (_event, repoPath?: string) => {
+  return gitService.branches(repoPath);
+});
+
+ipcMain.handle('git:create-branch', async (_event, name: string, repoPath?: string) => {
+  return gitService.createBranch(name, repoPath);
+});
+
+ipcMain.handle('git:switch-branch', async (_event, name: string, repoPath?: string) => {
+  return gitService.switchBranch(name, repoPath);
+});
+
+ipcMain.handle(
+  'git:delete-branch',
+  async (_event, name: string, force?: boolean, repoPath?: string) => {
+    return gitService.deleteBranch(name, force, repoPath);
+  }
+);
+
+// Stash operations
+ipcMain.handle('git:stash', async (_event, message?: string, repoPath?: string) => {
+  return gitService.stash(message, repoPath);
+});
+
+ipcMain.handle('git:stash-pop', async (_event, repoPath?: string) => {
+  return gitService.stashPop(repoPath);
+});
+
+ipcMain.handle('git:stash-list', async (_event, repoPath?: string) => {
+  return gitService.stashList(repoPath);
+});
+
+// Configuration
+ipcMain.handle('git:get-config', async (_event, repoPath?: string) => {
+  return gitService.getConfig(repoPath);
+});
+
+ipcMain.handle(
+  'git:set-config',
+  async (_event, name: string, email: string, global?: boolean, repoPath?: string) => {
+    return gitService.setConfig(name, email, global, repoPath);
+  }
+);
+
+// Tracked files (files that have been committed)
+ipcMain.handle('git:tracked-files', async (_event, repoPath?: string) => {
+  return gitService.getTrackedFiles(repoPath);
 });
