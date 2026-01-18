@@ -1,0 +1,240 @@
+// app global css
+// Custom variables and overrides
+
+// ============================================
+// Theme CSS Custom Properties
+// ============================================
+
+// Light theme (default)
+:root {
+  // Primary backgrounds
+  --mp-bg-primary: #ffffff;
+  --mp-bg-secondary: #f5f5f5;
+  --mp-bg-tertiary: #e8e8e8;
+  --mp-bg-hover: #e0e0e0;
+  --mp-bg-active: #d0d0d0;
+
+  // Sidebar and panels
+  --mp-sidebar-bg: #f3f3f3;
+  --mp-editor-bg: #ffffff;
+  --mp-panel-bg: #f8f8f8;
+  --mp-activity-bar-bg: #2c2c2c;
+  --mp-status-bar-bg: #7c3aed;
+
+  // Text colors
+  --mp-text-primary: #1a1a1a;
+  --mp-text-secondary: #5f5f5f;
+  --mp-text-muted: #8c8c8c;
+  --mp-text-disabled: #b8b8b8;
+  --mp-text-inverse: #ffffff;
+
+  // Borders
+  --mp-border-color: #e0e0e0;
+  --mp-border-subtle: #f0f0f0;
+  --mp-border-strong: #c0c0c0;
+
+  // Accent colors
+  --mp-accent-color: #7c3aed;
+  --mp-accent-hover: #6d28d9;
+  --mp-accent-active: #5b21b6;
+  --mp-accent-subtle: #ede9fe;
+
+  // Semantic colors
+  --mp-success: #21ba45;
+  --mp-warning: #f2c037;
+  --mp-error: #c10015;
+  --mp-info: #31ccec;
+
+  // Tab bar
+  --mp-tab-bg: transparent;
+  --mp-tab-active-bg: #ffffff;
+  --mp-tab-hover-bg: #e8e8e8;
+  --mp-tab-border: #e0e0e0;
+
+  // Scrollbar
+  --mp-scrollbar-thumb: #c0c0c0;
+  --mp-scrollbar-thumb-hover: #a0a0a0;
+  --mp-scrollbar-track: transparent;
+
+  // Shadows
+  --mp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --mp-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --mp-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+// Dark theme
+.body--dark {
+  // Primary backgrounds
+  --mp-bg-primary: #1e1e1e;
+  --mp-bg-secondary: #252526;
+  --mp-bg-tertiary: #2d2d2d;
+  --mp-bg-hover: #3c3c3c;
+  --mp-bg-active: #4a4a4a;
+
+  // Sidebar and panels
+  --mp-sidebar-bg: #252526;
+  --mp-editor-bg: #1e1e1e;
+  --mp-panel-bg: #1e1e1e;
+  --mp-activity-bar-bg: #1a1a1a;
+  --mp-status-bar-bg: #7c3aed;
+
+  // Text colors
+  --mp-text-primary: #e0e0e0;
+  --mp-text-secondary: #a0a0a0;
+  --mp-text-muted: #6e6e6e;
+  --mp-text-disabled: #4a4a4a;
+  --mp-text-inverse: #1a1a1a;
+
+  // Borders
+  --mp-border-color: #3c3c3c;
+  --mp-border-subtle: #2d2d2d;
+  --mp-border-strong: #5a5a5a;
+
+  // Accent colors
+  --mp-accent-color: #9d7aed;
+  --mp-accent-hover: #a78bfa;
+  --mp-accent-active: #b4a0f4;
+  --mp-accent-subtle: #2d2647;
+
+  // Semantic colors
+  --mp-success: #4caf50;
+  --mp-warning: #ffc107;
+  --mp-error: #f44336;
+  --mp-info: #2196f3;
+
+  // Tab bar
+  --mp-tab-bg: transparent;
+  --mp-tab-active-bg: #1e1e1e;
+  --mp-tab-hover-bg: #2d2d2d;
+  --mp-tab-border: #3c3c3c;
+
+  // Scrollbar
+  --mp-scrollbar-thumb: #5a5a5a;
+  --mp-scrollbar-thumb-hover: #6e6e6e;
+  --mp-scrollbar-track: transparent;
+
+  // Shadows
+  --mp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --mp-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --mp-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+  // Quasar overrides
+  --q-dark: #1e1e1e;
+  --q-dark-page: #252526;
+}
+
+// ============================================
+// Global styles
+// ============================================
+
+body {
+  font-family:
+    'Roboto',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--mp-bg-primary);
+  color: var(--mp-text-primary);
+}
+
+// ============================================
+// Component theme overrides
+// ============================================
+
+// Dark mode Quasar component overrides
+.body--dark {
+  .q-drawer {
+    background-color: var(--mp-sidebar-bg);
+    border-color: var(--mp-border-color);
+  }
+
+  .q-header {
+    background-color: var(--mp-bg-primary);
+    border-bottom: 1px solid var(--mp-border-color);
+  }
+
+  .q-item__label--header {
+    color: var(--mp-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .q-btn--flat {
+    color: var(--mp-text-secondary);
+
+    &:hover {
+      background-color: var(--mp-bg-hover);
+    }
+  }
+
+  .q-field__control {
+    background-color: var(--mp-bg-secondary);
+  }
+
+  .q-menu {
+    background-color: var(--mp-bg-secondary);
+    border: 1px solid var(--mp-border-color);
+  }
+
+  .q-tooltip {
+    background-color: var(--mp-bg-tertiary);
+    color: var(--mp-text-primary);
+  }
+}
+
+// Light mode specific overrides
+body:not(.body--dark) {
+  .q-drawer {
+    background-color: var(--mp-sidebar-bg);
+    border-color: var(--mp-border-color);
+  }
+
+  .q-item__label--header {
+    color: var(--mp-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+// Scrollbar styles
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--mp-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mp-scrollbar-thumb);
+  border-radius: 5px;
+
+  &:hover {
+    background: var(--mp-scrollbar-thumb-hover);
+  }
+}
+
+// Focus styles for accessibility
+*:focus-visible {
+  outline: 2px solid var(--mp-accent-color);
+  outline-offset: 2px;
+}
+
+// Utility classes
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flex-1 {
+  flex: 1;
+}

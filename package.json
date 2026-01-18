@@ -1,0 +1,80 @@
+{
+  "name": "myndprompt",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "AI Prompt Manager - Desktop application for managing, organizing, and optimizing prompts for AI coding tools",
+  "productName": "MyndPrompt",
+  "author": "MyndPrompt Contributors",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "quasar dev",
+    "dev:electron": "quasar dev -m electron",
+    "build": "quasar build",
+    "build:electron": "quasar build -m electron",
+    "lint": "eslint --ext .js,.ts,.vue ./src",
+    "lint:fix": "eslint --ext .js,.ts,.vue ./src --fix",
+    "format": "prettier --write \"src/**/*.{js,ts,vue,scss,css,json}\"",
+    "type-check": "vue-tsc --noEmit",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@quasar/extras": "^1.16.9",
+    "buffer": "^6.0.3",
+    "chokidar": "^3.6.0",
+    "dexie": "^4.0.1",
+    "gray-matter": "^4.0.3",
+    "monaco-editor": "^0.55.1",
+    "pinia": "^2.1.7",
+    "quasar": "^2.14.2",
+    "splitpanes": "^3.2.0",
+    "uuid": "^9.0.1",
+    "vue": "^3.4.18",
+    "vue-i18n": "^9.9.0",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@intlify/unplugin-vue-i18n": "^2.0.0",
+    "@quasar/app-vite": "2.0.9",
+    "@types/node": "^20.11.5",
+    "@types/splitpanes": "^2.2.6",
+    "@types/uuid": "^9.0.7",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1",
+    "@vitejs/plugin-vue": "^5.0.3",
+    "@vue/eslint-config-prettier": "^9.0.0",
+    "@vue/eslint-config-typescript": "^12.0.0",
+    "autoprefixer": "^10.4.17",
+    "electron": "^40.0.0",
+    "electron-builder": "^24.9.1",
+    "eslint": "^8.56.0",
+    "eslint-plugin-vue": "^9.20.1",
+    "fake-indexeddb": "^5.0.2",
+    "happy-dom": "^13.3.1",
+    "husky": "^9.0.6",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.4",
+    "sass": "^1.70.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "vite-plugin-monaco-editor": "^1.1.0",
+    "vitest": "^1.2.1",
+    "vue-tsc": "^2.0.6"
+  },
+  "engines": {
+    "node": "^20 || ^22",
+    "npm": ">= 6.13.4",
+    "yarn": ">= 1.21.1"
+  },
+  "lint-staged": {
+    "*.{js,ts,vue}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,scss,css}": [
+      "prettier --write"
+    ]
+  }
+}

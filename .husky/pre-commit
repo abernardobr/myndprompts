@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Load nvm for GUI git clients (SourceTree, etc.)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Fallback: use absolute path if nvm not available
+if ! command -v node &> /dev/null; then
+  export PATH="/Users/augustopissarra/.nvm/versions/node/v22.20.0/bin:$PATH"
+fi
+
+npx lint-staged

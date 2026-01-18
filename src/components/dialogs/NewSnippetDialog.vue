@@ -1,0 +1,220 @@
+<script setup lang="ts">
+/**
+ * NewSnippetDialog Component
+ *
+ * Dialog for creating a new snippet with name, type, and description.
+ * Generates the appropriate shortcut prefix based on the selected type.
+ */
+
+import { ref, computed, watch } from 'vue';
+import type { ISnippetMetadata } from '@/services/file-system/types';
+
+interface Props {
+  modelValue: boolean;
+}
+
+interface Emits {
+  (e: 'update:modelValue', value: boolean): void;
+  (e: 'create', data: { name: string; type: ISnippetMetadata['type']; description: string }): void;
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<Emits>();
+
+// Form state
+const snippetName = ref('');
+const snippetType = ref<ISnippetMetadata['type']>('text');
+const snippetDescription = ref('');
+
+// Type options with trigger characters
+const typeOptions = [
+  {
+    value: 'persona',
+    label: 'Persona',
+    trigger: '@',
+    description: 'Reusable persona/role definitions',
+  },
+  { value: 'text', label: 'Text Snippet', trigger: '#', description: 'Text blocks to insert' },
+  {
+    value: 'code',
+    label: 'Code Snippet',
+    trigger: '$',
+    description: 'Code templates and patterns',
+  },
+  { value: 'template', label: 'Template', trigger: '!', description: 'Full prompt templates' },
+];
+
+// Get current trigger character
+const currentTrigger = computed(() => {
+  const option = typeOptions.find((o) => o.value === snippetType.value);
+  return option?.trigger ?? '@';
+});
+
+// Preview shortcut
+const previewShortcut = computed(() => {
+  if (!snippetName.value.trim()) return `${currentTrigger.value}...`;
+  const normalized = snippetName.value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+  return `${currentTrigger.value}${normalized}`;
+});
+
+// Validation
+const isValid = computed(() => {
+  return snippetName.value.trim().length >= 1 && snippetName.value.trim().length <= 50;
+});
+
+// Reset form when dialog opens
+watch(
+  () => props.modelValue,
+  (isOpen) => {
+    if (isOpen) {
+      snippetName.value = '';
+      snippetType.value = 'text';
+      snippetDescription.value = '';
+    }
+  }
+);
+
+function handleClose(): void {
+  emit('update:modelValue', false);
+}
+
+function handleCreate(): void {
+  if (!isValid.value) return;
+
+  emit('create', {
+    name: snippetName.value.trim(),
+    type: snippetType.value,
+    description: snippetDescription.value.trim(),
+  });
+
+  emit('update:modelValue', false);
+}
+</script>
+
+<template>
+  <q-dialog
+    :model-value="modelValue"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
+    <q-card class="new-snippet-dialog">
+      <q-card-section class="row items-center q-pb-none">
+        <div class="text-h6">New Snippet</div>
+        <q-space />
+        <q-btn
+          v-close-popup
+          icon="close"
+          flat
+          round
+          dense
+          @click="handleClose"
+        />
+      </q-card-section>
+
+      <q-card-section>
+        <!-- Snippet Type -->
+        <div class="q-mb-md">
+          <div class="text-caption text-grey q-mb-xs">Type</div>
+          <q-btn-toggle
+            v-model="snippetType"
+            spread
+            no-caps
+            rounded
+            unelevated
+            toggle-color="primary"
+            color="grey-8"
+            text-color="white"
+            :options="typeOptions.map((o) => ({ value: o.value, label: o.label }))"
+          />
+          <div class="text-caption text-grey-6 q-mt-xs">
+            {{ typeOptions.find((o) => o.value === snippetType)?.description }}
+          </div>
+        </div>
+
+        <!-- Snippet Name -->
+        <q-input
+          v-model="snippetName"
+          label="Snippet Name"
+          outlined
+          autofocus
+          :rules="[
+            (val) => !!val?.trim() || 'Name is required',
+            (val) => val.trim().length <= 50 || 'Name must be 50 characters or less',
+          ]"
+          class="q-mb-md"
+        >
+          <template #hint>
+            <div class="row items-center">
+              <span>Shortcut: </span>
+              <code class="q-ml-xs">{{ previewShortcut }}</code>
+            </div>
+          </template>
+        </q-input>
+
+        <!-- Description (optional) -->
+        <q-input
+          v-model="snippetDescription"
+          label="Description (optional)"
+          outlined
+          type="textarea"
+          rows="2"
+          maxlength="200"
+        />
+      </q-card-section>
+
+      <q-card-actions
+        align="right"
+        class="q-px-md q-pb-md"
+      >
+        <q-btn
+          flat
+          label="Cancel"
+          color="grey"
+          @click="handleClose"
+        />
+        <q-btn
+          unelevated
+          label="Create"
+          color="primary"
+          :disable="!isValid"
+          @click="handleCreate"
+        />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
+</template>
+
+<style lang="scss" scoped>
+.new-snippet-dialog {
+  min-width: 400px;
+  max-width: 500px;
+  width: 100%;
+}
+
+code {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  background-color: var(--code-bg, #3c3c3c);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--code-color, #9cdcfe);
+}
+
+// Light theme
+.body--light {
+  code {
+    --code-bg: #e8e8e8;
+    --code-color: #0550ae;
+  }
+}
+
+// Dark theme
+.body--dark {
+  code {
+    --code-bg: #3c3c3c;
+    --code-color: #9cdcfe;
+  }
+}
+</style>
