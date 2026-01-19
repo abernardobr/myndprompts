@@ -7,6 +7,7 @@
  */
 
 import { ref, computed, watch, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useQuasar } from 'quasar';
 import { useGitStore } from '@/stores/gitStore';
 
@@ -21,6 +22,7 @@ const emit = defineEmits<{
   (e: 'branchChanged'): void;
 }>();
 
+const { t } = useI18n({ useScope: 'global' });
 const $q = useQuasar();
 const gitStore = useGitStore();
 
@@ -244,7 +246,7 @@ function closeDialog(): void {
             color="primary"
           />
           <div class="branch-dialog__title-text">
-            <div class="text-h6">Branches</div>
+            <div class="text-h6">{{ t('dialogs.branch.title') }}</div>
             <div class="text-caption text-grey">{{ projectName }}</div>
           </div>
           <q-space />
@@ -256,7 +258,7 @@ function closeDialog(): void {
             :loading="isLoading"
             @click="loadBranches"
           >
-            <q-tooltip>Refresh</q-tooltip>
+            <q-tooltip>{{ t('common.refresh') }}</q-tooltip>
           </q-btn>
           <q-btn
             flat
@@ -272,7 +274,7 @@ function closeDialog(): void {
 
       <!-- Current branch indicator -->
       <q-card-section class="branch-dialog__current">
-        <div class="text-caption text-grey q-mb-xs">Current Branch</div>
+        <div class="text-caption text-grey q-mb-xs">{{ t('gitPanel.currentBranch') }}</div>
         <q-chip
           icon="mdi-source-branch-check"
           color="primary"
@@ -296,7 +298,7 @@ function closeDialog(): void {
             color="primary"
             size="32px"
           />
-          <span class="q-mt-sm text-grey">Loading branches...</span>
+          <span class="q-mt-sm text-grey">{{ t('common.loading') }}</span>
         </div>
 
         <!-- Branches list -->
@@ -309,7 +311,7 @@ function closeDialog(): void {
             <q-input
               ref="newBranchInput"
               v-model="newBranchName"
-              label="New branch name"
+              :label="t('dialogs.branch.branchName')"
               outlined
               dense
               autofocus
@@ -325,7 +327,7 @@ function closeDialog(): void {
                   size="sm"
                   @click="cancelCreate"
                 >
-                  <q-tooltip>Cancel</q-tooltip>
+                  <q-tooltip>{{ t('common.cancel') }}</q-tooltip>
                 </q-btn>
                 <q-btn
                   flat
@@ -338,7 +340,7 @@ function closeDialog(): void {
                   :loading="isCreating"
                   @click="createBranch"
                 >
-                  <q-tooltip>Create</q-tooltip>
+                  <q-tooltip>{{ t('common.create') }}</q-tooltip>
                 </q-btn>
               </template>
             </q-input>
@@ -351,13 +353,13 @@ function closeDialog(): void {
             no-caps
             color="primary"
             icon="add"
-            label="Create new branch"
+            :label="t('dialogs.branch.newBranch')"
             class="q-mb-md full-width"
             @click="showCreateForm"
           />
 
           <!-- Local branches -->
-          <div class="text-caption text-grey q-mb-xs">Local Branches</div>
+          <div class="text-caption text-grey q-mb-xs">{{ t('dialogs.branch.local') }}</div>
           <q-list
             separator
             class="branch-dialog__list"
@@ -388,7 +390,7 @@ function closeDialog(): void {
               >
                 <q-badge
                   color="primary"
-                  label="current"
+                  :label="t('dialogs.branch.current')"
                 />
               </q-item-section>
               <q-item-section
@@ -404,14 +406,16 @@ function closeDialog(): void {
 
             <q-item v-if="localBranches.length === 0">
               <q-item-section class="text-grey text-center">
-                No local branches found
+                {{ t('common.noResults') }}
               </q-item-section>
             </q-item>
           </q-list>
 
           <!-- Remote branches -->
           <template v-if="remoteBranches.length > 0">
-            <div class="text-caption text-grey q-mt-md q-mb-xs">Remote Branches</div>
+            <div class="text-caption text-grey q-mt-md q-mb-xs">
+              {{ t('dialogs.branch.remote') }}
+            </div>
             <q-list
               separator
               class="branch-dialog__list"
@@ -445,7 +449,7 @@ function closeDialog(): void {
       >
         <q-btn
           flat
-          label="Close"
+          :label="t('common.close')"
           color="grey"
           @click="closeDialog"
         />

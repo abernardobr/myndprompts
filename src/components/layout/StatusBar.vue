@@ -11,7 +11,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useTheme } from '@/composables/useTheme';
 import { useI18n } from 'vue-i18n';
 
-const { t: _t } = useI18n();
+const { t: _t } = useI18n({ useScope: 'global' });
 const uiStore = useUIStore();
 const { isDark, themeMode, toggleTheme } = useTheme();
 

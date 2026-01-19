@@ -66,6 +66,13 @@ export const usePromptStore = defineStore('prompts', () => {
     return paths;
   });
 
+  /**
+   * Get all favorite prompts
+   */
+  const favoritePrompts = computed(() => {
+    return allPrompts.value.filter((p) => p.metadata.isFavorite);
+  });
+
   // Actions
 
   /**
@@ -602,6 +609,7 @@ export const usePromptStore = defineStore('prompts', () => {
     loadedPromptPaths,
     hasUnsavedPrompts,
     unsavedPromptPaths,
+    favoritePrompts,
 
     // Actions
     initialize,

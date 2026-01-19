@@ -10,7 +10,7 @@ import { computed, ref } from 'vue';
 import { useUIStore, type IOpenTab } from '@/stores/uiStore';
 import { useI18n } from 'vue-i18n';
 
-const { t: _t } = useI18n();
+const { t: _t } = useI18n({ useScope: 'global' });
 const uiStore = useUIStore();
 
 const openTabs = computed(() => uiStore.openTabs);

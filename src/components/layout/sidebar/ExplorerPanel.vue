@@ -8,9 +8,11 @@
 
 import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
+import { useI18n } from 'vue-i18n';
 import { usePromptStore } from '@/stores/promptStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useGitStore } from '@/stores/gitStore';
 import type { IPromptFile, ISnippetMetadata } from '@/services/file-system/types';
@@ -20,16 +22,19 @@ import NewProjectDialog from '@/components/dialogs/NewProjectDialog.vue';
 import NewDirectoryDialog from '@/components/dialogs/NewDirectoryDialog.vue';
 import DeleteConfirmDialog from '@/components/dialogs/DeleteConfirmDialog.vue';
 import RenameDialog from '@/components/dialogs/RenameDialog.vue';
+import EditPromptDialog from '@/components/dialogs/EditPromptDialog.vue';
 import GitSetupDialog from '@/components/dialogs/GitSetupDialog.vue';
 import GitHistoryDialog from '@/components/dialogs/GitHistoryDialog.vue';
 import BranchDialog from '@/components/dialogs/BranchDialog.vue';
 
 const $q = useQuasar();
+const { t } = useI18n({ useScope: 'global' });
 
 // Stores
 const promptStore = usePromptStore();
 const snippetStore = useSnippetStore();
 const projectStore = useProjectStore();
+const settingsStore = useSettingsStore();
 const uiStore = useUIStore();
 const gitStore = useGitStore();
 
@@ -43,6 +48,7 @@ const showNewProjectDialog = ref(false);
 const showNewDirectoryDialog = ref(false);
 const showDeleteConfirmDialog = ref(false);
 const showRenameDialog = ref(false);
+const showEditPromptDialog = ref(false);
 const showGitSetupDialog = ref(false);
 const showGitHistoryDialog = ref(false);
 const showBranchDialog = ref(false);
@@ -53,6 +59,11 @@ const gitProjectName = ref('');
 
 // Dialog context
 const renameTarget = ref<{ node: ITreeNode; currentName: string } | null>(null);
+const editPromptTarget = ref<{
+  node: ITreeNode;
+  currentName: string;
+  currentCategory?: string;
+} | null>(null);
 const deleteTarget = ref<{
   node: ITreeNode;
   contentsCount?: { files: number; directories: number };
@@ -62,6 +73,7 @@ const newPromptDirectory = ref<string | null>(null);
 
 // Search state
 const searchQuery = ref('');
+const categoryFilter = ref<string | null>(null);
 
 // Expanded folders state
 const expandedFolders = ref<Set<string>>(new Set(['prompts']));
@@ -101,6 +113,7 @@ interface ITreeNode {
   depth?: number;
   isDraggable?: boolean;
   isDropTarget?: boolean;
+  category?: string;
 }
 
 // Prompts directory path
@@ -125,21 +138,36 @@ const fileTree = computed<ITreeNode[]>(() => {
 
   const tree: ITreeNode[] = [];
 
-  // Filter prompts based on search
-  const filteredPrompts = searchQuery.value.trim()
-    ? promptStore.allPrompts.filter(
-        (p) =>
-          p.metadata.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-          p.fileName.toLowerCase().includes(searchQuery.value.toLowerCase())
-      )
-    : promptStore.allPrompts;
+  // Filter prompts based on search (includes title, fileName, and category) and category filter
+  const searchLower = searchQuery.value.trim().toLowerCase();
+  const selectedCategory = categoryFilter.value;
+
+  let filteredPrompts = promptStore.allPrompts;
+
+  // Apply text search filter
+  if (searchLower) {
+    filteredPrompts = filteredPrompts.filter((p) => {
+      const titleMatch = p.metadata.title.toLowerCase().includes(searchLower);
+      const fileNameMatch = p.fileName.toLowerCase().includes(searchLower);
+      const categoryLabel = p.metadata.category
+        ? (getCategoryLabel(p.metadata.category)?.toLowerCase() ?? '')
+        : '';
+      const categoryMatch = categoryLabel.includes(searchLower);
+      return titleMatch || fileNameMatch || categoryMatch;
+    });
+  }
+
+  // Apply category filter
+  if (selectedCategory) {
+    filteredPrompts = filteredPrompts.filter((p) => p.metadata.category === selectedCategory);
+  }
 
   // Filter snippets based on search
-  const filteredSnippets = searchQuery.value.trim()
+  const filteredSnippets = searchLower
     ? snippetStore.allSnippets.filter(
         (s) =>
-          s.metadata.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-          s.metadata.shortcut.toLowerCase().includes(searchQuery.value.toLowerCase())
+          s.metadata.name.toLowerCase().includes(searchLower) ||
+          s.metadata.shortcut.toLowerCase().includes(searchLower)
       )
     : snippetStore.allSnippets;
 
@@ -276,6 +304,7 @@ function buildPromptsFolder(prompts: IPromptFile[]): ITreeNode {
       type: 'prompt',
       filePath: prompt.filePath,
       isDraggable: true,
+      category: prompt.metadata.category,
     });
   }
 
@@ -357,6 +386,7 @@ function buildDirectoryChildren(
       parentPath: dirPath,
       depth,
       isDraggable: true,
+      category: prompt.metadata.category,
     });
   }
 
@@ -368,6 +398,13 @@ function getPromptIcon(prompt: IPromptFile): string {
   if (prompt.metadata.isFavorite) return 'star';
   if (prompt.metadata.isPinned) return 'push_pin';
   return 'description';
+}
+
+// Get category label from value
+function getCategoryLabel(categoryValue: string | undefined): string | undefined {
+  if (!categoryValue) return undefined;
+  const category = settingsStore.getCategoryByValue(categoryValue);
+  return category?.label ?? categoryValue;
 }
 
 // Toggle folder expansion
@@ -556,8 +593,38 @@ async function loadDirectoryStructure(dirPath: string): Promise<void> {
   }
 }
 
-// Check if folder is expanded
+// Clear a deleted directory from the local cache
+function clearDirectoryFromCache(deletedPath: string): void {
+  // Remove the directory itself from any parent's list
+  directoryStructures.value.forEach((childDirs, parentPath) => {
+    const filtered = childDirs.filter((d) => d !== deletedPath && !d.startsWith(deletedPath + '/'));
+    if (filtered.length !== childDirs.length) {
+      directoryStructures.value.set(parentPath, filtered);
+    }
+  });
+
+  // Remove any entries where the deleted path was the parent
+  directoryStructures.value.delete(deletedPath);
+
+  // Also remove any nested paths under the deleted directory
+  const keysToDelete: string[] = [];
+  directoryStructures.value.forEach((_, key) => {
+    if (key.startsWith(deletedPath + '/')) {
+      keysToDelete.push(key);
+    }
+  });
+  keysToDelete.forEach((key) => directoryStructures.value.delete(key));
+
+  // Trigger reactivity
+  directoryStructureVersion.value++;
+}
+
+// Check if folder is expanded (auto-expand all when searching or filtering)
 function isExpanded(folderId: string): boolean {
+  // Auto-expand all folders when search or category filter is active
+  if (searchQuery.value.trim() || categoryFilter.value) {
+    return true;
+  }
   return expandedFolders.value.has(folderId);
 }
 
@@ -632,6 +699,8 @@ async function handleDeleteConfirm(): Promise<void> {
           uiStore.closeTab(tab.id);
         }
       }
+      // Clear the deleted project from the local cache
+      clearDirectoryFromCache(node.filePath);
     } else if (node.type === 'directory') {
       await projectStore.deleteDirectory(node.filePath, true);
       // Close any tabs for files in this directory
@@ -640,6 +709,8 @@ async function handleDeleteConfirm(): Promise<void> {
           uiStore.closeTab(tab.id);
         }
       }
+      // Clear the deleted directory from the local cache
+      clearDirectoryFromCache(node.filePath);
       await promptStore.refreshAllPrompts();
     }
   } catch (err) {
@@ -700,6 +771,48 @@ async function handleRename(newName: string): Promise<void> {
   } catch (err) {
     console.error('Failed to rename:', err);
     showError('Failed to rename');
+  }
+}
+
+// Open edit prompt dialog
+function openEditPromptDialog(node: ITreeNode): void {
+  if (!node.filePath || node.type !== 'prompt') return;
+  editPromptTarget.value = {
+    node,
+    currentName: node.label,
+    currentCategory: node.category,
+  };
+  showEditPromptDialog.value = true;
+}
+
+// Handle edit prompt save
+async function handleEditPromptSave(data: { name: string; category?: string }): Promise<void> {
+  if (!editPromptTarget.value) return;
+  const { node, currentName, currentCategory } = editPromptTarget.value;
+  const filePath = node.filePath;
+  if (!filePath) return;
+
+  try {
+    const nameChanged = data.name !== currentName;
+    const categoryChanged = (data.category ?? '') !== (currentCategory ?? '');
+
+    // Update category if changed
+    if (categoryChanged) {
+      await promptStore.updatePromptMetadata(filePath, { category: data.category });
+    }
+
+    // Rename if name changed
+    if (nameChanged) {
+      await promptStore.renamePrompt(filePath, data.name);
+    }
+
+    // Refresh if anything changed
+    if (nameChanged || categoryChanged) {
+      await promptStore.refreshAllPrompts();
+    }
+  } catch (err) {
+    console.error('Failed to edit prompt:', err);
+    showError('Failed to edit prompt');
   }
 }
 
@@ -1265,7 +1378,11 @@ async function toggleFavorite(node: ITreeNode): Promise<void> {
   if (!node.filePath || node.type !== 'prompt') return;
 
   try {
-    const prompt = promptStore.getCachedPrompt(node.filePath);
+    // Try to get from cache first, otherwise load it
+    let prompt = promptStore.getCachedPrompt(node.filePath);
+    if (!prompt) {
+      prompt = await promptStore.loadPrompt(node.filePath);
+    }
     if (prompt) {
       await promptStore.updatePromptMetadata(node.filePath, {
         isFavorite: !prompt.metadata.isFavorite,
@@ -1404,6 +1521,7 @@ onMounted(async () => {
       promptStore.initialize(),
       snippetStore.initialize(),
       projectStore.initialize(),
+      settingsStore.initialize(),
     ]);
     await promptStore.refreshAllPrompts();
 
@@ -1445,11 +1563,50 @@ watch(
         flat
         dense
         round
+        :icon="categoryFilter ? 'filter_alt' : 'filter_alt_off'"
+        :color="categoryFilter ? 'primary' : undefined"
+        size="sm"
+      >
+        <q-tooltip>{{
+          categoryFilter ? `Filter: ${getCategoryLabel(categoryFilter)}` : 'Filter by category'
+        }}</q-tooltip>
+        <q-menu>
+          <q-list
+            dense
+            style="min-width: 150px"
+          >
+            <q-item-label header>Filter by Category</q-item-label>
+            <q-item
+              v-close-popup
+              clickable
+              :active="!categoryFilter"
+              @click="categoryFilter = null"
+            >
+              <q-item-section>{{ t('explorer.allCategories') }}</q-item-section>
+            </q-item>
+            <q-separator />
+            <q-item
+              v-for="cat in settingsStore.categories"
+              :key="cat.value"
+              v-close-popup
+              clickable
+              :active="categoryFilter === cat.value"
+              @click="categoryFilter = cat.value"
+            >
+              <q-item-section>{{ cat.label }}</q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-btn>
+      <q-btn
+        flat
+        dense
+        round
         icon="refresh"
         size="sm"
         @click="refreshFiles"
       >
-        <q-tooltip>Refresh</q-tooltip>
+        <q-tooltip>{{ t('common.refresh') }}</q-tooltip>
       </q-btn>
       <q-btn
         flat
@@ -1458,7 +1615,7 @@ watch(
         icon="add"
         size="sm"
       >
-        <q-tooltip>New file</q-tooltip>
+        <q-tooltip>{{ t('tooltips.newFile') }}</q-tooltip>
         <q-menu>
           <q-list
             dense
@@ -1475,7 +1632,7 @@ watch(
                   size="20px"
                 />
               </q-item-section>
-              <q-item-section>New Prompt</q-item-section>
+              <q-item-section>{{ t('explorer.newPrompt') }}</q-item-section>
             </q-item>
             <q-item
               v-close-popup
@@ -1488,7 +1645,7 @@ watch(
                   size="20px"
                 />
               </q-item-section>
-              <q-item-section>New Project</q-item-section>
+              <q-item-section>{{ t('explorer.newProject') }}</q-item-section>
             </q-item>
             <q-separator />
             <q-item
@@ -1502,7 +1659,7 @@ watch(
                   size="20px"
                 />
               </q-item-section>
-              <q-item-section>New Snippet</q-item-section>
+              <q-item-section>{{ t('snippetsPanel.createNew') }}</q-item-section>
             </q-item>
           </q-list>
         </q-menu>
@@ -1598,7 +1755,7 @@ watch(
                         size="20px"
                       />
                     </q-item-section>
-                    <q-item-section>New Prompt</q-item-section>
+                    <q-item-section>{{ t('explorer.newPrompt') }}</q-item-section>
                   </q-item>
                   <q-item
                     v-if="folder.id === 'prompts'"
@@ -1612,7 +1769,7 @@ watch(
                         size="20px"
                       />
                     </q-item-section>
-                    <q-item-section>New Project</q-item-section>
+                    <q-item-section>{{ t('explorer.newProject') }}</q-item-section>
                   </q-item>
                   <q-item
                     v-if="folder.id !== 'prompts'"
@@ -1626,7 +1783,7 @@ watch(
                         size="20px"
                       />
                     </q-item-section>
-                    <q-item-section>New Snippet</q-item-section>
+                    <q-item-section>{{ t('snippetsPanel.createNew') }}</q-item-section>
                   </q-item>
                   <q-item
                     v-if="folder.id === 'personas' && folder.children?.length === 0"
@@ -1640,7 +1797,7 @@ watch(
                         size="20px"
                       />
                     </q-item-section>
-                    <q-item-section>Initialize Personas</q-item-section>
+                    <q-item-section>{{ t('explorer.initializePersonas') }}</q-item-section>
                   </q-item>
                   <q-separator />
                   <q-item
@@ -1654,7 +1811,7 @@ watch(
                         size="20px"
                       />
                     </q-item-section>
-                    <q-item-section>Refresh</q-item-section>
+                    <q-item-section>{{ t('common.refresh') }}</q-item-section>
                   </q-item>
                 </q-list>
               </q-menu>
@@ -1737,7 +1894,7 @@ watch(
                             size="20px"
                           />
                         </q-item-section>
-                        <q-item-section>New Prompt</q-item-section>
+                        <q-item-section>{{ t('explorer.newPrompt') }}</q-item-section>
                       </q-item>
                       <q-item
                         v-close-popup
@@ -1750,7 +1907,7 @@ watch(
                             size="20px"
                           />
                         </q-item-section>
-                        <q-item-section>New Directory</q-item-section>
+                        <q-item-section>{{ t('explorer.newDirectory') }}</q-item-section>
                       </q-item>
 
                       <!-- Git submenu for projects -->
@@ -1764,7 +1921,7 @@ watch(
                               color="orange"
                             />
                           </q-item-section>
-                          <q-item-section>Git</q-item-section>
+                          <q-item-section>{{ t('gitPanel.title') }}</q-item-section>
                           <q-item-section side>
                             <q-icon name="keyboard_arrow_right" />
                           </q-item-section>
@@ -1789,7 +1946,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Pull</q-item-section>
+                                <q-item-section>{{ t('gitPanel.pull') }}</q-item-section>
                               </q-item>
                               <q-item
                                 v-close-popup
@@ -1802,7 +1959,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Push</q-item-section>
+                                <q-item-section>{{ t('gitPanel.push') }}</q-item-section>
                               </q-item>
                               <q-item
                                 v-close-popup
@@ -1815,7 +1972,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Fetch</q-item-section>
+                                <q-item-section>{{ t('gitPanel.fetch') }}</q-item-section>
                               </q-item>
                               <q-item
                                 v-close-popup
@@ -1828,7 +1985,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Sync</q-item-section>
+                                <q-item-section>{{ t('gitPanel.sync') }}</q-item-section>
                               </q-item>
                               <q-separator />
                               <q-item
@@ -1842,7 +1999,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Branches</q-item-section>
+                                <q-item-section>{{ t('gitPanel.branches') }}</q-item-section>
                               </q-item>
                               <q-item
                                 v-close-popup
@@ -1855,7 +2012,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>History</q-item-section>
+                                <q-item-section>{{ t('gitPanel.viewHistory') }}</q-item-section>
                               </q-item>
                               <q-separator />
                               <q-item
@@ -1869,7 +2026,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Settings</q-item-section>
+                                <q-item-section>{{ t('activityBar.settings') }}</q-item-section>
                               </q-item>
                             </q-list>
                           </q-menu>
@@ -1888,7 +2045,7 @@ watch(
                             size="20px"
                           />
                         </q-item-section>
-                        <q-item-section>Rename</q-item-section>
+                        <q-item-section>{{ t('common.rename') }}</q-item-section>
                       </q-item>
                       <q-separator />
                       <q-item
@@ -1904,7 +2061,7 @@ watch(
                             color="negative"
                           />
                         </q-item-section>
-                        <q-item-section>Delete</q-item-section>
+                        <q-item-section>{{ t('common.delete') }}</q-item-section>
                       </q-item>
                     </q-list>
                   </q-menu>
@@ -1971,7 +2128,7 @@ watch(
                                 size="20px"
                               />
                             </q-item-section>
-                            <q-item-section>New Prompt</q-item-section>
+                            <q-item-section>{{ t('explorer.newPrompt') }}</q-item-section>
                           </q-item>
                           <q-item
                             v-close-popup
@@ -1984,7 +2141,7 @@ watch(
                                 size="20px"
                               />
                             </q-item-section>
-                            <q-item-section>New Directory</q-item-section>
+                            <q-item-section>{{ t('explorer.newDirectory') }}</q-item-section>
                           </q-item>
                           <q-separator />
                           <q-item
@@ -1998,7 +2155,7 @@ watch(
                                 size="20px"
                               />
                             </q-item-section>
-                            <q-item-section>Rename</q-item-section>
+                            <q-item-section>{{ t('common.rename') }}</q-item-section>
                           </q-item>
                           <q-separator />
                           <q-item
@@ -2014,7 +2171,7 @@ watch(
                                 color="negative"
                               />
                             </q-item-section>
-                            <q-item-section>Delete</q-item-section>
+                            <q-item-section>{{ t('common.delete') }}</q-item-section>
                           </q-item>
                         </q-list>
                       </q-menu>
@@ -2075,7 +2232,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>New Prompt</q-item-section>
+                                <q-item-section>{{ t('explorer.newPrompt') }}</q-item-section>
                               </q-item>
                               <q-item
                                 v-close-popup
@@ -2090,7 +2247,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>New Directory</q-item-section>
+                                <q-item-section>{{ t('explorer.newDirectory') }}</q-item-section>
                               </q-item>
                               <q-separator />
                               <q-item
@@ -2104,7 +2261,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Rename</q-item-section>
+                                <q-item-section>{{ t('common.rename') }}</q-item-section>
                               </q-item>
                               <q-separator />
                               <q-item
@@ -2120,7 +2277,7 @@ watch(
                                     color="negative"
                                   />
                                 </q-item-section>
-                                <q-item-section>Delete</q-item-section>
+                                <q-item-section>{{ t('common.delete') }}</q-item-section>
                               </q-item>
                             </q-list>
                           </q-menu>
@@ -2143,6 +2300,13 @@ watch(
                             class="explorer-panel__file-icon"
                           />
                           <span class="explorer-panel__file-label">{{ deepNested.label }}</span>
+                          <q-badge
+                            v-if="deepNested.type === 'prompt' && deepNested.category"
+                            :label="getCategoryLabel(deepNested.category)"
+                            color="grey-7"
+                            text-color="white"
+                            class="explorer-panel__category-badge"
+                          />
 
                           <!-- File context menu -->
                           <q-menu context-menu>
@@ -2161,7 +2325,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Open</q-item-section>
+                                <q-item-section>{{ t('common.open') }}</q-item-section>
                               </q-item>
                               <q-item
                                 v-if="deepNested.type === 'prompt'"
@@ -2175,9 +2339,26 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Toggle Favorite</q-item-section>
+                                <q-item-section>{{ t('explorer.toggleFavorite') }}</q-item-section>
                               </q-item>
+                              <!-- Edit for prompts -->
                               <q-item
+                                v-if="deepNested.type === 'prompt'"
+                                v-close-popup
+                                clickable
+                                @click="openEditPromptDialog(deepNested)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="edit"
+                                    size="20px"
+                                  />
+                                </q-item-section>
+                                <q-item-section>{{ t('common.edit') }}</q-item-section>
+                              </q-item>
+                              <!-- Rename for snippets -->
+                              <q-item
+                                v-else
                                 v-close-popup
                                 clickable
                                 @click="openRenameDialog(deepNested)"
@@ -2188,7 +2369,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Rename</q-item-section>
+                                <q-item-section>{{ t('common.rename') }}</q-item-section>
                               </q-item>
 
                               <!-- Git submenu for files in projects -->
@@ -2208,7 +2389,7 @@ watch(
                                       color="orange"
                                     />
                                   </q-item-section>
-                                  <q-item-section>Git</q-item-section>
+                                  <q-item-section>{{ t('gitPanel.title') }}</q-item-section>
                                   <q-item-section side>
                                     <q-icon name="keyboard_arrow_right" />
                                   </q-item-section>
@@ -2236,7 +2417,7 @@ watch(
                                             color="positive"
                                           />
                                         </q-item-section>
-                                        <q-item-section>Add</q-item-section>
+                                        <q-item-section>{{ t('common.add') }}</q-item-section>
                                       </q-item>
                                       <!-- Ignore File (if untracked) -->
                                       <q-item
@@ -2252,7 +2433,7 @@ watch(
                                             color="grey"
                                           />
                                         </q-item-section>
-                                        <q-item-section>Ignore</q-item-section>
+                                        <q-item-section>{{ t('explorer.ignore') }}</q-item-section>
                                       </q-item>
                                       <!-- Commit File (if staged) -->
                                       <q-item
@@ -2267,7 +2448,7 @@ watch(
                                             size="20px"
                                           />
                                         </q-item-section>
-                                        <q-item-section>Commit</q-item-section>
+                                        <q-item-section>{{ t('gitPanel.commit') }}</q-item-section>
                                       </q-item>
                                       <!-- Reject/Discard (if staged) -->
                                       <q-item
@@ -2283,7 +2464,7 @@ watch(
                                             color="negative"
                                           />
                                         </q-item-section>
-                                        <q-item-section>Reject</q-item-section>
+                                        <q-item-section>{{ t('gitPanel.discard') }}</q-item-section>
                                       </q-item>
                                       <!-- History (if tracked - has commits) -->
                                       <q-item
@@ -2298,7 +2479,9 @@ watch(
                                             size="20px"
                                           />
                                         </q-item-section>
-                                        <q-item-section>History</q-item-section>
+                                        <q-item-section>{{
+                                          t('gitPanel.viewHistory')
+                                        }}</q-item-section>
                                       </q-item>
                                     </q-list>
                                   </q-menu>
@@ -2319,7 +2502,7 @@ watch(
                                     color="negative"
                                   />
                                 </q-item-section>
-                                <q-item-section>Delete</q-item-section>
+                                <q-item-section>{{ t('common.delete') }}</q-item-section>
                               </q-item>
                             </q-list>
                           </q-menu>
@@ -2344,6 +2527,13 @@ watch(
                         class="explorer-panel__file-icon"
                       />
                       <span class="explorer-panel__file-label">{{ nested.label }}</span>
+                      <q-badge
+                        v-if="nested.type === 'prompt' && nested.category"
+                        :label="getCategoryLabel(nested.category)"
+                        color="grey-7"
+                        text-color="white"
+                        class="explorer-panel__category-badge"
+                      />
 
                       <!-- File context menu -->
                       <q-menu context-menu>
@@ -2362,7 +2552,7 @@ watch(
                                 size="20px"
                               />
                             </q-item-section>
-                            <q-item-section>Open</q-item-section>
+                            <q-item-section>{{ t('common.open') }}</q-item-section>
                           </q-item>
                           <q-item
                             v-if="nested.type === 'prompt'"
@@ -2376,9 +2566,26 @@ watch(
                                 size="20px"
                               />
                             </q-item-section>
-                            <q-item-section>Toggle Favorite</q-item-section>
+                            <q-item-section>{{ t('explorer.toggleFavorite') }}</q-item-section>
                           </q-item>
+                          <!-- Edit for prompts -->
                           <q-item
+                            v-if="nested.type === 'prompt'"
+                            v-close-popup
+                            clickable
+                            @click="openEditPromptDialog(nested)"
+                          >
+                            <q-item-section avatar>
+                              <q-icon
+                                name="edit"
+                                size="20px"
+                              />
+                            </q-item-section>
+                            <q-item-section>{{ t('common.edit') }}</q-item-section>
+                          </q-item>
+                          <!-- Rename for snippets -->
+                          <q-item
+                            v-else
                             v-close-popup
                             clickable
                             @click="openRenameDialog(nested)"
@@ -2389,7 +2596,7 @@ watch(
                                 size="20px"
                               />
                             </q-item-section>
-                            <q-item-section>Rename</q-item-section>
+                            <q-item-section>{{ t('common.rename') }}</q-item-section>
                           </q-item>
 
                           <!-- Git submenu for files in projects -->
@@ -2403,7 +2610,7 @@ watch(
                                   color="orange"
                                 />
                               </q-item-section>
-                              <q-item-section>Git</q-item-section>
+                              <q-item-section>{{ t('gitPanel.title') }}</q-item-section>
                               <q-item-section side>
                                 <q-icon name="keyboard_arrow_right" />
                               </q-item-section>
@@ -2431,7 +2638,7 @@ watch(
                                         color="positive"
                                       />
                                     </q-item-section>
-                                    <q-item-section>Add</q-item-section>
+                                    <q-item-section>{{ t('common.add') }}</q-item-section>
                                   </q-item>
                                   <!-- Ignore File (if untracked) -->
                                   <q-item
@@ -2447,7 +2654,7 @@ watch(
                                         color="grey"
                                       />
                                     </q-item-section>
-                                    <q-item-section>Ignore</q-item-section>
+                                    <q-item-section>{{ t('explorer.ignore') }}</q-item-section>
                                   </q-item>
                                   <!-- Commit File (if staged) -->
                                   <q-item
@@ -2462,7 +2669,7 @@ watch(
                                         size="20px"
                                       />
                                     </q-item-section>
-                                    <q-item-section>Commit</q-item-section>
+                                    <q-item-section>{{ t('gitPanel.commit') }}</q-item-section>
                                   </q-item>
                                   <!-- Reject/Discard (if staged) -->
                                   <q-item
@@ -2478,7 +2685,7 @@ watch(
                                         color="negative"
                                       />
                                     </q-item-section>
-                                    <q-item-section>Reject</q-item-section>
+                                    <q-item-section>{{ t('gitPanel.discard') }}</q-item-section>
                                   </q-item>
                                   <!-- History (if tracked - has commits) -->
                                   <q-item
@@ -2493,7 +2700,7 @@ watch(
                                         size="20px"
                                       />
                                     </q-item-section>
-                                    <q-item-section>History</q-item-section>
+                                    <q-item-section>{{ t('gitPanel.viewHistory') }}</q-item-section>
                                   </q-item>
                                 </q-list>
                               </q-menu>
@@ -2514,7 +2721,7 @@ watch(
                                 color="negative"
                               />
                             </q-item-section>
-                            <q-item-section>Delete</q-item-section>
+                            <q-item-section>{{ t('common.delete') }}</q-item-section>
                           </q-item>
                         </q-list>
                       </q-menu>
@@ -2548,6 +2755,13 @@ watch(
                     class="explorer-panel__file-icon"
                   />
                   <span class="explorer-panel__file-label">{{ child.label }}</span>
+                  <q-badge
+                    v-if="child.type === 'prompt' && child.category"
+                    :label="getCategoryLabel(child.category)"
+                    color="grey-7"
+                    text-color="white"
+                    class="explorer-panel__category-badge"
+                  />
 
                   <!-- File context menu -->
                   <q-menu context-menu>
@@ -2566,7 +2780,7 @@ watch(
                             size="20px"
                           />
                         </q-item-section>
-                        <q-item-section>Open</q-item-section>
+                        <q-item-section>{{ t('common.open') }}</q-item-section>
                       </q-item>
                       <q-item
                         v-if="child.type === 'prompt'"
@@ -2580,9 +2794,26 @@ watch(
                             size="20px"
                           />
                         </q-item-section>
-                        <q-item-section>Toggle Favorite</q-item-section>
+                        <q-item-section>{{ t('explorer.toggleFavorite') }}</q-item-section>
                       </q-item>
+                      <!-- Edit for prompts -->
                       <q-item
+                        v-if="child.type === 'prompt'"
+                        v-close-popup
+                        clickable
+                        @click="openEditPromptDialog(child)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon
+                            name="edit"
+                            size="20px"
+                          />
+                        </q-item-section>
+                        <q-item-section>{{ t('common.edit') }}</q-item-section>
+                      </q-item>
+                      <!-- Rename for snippets -->
+                      <q-item
+                        v-else
                         v-close-popup
                         clickable
                         @click="openRenameDialog(child)"
@@ -2593,7 +2824,7 @@ watch(
                             size="20px"
                           />
                         </q-item-section>
-                        <q-item-section>Rename</q-item-section>
+                        <q-item-section>{{ t('common.rename') }}</q-item-section>
                       </q-item>
 
                       <!-- Git submenu for files in projects -->
@@ -2613,7 +2844,7 @@ watch(
                               color="orange"
                             />
                           </q-item-section>
-                          <q-item-section>Git</q-item-section>
+                          <q-item-section>{{ t('gitPanel.title') }}</q-item-section>
                           <q-item-section side>
                             <q-icon name="keyboard_arrow_right" />
                           </q-item-section>
@@ -2641,7 +2872,7 @@ watch(
                                     color="positive"
                                   />
                                 </q-item-section>
-                                <q-item-section>Add</q-item-section>
+                                <q-item-section>{{ t('common.add') }}</q-item-section>
                               </q-item>
                               <!-- Ignore File (if untracked) -->
                               <q-item
@@ -2657,7 +2888,7 @@ watch(
                                     color="grey"
                                   />
                                 </q-item-section>
-                                <q-item-section>Ignore</q-item-section>
+                                <q-item-section>{{ t('explorer.ignore') }}</q-item-section>
                               </q-item>
                               <q-separator
                                 v-if="
@@ -2677,7 +2908,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>Commit</q-item-section>
+                                <q-item-section>{{ t('gitPanel.commit') }}</q-item-section>
                               </q-item>
                               <!-- Reject/Discard (if staged) -->
                               <q-item
@@ -2693,7 +2924,7 @@ watch(
                                     color="negative"
                                   />
                                 </q-item-section>
-                                <q-item-section>Reject</q-item-section>
+                                <q-item-section>{{ t('gitPanel.discard') }}</q-item-section>
                               </q-item>
                               <!-- History (if tracked - has commits) -->
                               <q-item
@@ -2708,7 +2939,7 @@ watch(
                                     size="20px"
                                   />
                                 </q-item-section>
-                                <q-item-section>History</q-item-section>
+                                <q-item-section>{{ t('gitPanel.viewHistory') }}</q-item-section>
                               </q-item>
                             </q-list>
                           </q-menu>
@@ -2729,7 +2960,7 @@ watch(
                             color="negative"
                           />
                         </q-item-section>
-                        <q-item-section>Delete</q-item-section>
+                        <q-item-section>{{ t('common.delete') }}</q-item-section>
                       </q-item>
                     </q-list>
                   </q-menu>
@@ -2793,6 +3024,13 @@ watch(
       :current-name="renameTarget?.currentName ?? ''"
       :item-type="renameTarget?.node ? getRenameItemType(renameTarget.node) : 'prompt'"
       @rename="handleRename"
+    />
+
+    <EditPromptDialog
+      v-model="showEditPromptDialog"
+      :current-name="editPromptTarget?.currentName ?? ''"
+      :current-category="editPromptTarget?.currentCategory"
+      @save="handleEditPromptSave"
     />
 
     <GitSetupDialog
@@ -2918,6 +3156,13 @@ watch(
   &__count {
     font-size: 10px;
     padding: 2px 6px;
+  }
+
+  &__category-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    margin-left: auto;
+    flex-shrink: 0;
   }
 
   &__branch-chip {

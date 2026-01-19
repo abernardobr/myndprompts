@@ -5,7 +5,7 @@
  * Sets up the BrowserWindow and IPC handlers.
  */
 
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
 import path from 'path';
 import os from 'os';
 import { fileURLToPath } from 'url';
@@ -22,6 +22,12 @@ import type { IGitLogOptions } from '../src/services/git/types';
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform();
 
+// Set the app name as early as possible (before ready event)
+// This affects the macOS menu bar name
+if (platform === 'darwin') {
+  app.name = 'MyndPrompts';
+}
+
 const currentDir = fileURLToPath(new URL('.', import.meta.url));
 
 let mainWindow: BrowserWindow | undefined;
@@ -30,6 +36,134 @@ let mainWindow: BrowserWindow | undefined;
 const fileSystemService = getFileSystemService();
 const fileWatcherService = getFileWatcherService();
 const gitService = getGitService();
+
+/**
+ * Create the application menu
+ */
+function createApplicationMenu(): void {
+  const isMac = platform === 'darwin';
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    // App menu (macOS only)
+    ...(isMac
+      ? [
+          {
+            label: 'MyndPrompts',
+            submenu: [
+              { role: 'about' as const, label: 'About MyndPrompts' },
+              { type: 'separator' as const },
+              { role: 'services' as const },
+              { type: 'separator' as const },
+              { role: 'hide' as const, label: 'Hide MyndPrompts' },
+              { role: 'hideOthers' as const },
+              { role: 'unhide' as const },
+              { type: 'separator' as const },
+              { role: 'quit' as const, label: 'Quit MyndPrompts' },
+            ],
+          },
+        ]
+      : []),
+    // File menu
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New Prompt',
+          accelerator: isMac ? 'Cmd+N' : 'Ctrl+N',
+          click: () => {
+            mainWindow?.webContents.send('menu:new-prompt');
+          },
+        },
+        {
+          label: 'Open Prompt',
+          accelerator: isMac ? 'Cmd+O' : 'Ctrl+O',
+          click: () => {
+            mainWindow?.webContents.send('menu:open-prompt');
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'Save',
+          accelerator: isMac ? 'Cmd+S' : 'Ctrl+S',
+          click: () => {
+            mainWindow?.webContents.send('menu:save');
+          },
+        },
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' },
+      ],
+    },
+    // Edit menu
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        ...(isMac
+          ? [
+              { role: 'pasteAndMatchStyle' as const },
+              { role: 'delete' as const },
+              { role: 'selectAll' as const },
+            ]
+          : [
+              { role: 'delete' as const },
+              { type: 'separator' as const },
+              { role: 'selectAll' as const },
+            ]),
+      ],
+    },
+    // View menu
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    // Window menu
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        ...(isMac
+          ? [
+              { type: 'separator' as const },
+              { role: 'front' as const },
+              { type: 'separator' as const },
+              { role: 'window' as const },
+            ]
+          : [{ role: 'close' as const }]),
+      ],
+    },
+    // Help menu
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'MyndPrompts Documentation',
+          click: async () => {
+            await shell.openExternal('https://myndprompts.com');
+          },
+        },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
 
 async function createWindow() {
   /**
@@ -44,6 +178,7 @@ async function createWindow() {
     useContentSize: true,
     frame: platform !== 'darwin',
     titleBarStyle: platform === 'darwin' ? 'hiddenInset' : 'default',
+    trafficLightPosition: platform === 'darwin' ? { x: 13, y: 12 } : undefined,
     backgroundColor: '#1e1e1e',
     webPreferences: {
       contextIsolation: true,
@@ -87,7 +222,10 @@ async function createWindow() {
   });
 }
 
-void app.whenReady().then(createWindow);
+void app.whenReady().then(() => {
+  createApplicationMenu();
+  void createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (platform !== 'darwin') {

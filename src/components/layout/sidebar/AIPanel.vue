@@ -9,7 +9,7 @@
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-const { t: _t } = useI18n();
+const { t: _t } = useI18n({ useScope: 'global' });
 
 const chatInput = ref('');
 const chatHistory = ref<{ role: 'user' | 'assistant'; content: string }[]>([]);

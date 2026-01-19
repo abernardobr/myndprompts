@@ -27,6 +27,9 @@ import StatusBar from '@/components/layout/StatusBar.vue';
 const uiStore = useUIStore();
 const appStore = useAppStore();
 
+// Platform detection for macOS traffic lights
+const isMac = computed(() => appStore.isMac);
+
 // Computed layout values
 const sidebarCollapsed = computed(() => uiStore.sidebarCollapsed);
 const panelCollapsed = computed(() => uiStore.panelCollapsed);
@@ -76,7 +79,16 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="main-layout">
+  <div
+    class="main-layout"
+    :class="{ 'main-layout--macos': isMac }"
+  >
+    <!-- macOS full-width titlebar spacer -->
+    <div
+      v-if="isMac"
+      class="main-layout__titlebar"
+    />
+
     <!-- Activity Bar -->
     <ActivityBar class="main-layout__activity-bar" />
 
@@ -235,47 +247,76 @@ onMounted(async () => {
     'activity content'
     'status status';
 
+  // macOS layout with full-width titlebar
+  &--macos {
+    grid-template-rows: 28px 1fr 22px;
+    grid-template-areas:
+      'titlebar titlebar'
+      'activity content'
+      'status status';
+  }
+
+  &__titlebar {
+    grid-area: titlebar;
+    height: 28px;
+    min-height: 28px;
+    -webkit-app-region: drag;
+    background-color: var(--titlebar-bg, #333333);
+  }
+
   &__activity-bar {
     grid-area: activity;
+    min-height: 0; // Allow shrinking
+    overflow: hidden;
   }
 
   &__horizontal {
     grid-area: content;
     height: 100%;
+    min-height: 0; // Allow shrinking in grid
+    overflow: hidden;
   }
 
   &__status-bar {
     grid-area: status;
+    flex-shrink: 0; // Never shrink
   }
 
   &__sidebar-pane {
     overflow: hidden;
+    min-height: 0;
   }
 
   &__content-pane {
     overflow: hidden;
+    min-height: 0;
   }
 
   &__vertical {
     height: 100%;
+    min-height: 0;
   }
 
   &__editor-pane {
     overflow: hidden;
+    min-height: 0;
   }
 
   &__panel-pane {
     overflow: hidden;
+    min-height: 0;
   }
 }
 
 // Light theme
 .body--light .main-layout {
   --layout-bg: #f3f3f3;
+  --titlebar-bg: #dddddd;
 }
 
 // Dark theme
 .body--dark .main-layout {
   --layout-bg: #1e1e1e;
+  --titlebar-bg: #333333;
 }
 </style>

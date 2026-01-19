@@ -421,10 +421,13 @@ watch(
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0; // Allow shrinking in flex/grid contexts
   background-color: var(--editor-bg, #1e1e1e);
+  overflow: hidden;
 
   &__pane {
     height: 100%;
+    min-height: 0; // Allow shrinking
     overflow: hidden;
   }
 

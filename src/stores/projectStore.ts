@@ -61,16 +61,57 @@ export const useProjectStore = defineStore('projects', () => {
 
   /**
    * Refresh the list of all projects
+   * Also syncs projects from file system (creates entries for directories not in IndexedDB)
    */
   async function refreshProjects(): Promise<void> {
     try {
       isLoading.value = true;
+
+      // First sync projects from file system
+      await syncProjectsFromFileSystem();
+
+      // Then load all projects from IndexedDB
       allProjects.value = await projectRepository.getAllProjects();
     } catch (err) {
       console.error('Failed to refresh projects:', err);
       throw err;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /**
+   * Sync projects from file system
+   * Creates project entries for directories in prompts folder that aren't in IndexedDB
+   */
+  async function syncProjectsFromFileSystem(): Promise<void> {
+    if (!isElectron()) return;
+
+    try {
+      // Get the prompts directory path
+      const config = await window.fileSystemAPI.getConfig();
+      const promptsDir = config.promptsDir;
+
+      // Read the prompts directory
+      const dirListing = await window.fileSystemAPI.readDirectory(promptsDir);
+
+      // Get existing project paths from IndexedDB
+      const existingProjects = await projectRepository.getAllProjects();
+      const existingPaths = new Set(existingProjects.map((p) => p.folderPath));
+
+      // Find directories that aren't tracked as projects
+      for (const dir of dirListing.directories) {
+        const fullPath = dir.path;
+
+        if (!existingPaths.has(fullPath)) {
+          // Create a project entry for this directory
+          console.log(`Auto-creating project for directory: ${dir.name}`);
+          await projectRepository.createProject(fullPath, dir.name);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to sync projects from file system:', err);
+      // Don't throw - this is a best-effort sync
     }
   }
 

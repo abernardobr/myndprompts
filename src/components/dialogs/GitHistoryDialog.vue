@@ -7,6 +7,7 @@
  */
 
 import { ref, computed, watch, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useQuasar } from 'quasar';
 import { useGitStore } from '@/stores/gitStore';
 
@@ -20,6 +21,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
 }>();
 
+const { t } = useI18n({ useScope: 'global' });
 const $q = useQuasar();
 const gitStore = useGitStore();
 
@@ -166,7 +168,7 @@ function closeDialog(): void {
             color="primary"
           />
           <div class="git-history-dialog__title-text">
-            <h6 class="q-ma-none">Git History</h6>
+            <h6 class="q-ma-none">{{ t('dialogs.gitHistory.title') }}</h6>
             <span class="text-caption text-grey">{{ projectName }}</span>
           </div>
           <q-space />
@@ -177,7 +179,7 @@ function closeDialog(): void {
             icon="refresh"
             @click="loadHistory"
           >
-            <q-tooltip>Refresh</q-tooltip>
+            <q-tooltip>{{ t('common.refresh') }}</q-tooltip>
           </q-btn>
           <q-btn
             flat
@@ -202,7 +204,7 @@ function closeDialog(): void {
             color="primary"
             size="40px"
           />
-          <span class="q-mt-md text-grey">Loading history...</span>
+          <span class="q-mt-md text-grey">{{ t('common.loading') }}</span>
         </div>
 
         <!-- No commits -->
@@ -215,8 +217,8 @@ function closeDialog(): void {
             size="64px"
             color="grey-6"
           />
-          <h6 class="q-mt-md q-mb-sm">No Commits</h6>
-          <p class="text-grey text-center">This repository has no commits yet.</p>
+          <h6 class="q-mt-md q-mb-sm">{{ t('dialogs.gitHistory.noCommits') }}</h6>
+          <p class="text-grey text-center">{{ t('dialogs.gitHistory.noCommits') }}</p>
         </div>
 
         <!-- Commits list -->
@@ -321,7 +323,7 @@ function closeDialog(): void {
               class="git-history-dialog__diff-loading"
             >
               <q-spinner-dots color="primary" />
-              <span class="q-ml-sm text-grey">Loading changes...</span>
+              <span class="q-ml-sm text-grey">{{ t('common.loading') }}</span>
             </div>
             <div
               v-else-if="commitDiff"

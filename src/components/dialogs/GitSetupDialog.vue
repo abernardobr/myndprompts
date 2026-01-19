@@ -7,6 +7,7 @@
  */
 
 import { ref, computed, watch, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useQuasar } from 'quasar';
 import { useGitStore } from '@/stores/gitStore';
 
@@ -21,6 +22,7 @@ const emit = defineEmits<{
   (e: 'setup-complete'): void;
 }>();
 
+const { t } = useI18n({ useScope: 'global' });
 const $q = useQuasar();
 const gitStore = useGitStore();
 
@@ -441,7 +443,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
             color="orange"
           />
           <div class="git-setup-dialog__title-text">
-            <h6 class="q-ma-none">Git Repository</h6>
+            <h6 class="q-ma-none">{{ t('dialogs.gitSetup.title') }}</h6>
             <span class="text-caption text-grey">{{ projectName }}</span>
           </div>
           <q-space />
@@ -468,7 +470,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
             color="primary"
             size="40px"
           />
-          <span class="q-mt-md text-grey">Checking Git status...</span>
+          <span class="q-mt-md text-grey">{{ t('common.loading') }}</span>
         </div>
 
         <!-- Not a Git repository -->
@@ -481,15 +483,13 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
             size="64px"
             color="grey-6"
           />
-          <h6 class="q-mt-md q-mb-sm">Not a Git Repository</h6>
+          <h6 class="q-mt-md q-mb-sm">{{ t('gitPanel.notInitialized') }}</h6>
           <p class="text-grey text-center">
-            This project is not initialized as a Git repository.
-            <br />
-            Initialize it to enable version control.
+            {{ t('gitPanel.notInitialized') }}
           </p>
           <q-btn
             color="primary"
-            label="Initialize Git Repository"
+            :label="t('gitPanel.initializeRepo')"
             icon="mdi-source-repository"
             :loading="isInitializing"
             @click="initRepository"
@@ -561,7 +561,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
               icon="refresh"
               @click="checkGitStatus"
             >
-              <q-tooltip>Refresh status</q-tooltip>
+              <q-tooltip>{{ t('common.refresh') }}</q-tooltip>
             </q-btn>
           </div>
 
@@ -576,22 +576,22 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
           >
             <q-tab
               name="status"
-              label="Status"
+              :label="t('common.info')"
               icon="mdi-information"
             />
             <q-tab
               name="commit"
-              label="Commit"
+              :label="t('gitPanel.commit')"
               icon="mdi-source-commit"
             />
             <q-tab
               name="remotes"
-              label="Remotes"
+              :label="t('gitPanel.branches')"
               icon="mdi-cloud"
             />
             <q-tab
               name="settings"
-              label="Settings"
+              :label="t('settingsPanel.title')"
               icon="mdi-cog"
             />
           </q-tabs>
@@ -613,7 +613,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                     outline
                     color="primary"
                     icon="mdi-arrow-down"
-                    label="Pull"
+                    :label="t('gitPanel.pull')"
                     :loading="isPulling"
                     :disable="!canPull"
                     @click="pullFromRemote"
@@ -622,7 +622,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                     outline
                     color="primary"
                     icon="mdi-arrow-up"
-                    label="Push"
+                    :label="t('gitPanel.push')"
                     :loading="isPushing"
                     :disable="!canPush"
                     @click="pushToRemote"
@@ -631,7 +631,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                     outline
                     color="grey"
                     icon="mdi-cloud-download"
-                    label="Fetch"
+                    :label="t('gitPanel.fetch')"
                     :loading="isFetching"
                     :disable="!hasRemote"
                     @click="fetchFromRemote"
@@ -643,7 +643,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                   v-if="hasUncommittedChanges"
                   class="git-setup-dialog__changes"
                 >
-                  <h6 class="q-ma-none q-mb-sm">Uncommitted Changes</h6>
+                  <h6 class="q-ma-none q-mb-sm">{{ t('gitPanel.changes') }}</h6>
                   <div class="git-setup-dialog__changes-grid">
                     <div
                       v-if="stagedCount > 0"
@@ -688,7 +688,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                     size="48px"
                     color="positive"
                   />
-                  <span class="q-mt-sm text-grey">Working tree clean</span>
+                  <span class="q-mt-sm text-grey">{{ t('gitPanel.noChanges') }}</span>
                 </div>
 
                 <!-- Remote info -->
@@ -696,7 +696,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                   v-if="hasRemote"
                   class="git-setup-dialog__remote-info q-mt-lg"
                 >
-                  <h6 class="q-ma-none q-mb-sm">Remote Repository</h6>
+                  <h6 class="q-ma-none q-mb-sm">{{ t('dialogs.branch.remote') }}</h6>
                   <div
                     v-for="remote in remotes"
                     :key="remote.name"
@@ -727,7 +727,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                   <q-btn
                     flat
                     color="primary"
-                    label="Add Remote"
+                    :label="t('common.add')"
                     @click="activeTab = 'remotes'"
                   />
                 </div>
@@ -746,7 +746,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                     size="48px"
                     color="positive"
                   />
-                  <span class="q-mt-sm text-grey">No changes to commit</span>
+                  <span class="q-mt-sm text-grey">{{ t('gitPanel.noChanges') }}</span>
                 </div>
 
                 <div
@@ -761,8 +761,8 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                     v-model="commitMessage"
                     outlined
                     type="textarea"
-                    label="Commit message"
-                    placeholder="Enter commit message..."
+                    :label="t('gitPanel.commitMessage')"
+                    :placeholder="t('gitPanel.commitPlaceholder')"
                     :rows="4"
                     autogrow
                     class="q-mb-md"
@@ -771,7 +771,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                   <q-btn
                     color="primary"
                     icon="mdi-source-commit"
-                    label="Commit All Changes"
+                    :label="t('gitPanel.commit')"
                     :loading="isCommitting"
                     :disable="!commitMessage.trim()"
                     @click="commitAll"
@@ -788,7 +788,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                   v-if="remotes.length > 0"
                   class="q-mb-lg"
                 >
-                  <h6 class="q-ma-none q-mb-sm">Configured Remotes</h6>
+                  <h6 class="q-ma-none q-mb-sm">{{ t('dialogs.branch.remote') }}</h6>
                   <q-list
                     bordered
                     separator
@@ -812,16 +812,16 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                 </div>
 
                 <!-- Add remote form -->
-                <h6 class="q-ma-none q-mb-sm">Add Remote</h6>
+                <h6 class="q-ma-none q-mb-sm">{{ t('common.add') }}</h6>
                 <p class="text-caption text-grey q-mb-md">
-                  Connect this repository to a remote Git server (e.g., GitHub, GitLab).
+                  {{ t('dialogs.branch.remote') }}
                 </p>
 
                 <q-input
                   v-model="remoteName"
                   outlined
                   dense
-                  label="Remote name"
+                  :label="t('dialogs.branch.branchName')"
                   placeholder="origin"
                   class="q-mb-sm"
                 />
@@ -830,7 +830,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                   v-model="remoteUrl"
                   outlined
                   dense
-                  label="Remote URL"
+                  label="URL"
                   placeholder="https://github.com/user/repo.git"
                   class="q-mb-md"
                 />
@@ -838,7 +838,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                 <q-btn
                   color="primary"
                   icon="mdi-plus"
-                  label="Add Remote"
+                  :label="t('common.add')"
                   :loading="isAddingRemote"
                   :disable="!remoteUrl.trim() || !remoteName.trim()"
                   @click="addRemote"
@@ -849,17 +849,17 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
             <!-- Settings panel -->
             <q-tab-panel name="settings">
               <div class="git-setup-dialog__panel-content">
-                <h6 class="q-ma-none q-mb-sm">Git User Configuration</h6>
+                <h6 class="q-ma-none q-mb-sm">{{ t('dialogs.gitSetup.configureGit') }}</h6>
                 <p class="text-caption text-grey q-mb-md">
-                  Configure your name and email for commits in this repository.
+                  {{ t('dialogs.gitSetup.configureGit') }}
                 </p>
 
                 <q-input
                   v-model="gitUserName"
                   outlined
                   dense
-                  label="Name"
-                  placeholder="Your Name"
+                  :label="t('dialogs.gitSetup.userName')"
+                  :placeholder="t('dialogs.gitSetup.userNamePlaceholder')"
                   class="q-mb-sm"
                 />
 
@@ -867,15 +867,15 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                   v-model="gitUserEmail"
                   outlined
                   dense
-                  label="Email"
-                  placeholder="your.email@example.com"
+                  :label="t('dialogs.gitSetup.userEmail')"
+                  :placeholder="t('dialogs.gitSetup.userEmailPlaceholder')"
                   class="q-mb-md"
                 />
 
                 <q-btn
                   color="primary"
                   icon="mdi-content-save"
-                  label="Save Configuration"
+                  :label="t('common.save')"
                   :loading="isConfiguringUser"
                   :disable="!gitUserName.trim() || !gitUserEmail.trim()"
                   @click="configureUser"

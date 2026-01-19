@@ -26,12 +26,8 @@ export default configure(() => {
       vueRouterMode: 'hash',
 
       vitePlugins: [
-        [
-          '@intlify/unplugin-vue-i18n/vite',
-          {
-            include: [path.resolve(__dirname, './src/i18n/**')],
-          },
-        ],
+        // Note: unplugin-vue-i18n removed - we use TypeScript locale files
+        // imported directly in boot/i18n.ts
         [
           'vite-plugin-monaco-editor',
           {
@@ -102,7 +98,7 @@ export default configure(() => {
 
       builder: {
         appId: 'com.myndprompt.app',
-        productName: 'MyndPrompt',
+        productName: 'MyndPrompts',
         copyright: 'Copyright (c) MyndPrompt Contributors',
 
         mac: {

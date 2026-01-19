@@ -7,10 +7,13 @@
  */
 
 import { ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useSnippetStore } from '@/stores/snippetStore';
 import type { ISnippetFile, ISnippetMetadata } from '@/services/file-system/types';
 import NewSnippetDialog from '@/components/dialogs/NewSnippetDialog.vue';
 import RenameDialog from '@/components/dialogs/RenameDialog.vue';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const snippetStore = useSnippetStore();
 
@@ -32,28 +35,28 @@ const selectedCategory = ref<ISnippetMetadata['type'] | null>(null);
 const snippetCategories = computed(() => [
   {
     id: 'persona' as const,
-    label: 'Personas',
+    label: t('snippetsPanel.personas'),
     icon: 'person',
     trigger: '@',
     count: snippetStore.personaSnippets.length,
   },
   {
     id: 'text' as const,
-    label: 'Text Snippets',
+    label: t('snippetsPanel.textSnippets'),
     icon: 'text_snippet',
     trigger: '#',
     count: snippetStore.textSnippets.length,
   },
   {
     id: 'code' as const,
-    label: 'Code Snippets',
+    label: t('snippetsPanel.codeSnippets'),
     icon: 'code',
     trigger: '$',
     count: snippetStore.codeSnippets.length,
   },
   {
     id: 'template' as const,
-    label: 'Templates',
+    label: t('snippetsPanel.templates'),
     icon: 'article',
     trigger: '!',
     count: snippetStore.templateSnippets.length,
@@ -193,7 +196,7 @@ onMounted(async () => {
     <div class="snippets-panel__header">
       <q-input
         v-model="searchQuery"
-        placeholder="Search snippets..."
+        :placeholder="t('snippetsPanel.searchPlaceholder')"
         outlined
         dense
         clearable
@@ -213,7 +216,7 @@ onMounted(async () => {
         icon="add"
         @click="showNewSnippetDialog = true"
       >
-        <q-tooltip>Create new snippet</q-tooltip>
+        <q-tooltip>{{ t('snippetsPanel.createNew') }}</q-tooltip>
       </q-btn>
     </div>
 
@@ -257,10 +260,10 @@ onMounted(async () => {
             class="text-grey-6 q-mb-sm"
           />
           <p class="text-grey-6 text-caption text-center">
-            Snippets panel is available in the desktop app.
+            {{ t('snippetsPanel.browserMode') }}
           </p>
           <p class="text-grey-7 text-caption text-center q-mt-sm">
-            Running in browser preview mode.
+            {{ t('snippetsPanel.browserModeHint') }}
           </p>
         </div>
 
@@ -289,19 +292,19 @@ onMounted(async () => {
             v-if="totalSnippets === 0"
             class="text-grey-6 text-caption"
           >
-            No snippets yet. Click + to create your first snippet.
+            {{ t('snippetsPanel.noSnippets') }} {{ t('snippetsPanel.noSnippetsHint') }}
           </p>
           <p
             v-else-if="searchQuery"
             class="text-grey-6 text-caption"
           >
-            No snippets match your search.
+            {{ t('snippetsPanel.noMatchingSnippets') }}
           </p>
           <p
             v-else
             class="text-grey-6 text-caption"
           >
-            No snippets in this category.
+            {{ t('snippetsPanel.noCategorySnippets') }}
           </p>
         </div>
 
@@ -334,7 +337,7 @@ onMounted(async () => {
                 icon="content_copy"
                 @click.stop="copyShortcut(snippet)"
               >
-                <q-tooltip>Copy shortcut</q-tooltip>
+                <q-tooltip>{{ t('snippetsPanel.copyShortcut') }}</q-tooltip>
               </q-btn>
               <q-btn
                 flat
@@ -344,7 +347,7 @@ onMounted(async () => {
                 icon="add_box"
                 @click.stop="insertSnippet(snippet)"
               >
-                <q-tooltip>Copy content</q-tooltip>
+                <q-tooltip>{{ t('snippetsPanel.copyContent') }}</q-tooltip>
               </q-btn>
               <q-btn
                 flat
@@ -354,7 +357,7 @@ onMounted(async () => {
                 icon="edit"
                 @click.stop="openRenameDialog(snippet)"
               >
-                <q-tooltip>Rename</q-tooltip>
+                <q-tooltip>{{ t('common.rename') }}</q-tooltip>
               </q-btn>
               <q-btn
                 flat
@@ -365,7 +368,7 @@ onMounted(async () => {
                 color="negative"
                 @click.stop="deleteSnippet(snippet)"
               >
-                <q-tooltip>Delete snippet</q-tooltip>
+                <q-tooltip>{{ t('common.delete') }}</q-tooltip>
               </q-btn>
             </div>
           </div>
@@ -380,33 +383,33 @@ onMounted(async () => {
         size="16px"
         class="text-grey-6"
       />
-      <span class="text-caption text-grey-6"> Type <kbd>@</kbd> in editor to insert snippets </span>
+      <span class="text-caption text-grey-6"> {{ t('snippetsPanel.insertTip') }} </span>
       <q-tooltip
         anchor="top middle"
         self="bottom middle"
         max-width="280px"
       >
         <div class="snippets-help">
-          <div class="snippets-help__title">Insert Snippets in Editor</div>
+          <div class="snippets-help__title">{{ t('snippetsPanel.triggerHelp.title') }}</div>
           <div class="snippets-help__section">
             <div class="snippets-help__row">
               <kbd>@</kbd>
-              <span>All snippets (universal)</span>
+              <span>{{ t('snippetsPanel.triggerHelp.all') }}</span>
             </div>
             <div class="snippets-help__row">
               <kbd>#</kbd>
-              <span>Text snippets only</span>
+              <span>{{ t('snippetsPanel.triggerHelp.text') }}</span>
             </div>
             <div class="snippets-help__row">
               <kbd>$</kbd>
-              <span>Code snippets only</span>
+              <span>{{ t('snippetsPanel.triggerHelp.code') }}</span>
             </div>
             <div class="snippets-help__row">
               <kbd>!</kbd>
-              <span>Templates only</span>
+              <span>{{ t('snippetsPanel.triggerHelp.templates') }}</span>
             </div>
           </div>
-          <div class="snippets-help__tip">Start typing after the trigger to filter results</div>
+          <div class="snippets-help__tip">{{ t('snippetsPanel.triggerHelp.tip') }}</div>
         </div>
       </q-tooltip>
     </div>
@@ -446,14 +449,8 @@ onMounted(async () => {
   &__search {
     flex: 1;
 
-    :deep(.q-field__control) {
-      height: 28px;
-      min-height: 28px;
-    }
-
     :deep(.q-field__native) {
       font-size: 12px;
-      padding: 0;
     }
   }
 

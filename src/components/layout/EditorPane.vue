@@ -514,8 +514,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0; // Allow shrinking in flex/grid contexts
   background-color: var(--editor-bg, #1e1e1e);
   border: 1px solid transparent;
+  overflow: hidden;
 
   &--active {
     border-color: var(--pane-active-border, #007acc);
@@ -525,6 +527,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     height: 35px;
+    min-height: 35px;
     background-color: var(--tabbar-bg, #252526);
     border-bottom: 1px solid var(--border-color, #1e1e1e);
     overflow: hidden;
@@ -648,6 +651,7 @@ onMounted(() => {
 
   &__content {
     flex: 1;
+    min-height: 0; // Allow shrinking
     overflow: hidden;
     position: relative;
   }

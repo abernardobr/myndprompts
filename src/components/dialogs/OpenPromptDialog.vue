@@ -7,6 +7,7 @@
  */
 
 import { ref, computed, watch, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { usePromptStore } from '@/stores/promptStore';
 import type { IPromptFile } from '@/services/file-system/types';
 
@@ -22,6 +23,7 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
+const { t } = useI18n({ useScope: 'global' });
 const promptStore = usePromptStore();
 
 // State
@@ -129,7 +131,7 @@ function formatDate(dateString: string): string {
   >
     <q-card class="open-prompt-dialog">
       <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">Open Prompt</div>
+        <div class="text-h6">{{ t('dialogs.openPrompt.title') }}</div>
         <q-space />
         <q-btn
           v-close-popup
@@ -144,7 +146,7 @@ function formatDate(dateString: string): string {
       <q-card-section>
         <q-input
           v-model="searchQuery"
-          placeholder="Search prompts..."
+          :placeholder="t('explorer.searchPlaceholder')"
           outlined
           dense
           clearable
@@ -202,8 +204,8 @@ function formatDate(dateString: string): string {
               size="48px"
               class="q-mb-md"
             />
-            <div v-if="searchQuery">No prompts match your search</div>
-            <div v-else>No prompts found. Create your first prompt!</div>
+            <div v-if="searchQuery">{{ t('explorer.noMatchingPrompts') }}</div>
+            <div v-else>{{ t('explorer.noPrompts') }}</div>
           </div>
 
           <div
@@ -224,7 +226,7 @@ function formatDate(dateString: string): string {
       >
         <q-btn
           flat
-          label="Browse..."
+          :label="t('dialogs.openPrompt.browse')"
           color="grey"
           icon="folder_open"
           @click="handleBrowse"
@@ -232,13 +234,13 @@ function formatDate(dateString: string): string {
         <q-space />
         <q-btn
           flat
-          label="Cancel"
+          :label="t('common.cancel')"
           color="grey"
           @click="handleClose"
         />
         <q-btn
           unelevated
-          label="Open"
+          :label="t('common.open')"
           color="primary"
           :disable="!selectedPrompt"
           @click="handleOpen"

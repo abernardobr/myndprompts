@@ -310,13 +310,51 @@ export class FileSystemService {
   ): Promise<IFileOperationResult> {
     try {
       const validPath = this.validatePath(dirPath);
+      console.log(`[deleteDirectory] Deleting: ${validPath}, recursive: ${recursive}`);
+
+      // Helper to check if path exists
+      const checkExists = async (p: string): Promise<boolean> => {
+        try {
+          await fs.access(p);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      // Check if directory exists before deletion
+      const existsBefore = await checkExists(validPath);
+      console.log(`[deleteDirectory] Exists before: ${existsBefore}`);
+
       if (recursive) {
         await fs.rm(validPath, { recursive: true, force: true });
       } else {
         await fs.rmdir(validPath);
       }
+
+      // Check if directory still exists after deletion
+      const existsAfter = await checkExists(validPath);
+      console.log(`[deleteDirectory] Exists after: ${existsAfter}`);
+
+      if (existsAfter) {
+        console.error(`[deleteDirectory] Directory still exists after deletion!`);
+        // List what's in the directory
+        try {
+          const contents = await fs.readdir(validPath);
+          console.log(`[deleteDirectory] Directory contents:`, contents);
+        } catch (e) {
+          console.log(`[deleteDirectory] Could not read directory:`, e);
+        }
+        // Try one more time with a slight delay
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        await fs.rm(validPath, { recursive: true, force: true });
+        const existsFinal = await checkExists(validPath);
+        console.log(`[deleteDirectory] Exists after retry: ${existsFinal}`);
+      }
+
       return { success: true, path: validPath };
     } catch (error) {
+      console.error(`[deleteDirectory] Error:`, error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

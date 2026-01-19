@@ -7,6 +7,7 @@
  */
 
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 interface Props {
   modelValue: boolean;
@@ -24,6 +25,8 @@ const props = withDefaults(defineProps<Props>(), {
   contentsCount: undefined,
 });
 const emit = defineEmits<Emits>();
+
+const { t } = useI18n({ useScope: 'global' });
 
 // Check if the item has contents
 const hasContents = computed(() => {
@@ -51,15 +54,15 @@ const contentsDescription = computed(() => {
 const dialogTitle = computed(() => {
   switch (props.itemType) {
     case 'prompt':
-      return 'Delete Prompt';
+      return t('dialogs.delete.deletePrompt');
     case 'snippet':
-      return 'Delete Snippet';
+      return t('dialogs.delete.deleteSnippet');
     case 'directory':
-      return 'Delete Directory';
+      return t('dialogs.delete.deleteDirectory');
     case 'project':
-      return 'Delete Project';
+      return t('dialogs.delete.deleteProject');
     default:
-      return 'Delete';
+      return t('dialogs.delete.title');
   }
 });
 
@@ -125,7 +128,9 @@ function handleConfirm(): void {
           <span class="text-weight-medium">{{ itemName }}</span>
         </div>
 
-        <div class="text-body2 q-mt-md">Are you sure you want to delete this {{ itemType }}?</div>
+        <div class="text-body2 q-mt-md">
+          {{ t('dialogs.delete.confirmMessage', { name: itemName }) }}
+        </div>
 
         <!-- Warning for non-empty directories/projects -->
         <q-banner
@@ -145,7 +150,7 @@ function handleConfirm(): void {
           </div>
         </q-banner>
 
-        <div class="text-caption text-grey q-mt-md">This action cannot be undone.</div>
+        <div class="text-caption text-grey q-mt-md">{{ t('dialogs.delete.cannotUndo') }}</div>
       </q-card-section>
 
       <q-card-actions
@@ -154,13 +159,13 @@ function handleConfirm(): void {
       >
         <q-btn
           flat
-          label="Cancel"
+          :label="t('common.cancel')"
           color="grey"
           @click="handleClose"
         />
         <q-btn
           unelevated
-          label="Delete"
+          :label="t('common.delete')"
           color="negative"
           @click="handleConfirm"
         />

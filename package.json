@@ -3,8 +3,11 @@
   "version": "0.1.0",
   "type": "module",
   "description": "AI Prompt Manager - Desktop application for managing, organizing, and optimizing prompts for AI coding tools",
-  "productName": "MyndPrompt",
-  "author": "MyndPrompt Contributors",
+  "productName": "MyndPrompts",
+  "author": {
+    "name": "MyndPrompt Contributors",
+    "email": "abernardo.br@gmail.com"
+  },
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -12,6 +15,10 @@
     "dev:electron": "quasar dev -m electron",
     "build": "quasar build",
     "build:electron": "quasar build -m electron",
+    "build:electron:mac": "quasar build -m electron -T mac",
+    "build:electron:win": "quasar build -m electron -T win",
+    "build:electron:linux": "quasar build -m electron -T linux",
+    "build:electron:all": "./scripts/build-all.sh",
     "lint": "eslint --ext .js,.ts,.vue ./src",
     "lint:fix": "eslint --ext .js,.ts,.vue ./src --fix",
     "format": "prettier --write \"src/**/*.{js,ts,vue,scss,css,json}\"",

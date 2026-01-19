@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
 import path from 'path';
 import os from 'os';
 import { getFileSystemService } from './services/file-system.service';
@@ -13,9 +13,158 @@ import type { IGitLogOptions } from '../../services/git/types';
 
 // Environment detection
 const platform = process.platform || os.platform();
-const _isDev = process.env.NODE_ENV !== 'production';
+const isDev =
+  process.env.NODE_ENV !== 'production' || process.env.DEV === 'true' || process.env.DEV === '1';
 
 let mainWindow: BrowserWindow | null = null;
+
+// ================================
+// Application Menu
+// ================================
+
+function createApplicationMenu(): void {
+  const isMac = platform === 'darwin';
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    // App menu (macOS only)
+    ...(isMac
+      ? [
+          {
+            label: 'MyndPrompts',
+            submenu: [
+              { role: 'about' as const, label: 'About MyndPrompts' },
+              { type: 'separator' as const },
+              {
+                label: 'Settings',
+                accelerator: 'Cmd+,',
+                click: () => {
+                  mainWindow?.webContents.send('menu:settings');
+                },
+              },
+              { type: 'separator' as const },
+              { role: 'services' as const },
+              { type: 'separator' as const },
+              { role: 'hide' as const, label: 'Hide MyndPrompts' },
+              { role: 'hideOthers' as const },
+              { role: 'unhide' as const },
+              { type: 'separator' as const },
+              { role: 'quit' as const, label: 'Quit MyndPrompts' },
+            ],
+          },
+        ]
+      : []),
+
+    // File menu
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New Prompt',
+          accelerator: isMac ? 'Cmd+N' : 'Ctrl+N',
+          click: () => {
+            mainWindow?.webContents.send('menu:new-prompt');
+          },
+        },
+        {
+          label: 'Open...',
+          accelerator: isMac ? 'Cmd+O' : 'Ctrl+O',
+          click: () => {
+            mainWindow?.webContents.send('menu:open');
+          },
+        },
+        { type: 'separator' as const },
+        {
+          label: 'Save',
+          accelerator: isMac ? 'Cmd+S' : 'Ctrl+S',
+          click: () => {
+            mainWindow?.webContents.send('menu:save');
+          },
+        },
+        { type: 'separator' as const },
+        isMac ? { role: 'close' as const } : { role: 'quit' as const },
+      ],
+    },
+
+    // Edit menu
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' as const },
+        { role: 'redo' as const },
+        { type: 'separator' as const },
+        { role: 'cut' as const },
+        { role: 'copy' as const },
+        { role: 'paste' as const },
+        ...(isMac
+          ? [
+              { role: 'pasteAndMatchStyle' as const },
+              { role: 'delete' as const },
+              { role: 'selectAll' as const },
+            ]
+          : [
+              { role: 'delete' as const },
+              { type: 'separator' as const },
+              { role: 'selectAll' as const },
+            ]),
+      ],
+    },
+
+    // View menu
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' as const },
+        { role: 'forceReload' as const },
+        ...(isDev ? [{ role: 'toggleDevTools' as const }] : []),
+        { type: 'separator' as const },
+        { role: 'resetZoom' as const },
+        { role: 'zoomIn' as const },
+        { role: 'zoomOut' as const },
+        { type: 'separator' as const },
+        { role: 'togglefullscreen' as const },
+      ],
+    },
+
+    // Window menu
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' as const },
+        ...(isMac
+          ? [
+              { type: 'separator' as const },
+              { role: 'front' as const },
+              { type: 'separator' as const },
+              { role: 'window' as const },
+            ]
+          : [{ role: 'close' as const }]),
+      ],
+    },
+
+    // Help menu
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'MyndPrompts Documentation',
+          click: () => {
+            void shell.openExternal('https://github.com/myndprompts/myndprompts');
+          },
+        },
+        { type: 'separator' as const },
+        {
+          label: 'Report Issue',
+          click: () => {
+            void shell.openExternal('https://github.com/myndprompts/myndprompts/issues');
+          },
+        },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
 
 // Initialize services
 const fileSystemService = getFileSystemService();
@@ -39,6 +188,8 @@ function createWindow(): void {
     useContentSize: true,
     frame: platform !== 'darwin',
     titleBarStyle: platform === 'darwin' ? 'hiddenInset' : 'default',
+    // Center traffic lights vertically in 28px titlebar
+    trafficLightPosition: platform === 'darwin' ? { x: 13, y: 12 } : undefined,
     backgroundColor: '#1e1e1e',
     icon: iconPath,
     webPreferences: {
@@ -72,6 +223,12 @@ function createWindow(): void {
 
 // App lifecycle events
 void app.whenReady().then(async () => {
+  // Set app name (important for macOS menu bar in dev mode)
+  app.setName('MyndPrompts');
+
+  // Create application menu
+  createApplicationMenu();
+
   // Initialize storage directories
   await fileSystemService.initializeDirectories();
 

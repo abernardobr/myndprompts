@@ -5,7 +5,9 @@
  * Dialog for creating a new prompt with title and optional category.
  */
 
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface Props {
   modelValue: boolean;
@@ -19,6 +21,11 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
+const { t } = useI18n({ useScope: 'global' });
+
+// Settings store for categories
+const settingsStore = useSettingsStore();
+
 // Form state
 const title = ref('');
 const category = ref('');
@@ -27,25 +34,25 @@ const titleInput = ref<HTMLInputElement | null>(null);
 // Validation
 const titleError = computed(() => {
   if (!title.value.trim()) {
-    return 'Title is required';
+    return t('dialogs.newPrompt.titleRequired');
   }
   if (title.value.length > 100) {
-    return 'Title must be 100 characters or less';
+    return t('dialogs.newPrompt.titleTooLong');
   }
   return '';
 });
 
 const isValid = computed(() => !titleError.value);
 
-// Available categories (can be extended later)
-const categories = [
-  { label: 'General', value: 'general' },
-  { label: 'Development', value: 'development' },
-  { label: 'Writing', value: 'writing' },
-  { label: 'Analysis', value: 'analysis' },
-  { label: 'Creative', value: 'creative' },
-  { label: 'Business', value: 'business' },
-];
+// Categories from settings store
+const categories = computed(() => settingsStore.categories);
+
+// Initialize settings store on mount
+onMounted(async () => {
+  if (!settingsStore.isInitialized) {
+    await settingsStore.initialize();
+  }
+});
 
 // Reset form when dialog opens
 watch(
@@ -94,7 +101,7 @@ function handleKeydown(event: KeyboardEvent): void {
       @keydown="handleKeydown"
     >
       <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">New Prompt</div>
+        <div class="text-h6">{{ t('dialogs.newPrompt.title') }}</div>
         <q-space />
         <q-btn
           v-close-popup
@@ -110,7 +117,7 @@ function handleKeydown(event: KeyboardEvent): void {
         <q-input
           ref="titleInput"
           v-model="title"
-          label="Prompt Title"
+          :label="t('dialogs.newPrompt.promptTitle')"
           outlined
           autofocus
           :error="!!titleError && title.length > 0"
@@ -121,7 +128,7 @@ function handleKeydown(event: KeyboardEvent): void {
         <q-select
           v-model="category"
           :options="categories"
-          label="Category (optional)"
+          :label="t('dialogs.newPrompt.categoryOptional')"
           outlined
           emit-value
           map-options
@@ -135,13 +142,13 @@ function handleKeydown(event: KeyboardEvent): void {
       >
         <q-btn
           flat
-          label="Cancel"
+          :label="t('common.cancel')"
           color="grey"
           @click="handleClose"
         />
         <q-btn
           unelevated
-          label="Create"
+          :label="t('common.create')"
           color="primary"
           :disable="!isValid"
           @click="handleCreate"

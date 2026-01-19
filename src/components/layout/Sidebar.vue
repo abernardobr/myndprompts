@@ -8,48 +8,36 @@
 
 import { computed } from 'vue';
 import { useUIStore } from '@/stores/uiStore';
-import { useAppStore } from '@/stores/appStore';
 import { useI18n } from 'vue-i18n';
 
-// Sub-components for each view (placeholders for now)
+// Sub-components for each view
 import ExplorerPanel from './sidebar/ExplorerPanel.vue';
 import SearchPanel from './sidebar/SearchPanel.vue';
 import SnippetsPanel from './sidebar/SnippetsPanel.vue';
+import FavoritesPanel from './sidebar/FavoritesPanel.vue';
 import GitPanel from './sidebar/GitPanel.vue';
-import AIPanel from './sidebar/AIPanel.vue';
 import SettingsPanel from './sidebar/SettingsPanel.vue';
 
-const { t: _t } = useI18n();
+const { t } = useI18n({ useScope: 'global' });
 const uiStore = useUIStore();
-const appStore = useAppStore();
-
-// Platform detection for macOS traffic lights
-const isMac = computed(() => appStore.isMac);
 
 const activeActivity = computed(() => uiStore.activeActivity);
 
-const panelTitles: Record<string, string> = {
-  explorer: 'Explorer',
-  search: 'Search',
-  snippets: 'Snippets',
-  git: 'Source Control',
-  ai: 'AI Assistant',
-  settings: 'Settings',
-};
-
-const currentTitle = computed(() => panelTitles[activeActivity.value] ?? 'Panel');
+const currentTitle = computed(() => {
+  const titles: Record<string, string> = {
+    explorer: t('sidebar.explorer'),
+    search: t('sidebar.search'),
+    snippets: t('sidebar.snippets'),
+    favorites: t('sidebar.favorites'),
+    git: t('sidebar.sourceControl'),
+    settings: t('sidebar.settings'),
+  };
+  return titles[activeActivity.value] ?? t('common.loading');
+});
 </script>
 
 <template>
-  <div
-    class="sidebar"
-    :class="{ 'sidebar--macos': isMac }"
-  >
-    <!-- macOS traffic light spacer -->
-    <div
-      v-if="isMac"
-      class="sidebar__titlebar-spacer"
-    />
+  <div class="sidebar">
     <div class="sidebar__header">
       <span class="sidebar__title">{{ currentTitle }}</span>
     </div>
@@ -58,8 +46,8 @@ const currentTitle = computed(() => panelTitles[activeActivity.value] ?? 'Panel'
       <ExplorerPanel v-if="activeActivity === 'explorer'" />
       <SearchPanel v-else-if="activeActivity === 'search'" />
       <SnippetsPanel v-else-if="activeActivity === 'snippets'" />
+      <FavoritesPanel v-else-if="activeActivity === 'favorites'" />
       <GitPanel v-else-if="activeActivity === 'git'" />
-      <AIPanel v-else-if="activeActivity === 'ai'" />
       <SettingsPanel v-else-if="activeActivity === 'settings'" />
     </div>
   </div>
@@ -70,22 +58,17 @@ const currentTitle = computed(() => panelTitles[activeActivity.value] ?? 'Panel'
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0; // Allow shrinking in flex/grid contexts
   background-color: var(--sidebar-bg, #252526);
-
-  // macOS traffic light spacer
-  &__titlebar-spacer {
-    height: 28px;
-    min-height: 28px;
-    flex-shrink: 0;
-    -webkit-app-region: drag;
-    background-color: var(--sidebar-header-bg, #252526);
-  }
+  overflow: hidden;
 
   &__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     height: 35px;
+    min-height: 35px;
+    flex-shrink: 0;
     padding: 0 8px 0 20px;
     font-size: 11px;
     font-weight: 700;
@@ -104,6 +87,7 @@ const currentTitle = computed(() => panelTitles[activeActivity.value] ?? 'Panel'
 
   &__content {
     flex: 1;
+    min-height: 0; // Allow content to shrink
     overflow: hidden;
   }
 }

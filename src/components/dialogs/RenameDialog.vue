@@ -7,6 +7,7 @@
  */
 
 import { ref, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 interface Props {
   modelValue: boolean;
@@ -22,6 +23,8 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
+const { t } = useI18n({ useScope: 'global' });
+
 // Form state
 const newName = ref('');
 const nameInput = ref<HTMLInputElement | null>(null);
@@ -29,17 +32,17 @@ const nameInput = ref<HTMLInputElement | null>(null);
 // Validation
 const nameError = computed(() => {
   if (!newName.value.trim()) {
-    return 'Name is required';
+    return t('validation.required');
   }
   if (newName.value.length > 100) {
-    return 'Name must be 100 characters or less';
+    return t('validation.maxLength', { max: 100 });
   }
   // Check for invalid characters in folder names (for projects and directories)
   if (
     (props.itemType === 'project' || props.itemType === 'directory') &&
     /[<>:"/\\|?*]/.test(newName.value)
   ) {
-    return 'Name contains invalid characters';
+    return t('validation.invalidFormat');
   }
   return '';
 });
@@ -50,21 +53,21 @@ const isValid = computed(() => !nameError.value && newName.value.trim() !== prop
 const itemTypeLabel = computed(() => {
   switch (props.itemType) {
     case 'prompt':
-      return 'Prompt';
+      return t('dialogs.rename.renamePrompt');
     case 'persona':
-      return 'Persona';
+      return t('dialogs.newSnippet.persona');
     case 'template':
-      return 'Template';
+      return t('dialogs.newSnippet.template');
     case 'text':
-      return 'Text Snippet';
+      return t('dialogs.newSnippet.textSnippet');
     case 'snippet':
-      return 'Snippet';
+      return t('dialogs.rename.renameSnippet');
     case 'project':
-      return 'Project';
+      return t('dialogs.rename.renameProject');
     case 'directory':
-      return 'Directory';
+      return t('dialogs.rename.renameDirectory');
     default:
-      return 'Item';
+      return t('dialogs.rename.title');
   }
 });
 
@@ -112,7 +115,7 @@ function handleKeydown(event: KeyboardEvent): void {
       @keydown="handleKeydown"
     >
       <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">Rename {{ itemTypeLabel }}</div>
+        <div class="text-h6">{{ itemTypeLabel }}</div>
         <q-space />
         <q-btn
           v-close-popup
@@ -128,7 +131,7 @@ function handleKeydown(event: KeyboardEvent): void {
         <q-input
           ref="nameInput"
           v-model="newName"
-          label="New Name"
+          :label="t('dialogs.rename.newName')"
           outlined
           autofocus
           :error="!!nameError && newName.length > 0"
@@ -142,13 +145,13 @@ function handleKeydown(event: KeyboardEvent): void {
       >
         <q-btn
           flat
-          label="Cancel"
+          :label="t('common.cancel')"
           color="grey"
           @click="handleClose"
         />
         <q-btn
           unelevated
-          label="Rename"
+          :label="t('common.rename')"
           color="primary"
           :disable="!isValid"
           @click="handleRename"

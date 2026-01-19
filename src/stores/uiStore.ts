@@ -10,11 +10,19 @@ import { ref, computed, watch } from 'vue';
 import { Dark } from 'quasar';
 import { getUIStateRepository } from '@/services/storage';
 import type { IUIState, IEditorSplitConfig } from '@/services/storage';
+import { setAppLocale } from '@/boot/i18n';
 
 /**
  * Activity bar view types
  */
-export type ActivityView = 'explorer' | 'search' | 'snippets' | 'git' | 'ai' | 'settings';
+export type ActivityView =
+  | 'explorer'
+  | 'search'
+  | 'snippets'
+  | 'favorites'
+  | 'git'
+  | 'ai'
+  | 'settings';
 
 /**
  * Panel tab types
@@ -156,6 +164,8 @@ export const useUIStore = defineStore('ui', () => {
         panelCollapsed.value = savedState.panelCollapsed;
         theme.value = savedState.theme as Theme;
         locale.value = savedState.locale;
+        // Sync locale with vue-i18n
+        setAppLocale(savedState.locale);
 
         // Restore tabs (without content, just references)
         if (savedState.openTabs.length > 0) {
@@ -433,6 +443,8 @@ export const useUIStore = defineStore('ui', () => {
   // Locale actions
   function setLocale(newLocale: string): void {
     locale.value = newLocale;
+    // Sync locale with vue-i18n
+    setAppLocale(newLocale);
     void saveState();
   }
 

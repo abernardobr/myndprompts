@@ -7,6 +7,7 @@
  */
 
 import { ref, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { ISnippetMetadata } from '@/services/file-system/types';
 
 interface Props {
@@ -21,32 +22,44 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
+const { t } = useI18n({ useScope: 'global' });
+
 // Form state
 const snippetName = ref('');
 const snippetType = ref<ISnippetMetadata['type']>('text');
 const snippetDescription = ref('');
 
 // Type options with trigger characters
-const typeOptions = [
+const typeOptions = computed(() => [
   {
     value: 'persona',
-    label: 'Persona',
+    label: t('dialogs.newSnippet.persona'),
     trigger: '@',
-    description: 'Reusable persona/role definitions',
+    description: t('dialogs.newSnippet.personaDesc'),
   },
-  { value: 'text', label: 'Text Snippet', trigger: '#', description: 'Text blocks to insert' },
+  {
+    value: 'text',
+    label: t('dialogs.newSnippet.textSnippet'),
+    trigger: '#',
+    description: t('dialogs.newSnippet.textSnippetDesc'),
+  },
   {
     value: 'code',
-    label: 'Code Snippet',
+    label: t('dialogs.newSnippet.codeSnippet'),
     trigger: '$',
-    description: 'Code templates and patterns',
+    description: t('dialogs.newSnippet.codeSnippetDesc'),
   },
-  { value: 'template', label: 'Template', trigger: '!', description: 'Full prompt templates' },
-];
+  {
+    value: 'template',
+    label: t('dialogs.newSnippet.template'),
+    trigger: '!',
+    description: t('dialogs.newSnippet.templateDesc'),
+  },
+]);
 
 // Get current trigger character
 const currentTrigger = computed(() => {
-  const option = typeOptions.find((o) => o.value === snippetType.value);
+  const option = typeOptions.value.find((o) => o.value === snippetType.value);
   return option?.trigger ?? '@';
 });
 
@@ -102,7 +115,7 @@ function handleCreate(): void {
   >
     <q-card class="new-snippet-dialog">
       <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">New Snippet</div>
+        <div class="text-h6">{{ t('dialogs.newSnippet.title') }}</div>
         <q-space />
         <q-btn
           v-close-popup
@@ -117,7 +130,7 @@ function handleCreate(): void {
       <q-card-section>
         <!-- Snippet Type -->
         <div class="q-mb-md">
-          <div class="text-caption text-grey q-mb-xs">Type</div>
+          <div class="text-caption text-grey q-mb-xs">{{ t('dialogs.newSnippet.type') }}</div>
           <q-btn-toggle
             v-model="snippetType"
             spread
@@ -137,12 +150,13 @@ function handleCreate(): void {
         <!-- Snippet Name -->
         <q-input
           v-model="snippetName"
-          label="Snippet Name"
+          :label="t('dialogs.newSnippet.name')"
+          :placeholder="t('dialogs.newSnippet.namePlaceholder')"
           outlined
           autofocus
           :rules="[
-            (val) => !!val?.trim() || 'Name is required',
-            (val) => val.trim().length <= 50 || 'Name must be 50 characters or less',
+            (val) => !!val?.trim() || t('validation.required'),
+            (val) => val.trim().length <= 50 || t('validation.maxLength', { max: 50 }),
           ]"
           class="q-mb-md"
         >
@@ -157,7 +171,8 @@ function handleCreate(): void {
         <!-- Description (optional) -->
         <q-input
           v-model="snippetDescription"
-          label="Description (optional)"
+          :label="t('dialogs.newSnippet.description')"
+          :placeholder="t('dialogs.newSnippet.descriptionPlaceholder')"
           outlined
           type="textarea"
           rows="2"
@@ -171,13 +186,13 @@ function handleCreate(): void {
       >
         <q-btn
           flat
-          label="Cancel"
+          :label="t('common.cancel')"
           color="grey"
           @click="handleClose"
         />
         <q-btn
           unelevated
-          label="Create"
+          :label="t('common.create')"
           color="primary"
           :disable="!isValid"
           @click="handleCreate"

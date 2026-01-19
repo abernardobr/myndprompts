@@ -6,6 +6,7 @@
  */
 
 import { ref, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 interface Props {
   modelValue: boolean;
@@ -23,6 +24,8 @@ const props = withDefaults(defineProps<Props>(), {
 });
 const emit = defineEmits<Emits>();
 
+const { t } = useI18n({ useScope: 'global' });
+
 // Form state
 const name = ref('');
 const nameInput = ref<HTMLInputElement | null>(null);
@@ -30,14 +33,14 @@ const nameInput = ref<HTMLInputElement | null>(null);
 // Validation
 const nameError = computed(() => {
   if (!name.value.trim()) {
-    return 'Name is required';
+    return t('validation.required');
   }
   if (name.value.length > 100) {
-    return 'Name must be 100 characters or less';
+    return t('validation.maxLength', { max: 100 });
   }
   // Check for invalid characters in folder name
   if (/[<>:"/\\|?*]/.test(name.value)) {
-    return 'Name contains invalid characters';
+    return t('validation.invalidFormat');
   }
   return '';
 });
@@ -90,7 +93,7 @@ function handleKeydown(event: KeyboardEvent): void {
       @keydown="handleKeydown"
     >
       <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">New Directory</div>
+        <div class="text-h6">{{ t('dialogs.newDirectory.title') }}</div>
         <q-space />
         <q-btn
           v-close-popup
@@ -110,7 +113,8 @@ function handleKeydown(event: KeyboardEvent): void {
         <q-input
           ref="nameInput"
           v-model="name"
-          label="Directory Name"
+          :label="t('dialogs.newDirectory.name')"
+          :placeholder="t('dialogs.newDirectory.namePlaceholder')"
           outlined
           autofocus
           :error="!!nameError && name.length > 0"
@@ -124,13 +128,13 @@ function handleKeydown(event: KeyboardEvent): void {
       >
         <q-btn
           flat
-          label="Cancel"
+          :label="t('common.cancel')"
           color="grey"
           @click="handleClose"
         />
         <q-btn
           unelevated
-          label="Create"
+          :label="t('common.create')"
           color="primary"
           :disable="!isValid"
           @click="handleCreate"

@@ -8,13 +8,8 @@
 
 import { computed } from 'vue';
 import { useUIStore, type ActivityView } from '@/stores/uiStore';
-import { useAppStore } from '@/stores/appStore';
 
 const uiStore = useUIStore();
-const appStore = useAppStore();
-
-// Platform detection for macOS traffic lights
-const isMac = computed(() => appStore.isMac);
 
 interface ActivityItem {
   id: ActivityView;
@@ -27,8 +22,8 @@ const activities: ActivityItem[] = [
   { id: 'explorer', icon: 'folder', label: 'Explorer', shortcut: 'Ctrl+Shift+E' },
   { id: 'search', icon: 'search', label: 'Search', shortcut: 'Ctrl+Shift+F' },
   { id: 'snippets', icon: 'code', label: 'Snippets', shortcut: 'Ctrl+Shift+S' },
+  { id: 'favorites', icon: 'star', label: 'Favorites', shortcut: 'Ctrl+Shift+D' },
   { id: 'git', icon: 'git', label: 'Source Control', shortcut: 'Ctrl+Shift+G' },
-  { id: 'ai', icon: 'smart_toy', label: 'AI Assistant', shortcut: 'Ctrl+Shift+A' },
 ];
 
 const bottomActivities: ActivityItem[] = [
@@ -47,15 +42,7 @@ function isActive(activity: ActivityView): boolean {
 </script>
 
 <template>
-  <div
-    class="activity-bar"
-    :class="{ 'activity-bar--macos': isMac }"
-  >
-    <!-- macOS traffic light spacer -->
-    <div
-      v-if="isMac"
-      class="activity-bar__titlebar-spacer"
-    />
+  <div class="activity-bar">
     <!-- Logo -->
     <div class="activity-bar__logo">
       <img
@@ -132,16 +119,10 @@ function isActive(activity: ActivityView): boolean {
   flex-direction: column;
   width: 48px;
   height: 100%;
+  min-height: 0; // Allow shrinking in flex/grid contexts
   background-color: var(--activity-bar-bg, #333333);
   border-right: 1px solid var(--border-color, #252526);
-
-  // macOS traffic light spacer
-  &__titlebar-spacer {
-    height: 28px;
-    min-height: 28px;
-    flex-shrink: 0;
-    -webkit-app-region: drag;
-  }
+  overflow: hidden; // Prevent content from overflowing
 
   &__logo {
     display: flex;
@@ -164,12 +145,22 @@ function isActive(activity: ActivityView): boolean {
     flex-direction: column;
     align-items: center;
     flex: 1;
+    min-height: 0; // Allow shrinking
+    overflow-y: auto; // Allow scrolling if needed
+    overflow-x: hidden;
+
+    // Hide scrollbar but keep functionality
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   &__bottom {
     display: flex;
     flex-direction: column;
     align-items: center;
+    flex-shrink: 0; // Never shrink the bottom section
   }
 
   &__item {

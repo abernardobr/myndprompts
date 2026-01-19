@@ -27,6 +27,7 @@ export const ConfigKeys = {
   TELEMETRY_ENABLED: 'telemetry.enabled',
   FIRST_RUN_COMPLETED: 'app.firstRunCompleted',
   LAST_VERSION: 'app.lastVersion',
+  PROMPT_CATEGORIES: 'prompts.categories',
 } as const;
 
 export type ConfigKey = (typeof ConfigKeys)[keyof typeof ConfigKeys];
