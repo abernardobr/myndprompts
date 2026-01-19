@@ -8,6 +8,7 @@ const { t } = useI18n({ useScope: 'global' });
   <q-page
     class="flex flex-center"
     padding
+    data-testid="index-page"
   >
     <div class="text-center">
       <q-icon

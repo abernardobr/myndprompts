@@ -93,7 +93,10 @@ function getFileIcon(fileName: string): string {
 </script>
 
 <template>
-  <div class="tab-bar">
+  <div
+    class="tab-bar"
+    data-testid="tab-bar"
+  >
     <div class="tab-bar__tabs">
       <div
         v-for="(tab, index) in openTabs"
@@ -107,6 +110,8 @@ function getFileIcon(fileName: string): string {
             'tab-bar__tab--drag-over': dragOverIndex === index,
           },
         ]"
+        data-testid="tab"
+        :data-name="tab.title"
         draggable="true"
         @click="selectTab(tab.id)"
         @dragstart="onDragStart($event, tab, index)"
@@ -140,6 +145,7 @@ function getFileIcon(fileName: string): string {
           size="xs"
           icon="close"
           class="tab-bar__close-btn"
+          data-testid="close-tab"
           @click="closeTab(tab.id, $event)"
         >
           <q-tooltip>Close</q-tooltip>
@@ -171,6 +177,7 @@ function getFileIcon(fileName: string): string {
             <q-item
               v-close-popup
               clickable
+              data-testid="close-all-tabs"
               @click="closeAllTabs"
             >
               <q-item-section>Close All</q-item-section>

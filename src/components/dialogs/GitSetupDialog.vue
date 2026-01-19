@@ -433,7 +433,10 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
     transition-show="slide-up"
     transition-hide="slide-down"
   >
-    <q-card class="git-setup-dialog">
+    <q-card
+      class="git-setup-dialog"
+      data-testid="git-setup-dialog"
+    >
       <!-- Header -->
       <q-card-section class="git-setup-dialog__header">
         <div class="git-setup-dialog__title-row">

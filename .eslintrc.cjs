@@ -80,6 +80,7 @@ module.exports = {
     'dist',
     'dist-electron',
     'src-electron',
+    'tests/e2e',
     '*.config.js',
     '*.config.ts',
   ],

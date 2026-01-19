@@ -25,6 +25,11 @@
     "type-check": "vue-tsc --noEmit",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report tests/e2e/reports/html",
     "prepare": "husky"
   },
   "dependencies": {
@@ -34,6 +39,7 @@
     "dexie": "^4.0.1",
     "gray-matter": "^4.0.3",
     "monaco-editor": "^0.55.1",
+    "picomatch": "^4.0.3",
     "pinia": "^2.1.7",
     "quasar": "^2.14.2",
     "simple-git": "^3.30.0",
@@ -44,9 +50,11 @@
     "vue-router": "^4.2.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.0",
     "@intlify/unplugin-vue-i18n": "^2.0.0",
     "@quasar/app-vite": "2.0.9",
     "@types/node": "^20.11.5",
+    "@types/picomatch": "^4.0.2",
     "@types/splitpanes": "^2.2.6",
     "@types/uuid": "^9.0.7",
     "@typescript-eslint/eslint-plugin": "^6.19.1",

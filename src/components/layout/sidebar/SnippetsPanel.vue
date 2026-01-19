@@ -191,7 +191,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="snippets-panel">
+  <div
+    class="snippets-panel"
+    data-testid="snippets-panel"
+  >
     <!-- Header with search and add button -->
     <div class="snippets-panel__header">
       <q-input
@@ -201,6 +204,7 @@ onMounted(async () => {
         dense
         clearable
         class="snippets-panel__search"
+        data-testid="snippet-search"
       >
         <template #prepend>
           <q-icon
@@ -214,6 +218,7 @@ onMounted(async () => {
         dense
         round
         icon="add"
+        data-testid="new-snippet-btn"
         @click="showNewSnippetDialog = true"
       >
         <q-tooltip>{{ t('snippetsPanel.createNew') }}</q-tooltip>
@@ -221,7 +226,10 @@ onMounted(async () => {
     </div>
 
     <!-- Category filters -->
-    <div class="snippets-panel__categories">
+    <div
+      class="snippets-panel__categories"
+      data-testid="snippet-type-filter"
+    >
       <div
         v-for="category in snippetCategories"
         :key="category.id"
@@ -312,11 +320,13 @@ onMounted(async () => {
         <div
           v-else
           class="snippets-panel__list"
+          data-testid="snippet-list"
         >
           <div
             v-for="snippet in filteredSnippets"
             :key="snippet.filePath"
             class="snippets-panel__item"
+            data-testid="snippet-item"
           >
             <div class="snippets-panel__item-icon">
               <q-icon
@@ -378,40 +388,46 @@ onMounted(async () => {
 
     <!-- Help footer -->
     <div class="snippets-panel__footer">
-      <q-icon
-        name="help_outline"
-        size="16px"
-        class="text-grey-6"
-      />
-      <span class="text-caption text-grey-6"> {{ t('snippetsPanel.insertTip') }} </span>
-      <q-tooltip
-        anchor="top middle"
-        self="bottom middle"
-        max-width="280px"
-      >
-        <div class="snippets-help">
-          <div class="snippets-help__title">{{ t('snippetsPanel.triggerHelp.title') }}</div>
-          <div class="snippets-help__section">
-            <div class="snippets-help__row">
-              <kbd>@</kbd>
-              <span>{{ t('snippetsPanel.triggerHelp.all') }}</span>
+      <div class="snippets-panel__help-trigger">
+        <q-icon
+          name="help_outline"
+          size="16px"
+          class="text-grey-6"
+        />
+        <q-tooltip
+          anchor="top middle"
+          self="bottom middle"
+          max-width="280px"
+        >
+          <div class="snippets-help">
+            <div class="snippets-help__title">{{ t('snippetsPanel.triggerHelp.title') }}</div>
+            <div class="snippets-help__section">
+              <div class="snippets-help__row">
+                <kbd>@</kbd>
+                <span>{{ t('snippetsPanel.triggerHelp.all') }}</span>
+              </div>
+              <div class="snippets-help__row">
+                <kbd>#</kbd>
+                <span>{{ t('snippetsPanel.triggerHelp.text') }}</span>
+              </div>
+              <div class="snippets-help__row">
+                <kbd>$</kbd>
+                <span>{{ t('snippetsPanel.triggerHelp.code') }}</span>
+              </div>
+              <div class="snippets-help__row">
+                <kbd>!</kbd>
+                <span>{{ t('snippetsPanel.triggerHelp.templates') }}</span>
+              </div>
+              <div class="snippets-help__row">
+                <kbd>^</kbd>
+                <span>{{ t('snippetsPanel.triggerHelp.files') }}</span>
+              </div>
             </div>
-            <div class="snippets-help__row">
-              <kbd>#</kbd>
-              <span>{{ t('snippetsPanel.triggerHelp.text') }}</span>
-            </div>
-            <div class="snippets-help__row">
-              <kbd>$</kbd>
-              <span>{{ t('snippetsPanel.triggerHelp.code') }}</span>
-            </div>
-            <div class="snippets-help__row">
-              <kbd>!</kbd>
-              <span>{{ t('snippetsPanel.triggerHelp.templates') }}</span>
-            </div>
+            <div class="snippets-help__tip">{{ t('snippetsPanel.triggerHelp.tip') }}</div>
           </div>
-          <div class="snippets-help__tip">{{ t('snippetsPanel.triggerHelp.tip') }}</div>
-        </div>
-      </q-tooltip>
+        </q-tooltip>
+      </div>
+      <span class="text-caption text-grey-6">{{ t('snippetsPanel.insertTip') }}</span>
     </div>
 
     <!-- New Snippet Dialog -->
@@ -588,17 +604,18 @@ onMounted(async () => {
     gap: 6px;
     padding: 8px 12px;
     border-top: 1px solid var(--border-color, #3c3c3c);
-    cursor: help;
     flex-shrink: 0;
+  }
 
-    kbd {
-      display: inline-block;
-      padding: 1px 5px;
-      font-family: monospace;
-      font-size: 11px;
-      background-color: var(--kbd-bg, #3c3c3c);
-      border-radius: 3px;
-      color: var(--kbd-color, #e0e0e0);
+  &__help-trigger {
+    display: flex;
+    align-items: center;
+    cursor: help;
+    padding: 2px;
+    border-radius: 4px;
+
+    &:hover {
+      background-color: var(--item-hover-bg, rgba(255, 255, 255, 0.1));
     }
   }
 }

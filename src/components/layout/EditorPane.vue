@@ -285,6 +285,7 @@ onMounted(() => {
 <template>
   <div
     :class="['editor-pane', { 'editor-pane--active': isActive }]"
+    data-testid="editor-pane"
     @click="handlePaneClick"
   >
     <!-- Tab bar for this pane -->

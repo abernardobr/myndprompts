@@ -9,6 +9,8 @@ import type {
   IGitStatus,
   IAIProviderConfig,
   IProject,
+  IProjectFolder,
+  IFileIndexEntry,
 } from './entities';
 
 /**
@@ -27,6 +29,8 @@ export class MyndPromptDB extends Dexie {
   gitStatus!: Table<IGitStatus, string>;
   aiProviders!: Table<IAIProviderConfig, string>;
   projects!: Table<IProject, string>;
+  projectFolders!: Table<IProjectFolder, string>;
+  fileIndex!: Table<IFileIndexEntry, string>;
 
   constructor() {
     super('MyndPromptDB');
@@ -54,6 +58,22 @@ export class MyndPromptDB extends Dexie {
       gitStatus: 'id, filePath, status',
       aiProviders: 'id, provider, isEnabled',
       projects: '&folderPath, id, name, createdAt',
+    });
+
+    // Version 3: Add File Sync tables (projectFolders and fileIndex)
+    this.version(3).stores({
+      userAuth: 'id, email',
+      appConfig: 'key',
+      uiState: 'id',
+      recentFiles: 'id, filePath, fileType, lastOpenedAt, isPinned',
+      projectIndexCache: 'id, projectPath, lastIndexed',
+      syncStatus: 'id, filePath, status',
+      gitStatus: 'id, filePath, status',
+      aiProviders: 'id, provider, isEnabled',
+      projects: '&folderPath, id, name, createdAt',
+      projectFolders: '&id, projectPath, folderPath, [projectPath+folderPath], status',
+      fileIndex:
+        '&id, projectFolderId, normalizedName, fullPath, [projectFolderId+fullPath], extension',
     });
 
     // Add hooks for automatic date handling
@@ -91,6 +111,20 @@ export class MyndPromptDB extends Dexie {
 
     this.projects.hook('updating', (modifications) => {
       return { ...modifications, updatedAt: new Date() };
+    });
+
+    // File Sync: projectFolders hooks
+    this.projectFolders.hook('creating', (_primKey, obj) => {
+      if (!obj.addedAt) {
+        obj.addedAt = new Date();
+      }
+    });
+
+    // File Sync: fileIndex hooks
+    this.fileIndex.hook('creating', (_primKey, obj) => {
+      if (!obj.indexedAt) {
+        obj.indexedAt = new Date();
+      }
     });
   }
 }

@@ -14,3 +14,7 @@ export { GitStatusRepository, getGitStatusRepository } from './git-status.reposi
 export { AIProvidersRepository, getAIProvidersRepository } from './ai-providers.repository';
 export { ProjectIndexRepository, getProjectIndexRepository } from './project-index.repository';
 export { ProjectRepository, getProjectRepository } from './project.repository';
+
+// File Sync repositories
+export { ProjectFolderRepository, getProjectFolderRepository } from './project-folder.repository';
+export { FileIndexRepository, getFileIndexRepository } from './file-index.repository';

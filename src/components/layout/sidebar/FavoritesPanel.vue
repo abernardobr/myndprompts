@@ -145,7 +145,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="favorites-panel">
+  <div
+    class="favorites-panel"
+    data-testid="favorites-panel"
+  >
     <!-- Header with search -->
     <div class="favorites-panel__header">
       <q-input
@@ -155,6 +158,7 @@ onMounted(async () => {
         dense
         clearable
         class="favorites-panel__search"
+        data-testid="favorites-search"
       />
     </div>
 
@@ -162,6 +166,7 @@ onMounted(async () => {
     <div
       v-if="favoriteCategories.length > 0"
       class="favorites-panel__categories"
+      data-testid="favorites-category-filter"
     >
       <div class="favorites-panel__categories-header">
         <span class="favorites-panel__categories-title">{{ t('favoritesPanel.categories') }}</span>
@@ -264,11 +269,13 @@ onMounted(async () => {
         <div
           v-else
           class="favorites-panel__list"
+          data-testid="favorites-list"
         >
           <div
             v-for="prompt in filteredFavorites"
             :key="prompt.filePath"
             class="favorites-panel__item"
+            data-testid="favorite-item"
             @click="openPrompt(prompt)"
           >
             <div class="favorites-panel__item-icon">

@@ -4,6 +4,7 @@ import os from 'os';
 import { getFileSystemService } from './services/file-system.service';
 import { getFileWatcherService } from './services/file-watcher.service';
 import { getGitService } from './services/git.service';
+import { getFileIndexerService } from './services/file-indexer.service';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
@@ -454,6 +455,23 @@ ipcMain.handle('fs:unwatch-path', async (_event, watcherId: string) => {
 
 ipcMain.handle('fs:unwatch-all', async () => {
   return fileWatcherService.unwatchAll();
+});
+
+// File Indexing (File Sync feature)
+ipcMain.handle('fs:start-indexing', async (event, folderPath: string, operationId: string) => {
+  const indexer = getFileIndexerService();
+  const window = BrowserWindow.fromWebContents(event.sender);
+
+  const files = await indexer.indexDirectory(folderPath, operationId, (progress) => {
+    window?.webContents.send('fs:index-progress', { operationId, ...progress });
+  });
+
+  return files;
+});
+
+ipcMain.handle('fs:cancel-indexing', (_event, operationId: string) => {
+  const indexer = getFileIndexerService();
+  return indexer.cancelIndexing(operationId);
 });
 
 // ================================

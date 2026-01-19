@@ -235,6 +235,7 @@ function closeDialog(): void {
   >
     <q-card
       class="branch-dialog"
+      data-testid="branch-dialog"
       @keydown="handleKeydown"
     >
       <!-- Header -->
@@ -317,6 +318,7 @@ function closeDialog(): void {
               autofocus
               :error="!!branchNameError && newBranchName.length > 0"
               :error-message="branchNameError"
+              data-testid="branch-name-input"
             >
               <template #append>
                 <q-btn
@@ -355,6 +357,7 @@ function closeDialog(): void {
             icon="add"
             :label="t('dialogs.branch.newBranch')"
             class="q-mb-md full-width"
+            data-testid="new-branch-btn"
             @click="showCreateForm"
           />
 

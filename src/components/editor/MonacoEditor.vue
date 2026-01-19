@@ -23,6 +23,7 @@ import {
 } from './editor-config';
 import { initializeMarkdownLanguage } from './markdown-language';
 import { initializeSnippetProvider } from './snippet-provider';
+import { initializeFilePathProvider } from './file-path-provider';
 import { useUIStore } from '@/stores/uiStore';
 
 /**
@@ -115,6 +116,10 @@ function initializeEditor(): void {
     // Initialize snippet provider
     const snippetDisposable = initializeSnippetProvider();
     disposables.push(snippetDisposable);
+
+    // Initialize file path provider (^ trigger for file autocomplete)
+    const filePathDisposable = initializeFilePathProvider();
+    disposables.push(filePathDisposable);
 
     // Create editor with options
     const options: monaco.editor.IStandaloneEditorConstructionOptions = {

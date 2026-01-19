@@ -6,7 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default configure(() => {
   return {
-    boot: ['i18n', 'error-handler'],
+    boot: ['i18n', 'error-handler', 'file-sync'],
 
     css: ['app.scss'],
 

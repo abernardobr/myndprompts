@@ -8,6 +8,7 @@
 
 import * as monaco from 'monaco-editor';
 import type { ISnippetFile } from '@/services/file-system/types';
+import { useFileSyncStore } from '@/stores/fileSyncStore';
 
 /**
  * Snippet definition interface
@@ -563,10 +564,10 @@ export function registerUserSnippetsProvider(): monaco.IDisposable {
   return monaco.languages.registerCompletionItemProvider('markdown', {
     triggerCharacters: ['@', '#', '$', '!'],
 
-    provideCompletionItems(
+    async provideCompletionItems(
       model: monaco.editor.ITextModel,
       position: monaco.Position
-    ): monaco.languages.ProviderResult<monaco.languages.CompletionList> {
+    ): Promise<monaco.languages.CompletionList> {
       // Get line content and text before cursor
       const lineContent = model.getLineContent(position.lineNumber);
       const textBefore = lineContent.substring(0, position.column - 1);
@@ -593,12 +594,12 @@ export function registerUserSnippetsProvider(): monaco.IDisposable {
       let filteredSnippets = userSnippets;
       if (triggerChar !== '@') {
         const snippetType = TRIGGER_TYPE_MAP[triggerChar];
-        if (snippetType) {
+        if (snippetType !== undefined) {
           filteredSnippets = userSnippets.filter((s) => s.metadata.type === snippetType);
         }
       }
 
-      if (searchText) {
+      if (searchText !== '') {
         filteredSnippets = filteredSnippets.filter(
           (s) =>
             s.metadata.shortcut.toLowerCase().includes(searchText) ||
@@ -614,10 +615,47 @@ export function registerUserSnippetsProvider(): monaco.IDisposable {
         endColumn: position.column,
       };
 
-      // Create completion items
-      const suggestions = filteredSnippets.map((snippet) =>
+      // Create completion items for snippets
+      const suggestions: monaco.languages.CompletionItem[] = filteredSnippets.map((snippet) =>
         createUserSnippetCompletionItem(snippet, range, false)
       );
+
+      // Add file suggestions when triggered by @
+      if (triggerChar === '@') {
+        try {
+          const fileSyncStore = useFileSyncStore();
+
+          // Only if initialized
+          if (fileSyncStore.isInitialized) {
+            const query = searchText;
+            const files = await fileSyncStore.searchFiles(query);
+
+            // Add file suggestions with sortText that puts them after snippets
+            for (const file of files) {
+              suggestions.push({
+                label: {
+                  label: file.fileName,
+                  description: 'File',
+                  detail: file.relativePath,
+                },
+                kind: monaco.languages.CompletionItemKind.File,
+                insertText: file.fullPath,
+                detail: file.relativePath,
+                documentation: {
+                  value: `**Insert file path:**\n\`${file.fullPath}\``,
+                },
+                range,
+                // sortText starting with '2' puts files after snippets (which start with '0' or '1')
+                sortText: `2_${file.normalizedName}`,
+                filterText: `@${file.normalizedName}`,
+              });
+            }
+          }
+        } catch (err) {
+          // Silently fail - file suggestions are optional enhancement
+          console.warn('Failed to get file suggestions:', err);
+        }
+      }
 
       return { suggestions };
     },

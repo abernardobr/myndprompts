@@ -205,7 +205,10 @@ watch(
 </script>
 
 <template>
-  <div class="editor-area">
+  <div
+    class="editor-area"
+    data-testid="editor-area"
+  >
     <!-- Split panes editor view -->
     <template v-if="hasAnyTabs || isSplitView">
       <Splitpanes
@@ -237,6 +240,7 @@ watch(
     <div
       v-else
       class="editor-area__welcome"
+      data-testid="welcome-screen"
     >
       <div class="editor-area__welcome-content">
         <div class="editor-area__logo">

@@ -112,6 +112,7 @@ function handleKeydown(event: KeyboardEvent): void {
   >
     <q-card
       class="rename-dialog"
+      data-testid="rename-dialog"
       @keydown="handleKeydown"
     >
       <q-card-section class="row items-center q-pb-none">
@@ -136,6 +137,7 @@ function handleKeydown(event: KeyboardEvent): void {
           autofocus
           :error="!!nameError && newName.length > 0"
           :error-message="nameError"
+          data-testid="rename-input"
         />
       </q-card-section>
 
@@ -147,6 +149,7 @@ function handleKeydown(event: KeyboardEvent): void {
           flat
           :label="t('common.cancel')"
           color="grey"
+          data-testid="cancel-btn"
           @click="handleClose"
         />
         <q-btn
@@ -154,6 +157,7 @@ function handleKeydown(event: KeyboardEvent): void {
           :label="t('common.rename')"
           color="primary"
           :disable="!isValid"
+          data-testid="rename-btn"
           @click="handleRename"
         />
       </q-card-actions>

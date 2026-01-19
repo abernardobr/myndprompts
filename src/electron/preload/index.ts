@@ -51,6 +51,26 @@ export interface SaveDialogResult {
   filePath?: string;
 }
 
+// File Indexing types (for File Sync feature)
+export interface IIndexedFile {
+  fileName: string;
+  normalizedName: string;
+  fullPath: string;
+  relativePath: string;
+  extension: string;
+  size: number;
+  modifiedAt: Date;
+}
+
+export interface IIndexProgress {
+  operationId: string;
+  phase: 'scanning' | 'indexing' | 'complete' | 'cancelled' | 'error';
+  current: number;
+  total: number;
+  currentFile?: string;
+  error?: string;
+}
+
 // Type definitions for exposed API
 export interface ElectronAPI {
   // App info
@@ -110,6 +130,11 @@ export interface FileSystemAPI {
 
   // Events from main process
   onFileChange: (callback: (event: IFileWatcherEvent) => void) => () => void;
+
+  // File Indexing (File Sync feature)
+  startIndexing: (folderPath: string, operationId: string) => Promise<IIndexedFile[]>;
+  cancelIndexing: (operationId: string) => Promise<boolean>;
+  onIndexProgress: (callback: (data: IIndexProgress) => void) => () => void;
 }
 
 // Git API
@@ -259,6 +284,22 @@ const fileSystemApi: FileSystemAPI = {
     // Return cleanup function
     return () => {
       ipcRenderer.removeListener('fs:file-change', handler);
+    };
+  },
+
+  // File Indexing (File Sync feature)
+  startIndexing: (folderPath, operationId) =>
+    ipcRenderer.invoke('fs:start-indexing', folderPath, operationId) as Promise<IIndexedFile[]>,
+  cancelIndexing: (operationId) =>
+    ipcRenderer.invoke('fs:cancel-indexing', operationId) as Promise<boolean>,
+  onIndexProgress: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: IIndexProgress): void => {
+      callback(data);
+    };
+    ipcRenderer.on('fs:index-progress', handler);
+    // Return cleanup function
+    return () => {
+      ipcRenderer.removeListener('fs:index-progress', handler);
     };
   },
 };

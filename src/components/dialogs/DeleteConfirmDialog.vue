@@ -98,7 +98,10 @@ function handleConfirm(): void {
     persistent
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card class="delete-confirm-dialog">
+    <q-card
+      class="delete-confirm-dialog"
+      data-testid="delete-confirm-dialog"
+    >
       <q-card-section class="row items-center q-pb-none">
         <q-icon
           name="warning"
@@ -161,12 +164,14 @@ function handleConfirm(): void {
           flat
           :label="t('common.cancel')"
           color="grey"
+          data-testid="cancel-btn"
           @click="handleClose"
         />
         <q-btn
           unelevated
           :label="t('common.delete')"
           color="negative"
+          data-testid="confirm-delete-btn"
           @click="handleConfirm"
         />
       </q-card-actions>

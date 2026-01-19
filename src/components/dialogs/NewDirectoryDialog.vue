@@ -90,6 +90,7 @@ function handleKeydown(event: KeyboardEvent): void {
   >
     <q-card
       class="new-directory-dialog"
+      data-testid="new-directory-dialog"
       @keydown="handleKeydown"
     >
       <q-card-section class="row items-center q-pb-none">
@@ -119,6 +120,7 @@ function handleKeydown(event: KeyboardEvent): void {
           autofocus
           :error="!!nameError && name.length > 0"
           :error-message="nameError"
+          data-testid="directory-name-input"
         />
       </q-card-section>
 
@@ -130,6 +132,7 @@ function handleKeydown(event: KeyboardEvent): void {
           flat
           :label="t('common.cancel')"
           color="grey"
+          data-testid="cancel-btn"
           @click="handleClose"
         />
         <q-btn
@@ -137,6 +140,7 @@ function handleKeydown(event: KeyboardEvent): void {
           :label="t('common.create')"
           color="primary"
           :disable="!isValid"
+          data-testid="create-directory-btn"
           @click="handleCreate"
         />
       </q-card-actions>

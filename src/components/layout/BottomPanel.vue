@@ -52,6 +52,7 @@ function _maximizePanel(): void {
   <div
     v-if="!panelCollapsed"
     class="bottom-panel"
+    data-testid="bottom-panel"
   >
     <!-- Panel header with tabs -->
     <div class="bottom-panel__header">
@@ -60,6 +61,7 @@ function _maximizePanel(): void {
           v-for="tab in panelTabs"
           :key="tab.id"
           :class="['bottom-panel__tab', { 'bottom-panel__tab--active': activePanel === tab.id }]"
+          :data-testid="`${tab.id}-tab`"
           @click="selectTab(tab.id)"
         >
           <q-icon
@@ -93,6 +95,7 @@ function _maximizePanel(): void {
           round
           size="sm"
           icon="close"
+          data-testid="panel-collapse"
           @click="closePanel"
         >
           <q-tooltip>Close Panel</q-tooltip>

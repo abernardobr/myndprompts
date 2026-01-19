@@ -37,8 +37,14 @@ const currentTitle = computed(() => {
 </script>
 
 <template>
-  <div class="sidebar">
-    <div class="sidebar__header">
+  <div
+    class="sidebar"
+    data-testid="sidebar"
+  >
+    <div
+      class="sidebar__header"
+      data-testid="sidebar-header"
+    >
       <span class="sidebar__title">{{ currentTitle }}</span>
     </div>
 

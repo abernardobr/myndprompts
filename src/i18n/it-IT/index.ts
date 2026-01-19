@@ -158,6 +158,7 @@ export default {
       text: 'Solo snippet di testo',
       code: 'Solo snippet di codice',
       templates: 'Solo modelli',
+      files: 'File del progetto',
       tip: 'Inizia a digitare dopo il trigger per filtrare i risultati',
     },
     browserMode: "Il pannello snippet è disponibile nell'app desktop.",
@@ -526,5 +527,38 @@ export default {
     splitEditor: 'Dividi Editor',
     search: 'Cerca',
     settings: 'Impostazioni',
+  },
+
+  // File Sync
+  fileSync: {
+    title: 'Sincronizzazione File',
+    selectFolder: 'Seleziona Cartella',
+    folders: 'Cartelle',
+    addFolder: 'Aggiungi Cartella',
+    removeFolder: 'Rimuovi Cartella',
+    syncNow: 'Sincronizza Ora',
+    syncAll: 'Sincronizza Tutto',
+    stopAll: 'Ferma Tutto',
+    cannotRemoveWhileIndexing:
+      "Impossibile rimuovere la cartella mentre l'indicizzazione è in corso",
+    upToDate: 'Aggiornato',
+    needsSync: 'Sincronizzazione necessaria',
+    indexing: 'Indicizzazione...',
+    filesIndexed: 'file indicizzati',
+    folderCount: '{count} cartella | {count} cartelle',
+    fileCount: '{count} file | {count} file',
+    hasErrors: '{count} errore di sincronizzazione | {count} errori di sincronizzazione',
+    cancelIndexing: "Annulla l'indicizzazione",
+    noFolders: 'Nessuna cartella configurata',
+    noProject: 'Seleziona prima un progetto',
+    addFolderHint:
+      "Aggiungi cartelle esterne per abilitare i suggerimenti dei percorsi file nell'editor",
+    browserMode: "La sincronizzazione file è disponibile nell'app desktop",
+    status: {
+      pending: 'In attesa',
+      indexing: 'Indicizzazione',
+      indexed: 'Indicizzato',
+      error: 'Errore',
+    },
   },
 };

@@ -259,7 +259,10 @@ function clearSearch(): void {
 </script>
 
 <template>
-  <div class="search-panel">
+  <div
+    class="search-panel"
+    data-testid="search-panel"
+  >
     <div class="search-panel__input-container">
       <q-input
         v-model="searchQuery"
@@ -267,6 +270,7 @@ function clearSearch(): void {
         outlined
         :placeholder="t('searchPanel.placeholder')"
         class="search-panel__input"
+        data-testid="search-input"
       >
         <template #prepend>
           <q-icon
@@ -280,6 +284,7 @@ function clearSearch(): void {
             name="close"
             size="18px"
             class="cursor-pointer"
+            data-testid="clear-search"
             @click="clearSearch"
           />
         </template>
@@ -293,6 +298,7 @@ function clearSearch(): void {
         size="sm"
         :label="t('searchPanel.matchCase')"
         class="search-panel__option"
+        data-testid="match-case"
       />
       <q-checkbox
         v-model="wholeWord"
@@ -300,6 +306,7 @@ function clearSearch(): void {
         size="sm"
         :label="t('searchPanel.matchWholeWord')"
         class="search-panel__option"
+        data-testid="whole-word"
       />
       <q-checkbox
         v-model="useRegex"
@@ -307,6 +314,7 @@ function clearSearch(): void {
         size="sm"
         :label="t('searchPanel.useRegex')"
         class="search-panel__option"
+        data-testid="use-regex"
       />
     </div>
 
@@ -323,6 +331,7 @@ function clearSearch(): void {
         use-chips
         clearable
         class="search-panel__category-select"
+        data-testid="category-filter"
       >
         <template #prepend>
           <q-icon
@@ -333,7 +342,10 @@ function clearSearch(): void {
       </q-select>
     </div>
 
-    <div class="search-panel__results">
+    <div
+      class="search-panel__results"
+      data-testid="search-results"
+    >
       <!-- No search yet -->
       <div
         v-if="!hasSearched || !searchQuery.trim()"
@@ -351,6 +363,7 @@ function clearSearch(): void {
       <div
         v-else-if="searchResults.length === 0"
         class="search-panel__empty"
+        data-testid="no-results"
       >
         <q-icon
           name="search_off"
@@ -364,13 +377,17 @@ function clearSearch(): void {
 
       <!-- Results list -->
       <template v-else>
-        <div class="search-panel__results-header">
+        <div
+          class="search-panel__results-header"
+          data-testid="result-count"
+        >
           {{ t('searchPanel.resultCount', { count: searchResults.length }) }}
         </div>
         <div
           v-for="result in searchResults"
           :key="result.id"
           class="search-panel__result"
+          data-testid="search-result-item"
           @click="openResult(result)"
         >
           <q-icon
@@ -393,6 +410,7 @@ function clearSearch(): void {
             <div
               v-if="result.contentPreview"
               class="search-panel__result-preview"
+              data-testid="result-preview"
             >
               {{ result.contentPreview }}
             </div>

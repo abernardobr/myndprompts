@@ -162,7 +162,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="git-panel">
+  <div
+    class="git-panel"
+    data-testid="git-panel"
+  >
     <!-- Loading state -->
     <div
       v-if="!isInitialized || isLoading"
@@ -219,6 +222,7 @@ onMounted(async () => {
         color="primary"
         icon="add"
         label="Initialize Repository"
+        data-testid="git-init-btn"
         @click="showInitDialog = true"
       />
 
@@ -261,7 +265,10 @@ onMounted(async () => {
     >
       <!-- Header with branch info -->
       <div class="git-panel__header">
-        <div class="git-panel__branch">
+        <div
+          class="git-panel__branch"
+          data-testid="branch-selector"
+        >
           <q-icon
             name="account_tree"
             size="16px"
@@ -301,6 +308,7 @@ onMounted(async () => {
             size="sm"
             icon="cloud_upload"
             :disable="aheadBehind.ahead === 0"
+            data-testid="push-btn"
             @click="push"
           >
             <q-tooltip>Push</q-tooltip>
@@ -312,6 +320,7 @@ onMounted(async () => {
             size="sm"
             icon="cloud_download"
             :disable="aheadBehind.behind === 0"
+            data-testid="pull-btn"
             @click="pull"
           >
             <q-tooltip>Pull</q-tooltip>
@@ -344,6 +353,7 @@ onMounted(async () => {
           outlined
           placeholder="Commit message"
           :disable="!hasStagedChanges"
+          data-testid="commit-message"
           @keyup.enter="doCommit"
         >
           <template #append>
@@ -354,6 +364,7 @@ onMounted(async () => {
               icon="check"
               :disable="!commitMessage.trim() || !hasStagedChanges"
               :loading="isCommitting"
+              data-testid="commit-btn"
               @click="doCommit"
             >
               <q-tooltip>Commit</q-tooltip>
@@ -398,6 +409,7 @@ onMounted(async () => {
             <div
               v-show="expandedSections.staged"
               class="git-panel__files"
+              data-testid="staged-files"
             >
               <div
                 v-for="file in stagedFiles"
@@ -465,6 +477,7 @@ onMounted(async () => {
             <div
               v-show="expandedSections.changes"
               class="git-panel__files"
+              data-testid="changed-files"
             >
               <div
                 v-for="file in unstagedChanges"

@@ -98,6 +98,7 @@ function handleKeydown(event: KeyboardEvent): void {
   >
     <q-card
       class="new-prompt-dialog"
+      data-testid="new-prompt-dialog"
       @keydown="handleKeydown"
     >
       <q-card-section class="row items-center q-pb-none">
@@ -123,6 +124,7 @@ function handleKeydown(event: KeyboardEvent): void {
           :error="!!titleError && title.length > 0"
           :error-message="titleError"
           class="q-mb-md"
+          data-testid="prompt-title-input"
         />
 
         <q-select
@@ -133,6 +135,7 @@ function handleKeydown(event: KeyboardEvent): void {
           emit-value
           map-options
           clearable
+          data-testid="prompt-category-select"
         />
       </q-card-section>
 
@@ -144,6 +147,7 @@ function handleKeydown(event: KeyboardEvent): void {
           flat
           :label="t('common.cancel')"
           color="grey"
+          data-testid="cancel-btn"
           @click="handleClose"
         />
         <q-btn
@@ -151,6 +155,7 @@ function handleKeydown(event: KeyboardEvent): void {
           :label="t('common.create')"
           color="primary"
           :disable="!isValid"
+          data-testid="create-prompt-btn"
           @click="handleCreate"
         />
       </q-card-actions>

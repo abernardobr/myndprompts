@@ -158,6 +158,7 @@ export default {
       text: 'Somente snippets de texto',
       code: 'Somente snippets de código',
       templates: 'Somente modelos',
+      files: 'Arquivos do projeto',
       tip: 'Comece a digitar após o gatilho para filtrar resultados',
     },
     browserMode: 'O painel de snippets está disponível no aplicativo desktop.',
@@ -526,5 +527,38 @@ export default {
     splitEditor: 'Dividir Editor',
     search: 'Buscar',
     settings: 'Configurações',
+  },
+
+  // File Sync
+  fileSync: {
+    title: 'Sincronização de Arquivos',
+    selectFolder: 'Selecionar Pasta',
+    folders: 'Pastas',
+    addFolder: 'Adicionar Pasta',
+    removeFolder: 'Remover Pasta',
+    syncNow: 'Sincronizar Agora',
+    syncAll: 'Sincronizar Tudo',
+    stopAll: 'Parar Tudo',
+    cannotRemoveWhileIndexing:
+      'Não é possível remover pasta enquanto a indexação está em progresso',
+    upToDate: 'Atualizado',
+    needsSync: 'Precisa sincronizar',
+    indexing: 'Indexando...',
+    filesIndexed: 'arquivos indexados',
+    folderCount: '{count} pasta | {count} pastas',
+    fileCount: '{count} arquivo | {count} arquivos',
+    hasErrors: '{count} erro de sincronização | {count} erros de sincronização',
+    cancelIndexing: 'Cancelar indexação',
+    noFolders: 'Nenhuma pasta configurada',
+    noProject: 'Selecione um projeto primeiro',
+    addFolderHint:
+      'Adicione pastas externas para habilitar sugestões de caminho de arquivo no editor',
+    browserMode: 'Sincronização de arquivos disponível no aplicativo desktop',
+    status: {
+      pending: 'Pendente',
+      indexing: 'Indexando',
+      indexed: 'Indexado',
+      error: 'Erro',
+    },
   },
 };

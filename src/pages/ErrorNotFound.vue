@@ -3,7 +3,10 @@
 </script>
 
 <template>
-  <q-page class="flex flex-center">
+  <q-page
+    class="flex flex-center"
+    data-testid="error-not-found-page"
+  >
     <div class="text-center q-pa-md">
       <div class="text-h2 text-weight-bold text-grey-8">404</div>
       <div class="text-h6 text-grey">Oops. Nothing here...</div>

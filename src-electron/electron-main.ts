@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import { getFileSystemService } from '../src/electron/main/services/file-system.service';
 import { getFileWatcherService } from '../src/electron/main/services/file-watcher.service';
 import { getGitService } from '../src/electron/main/services/git.service';
+import { getFileIndexerService } from '../src/electron/main/services/file-indexer.service';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
@@ -577,4 +578,24 @@ ipcMain.handle(
 // Tracked files (files that have been committed)
 ipcMain.handle('git:tracked-files', async (_event, repoPath?: string) => {
   return gitService.getTrackedFiles(repoPath);
+});
+
+// ================================
+// File Indexing IPC Handlers (File Sync feature)
+// ================================
+
+ipcMain.handle('fs:start-indexing', async (event, folderPath: string, operationId: string) => {
+  const indexer = getFileIndexerService();
+  const window = BrowserWindow.fromWebContents(event.sender);
+
+  const files = await indexer.indexDirectory(folderPath, operationId, (progress) => {
+    window?.webContents.send('fs:index-progress', { operationId, ...progress });
+  });
+
+  return files;
+});
+
+ipcMain.handle('fs:cancel-indexing', (_event, operationId: string) => {
+  const indexer = getFileIndexerService();
+  return indexer.cancelIndexing(operationId);
 });

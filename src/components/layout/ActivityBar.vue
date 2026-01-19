@@ -42,7 +42,10 @@ function isActive(activity: ActivityView): boolean {
 </script>
 
 <template>
-  <div class="activity-bar">
+  <div
+    class="activity-bar"
+    data-testid="activity-bar"
+  >
     <!-- Logo -->
     <div class="activity-bar__logo">
       <img
@@ -68,6 +71,7 @@ function isActive(activity: ActivityView): boolean {
         square
         :icon="item.icon"
         :class="['activity-bar__item', { 'activity-bar__item--active': isActive(item.id) }]"
+        :data-testid="`activity-${item.id}`"
         @click="handleActivityClick(item.id)"
       >
         <q-tooltip
@@ -94,6 +98,7 @@ function isActive(activity: ActivityView): boolean {
         square
         :icon="item.icon"
         :class="['activity-bar__item', { 'activity-bar__item--active': isActive(item.id) }]"
+        :data-testid="`activity-${item.id}`"
         @click="handleActivityClick(item.id)"
       >
         <q-tooltip

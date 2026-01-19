@@ -113,7 +113,10 @@ function handleCreate(): void {
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card class="new-snippet-dialog">
+    <q-card
+      class="new-snippet-dialog"
+      data-testid="new-snippet-dialog"
+    >
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">{{ t('dialogs.newSnippet.title') }}</div>
         <q-space />
@@ -141,6 +144,7 @@ function handleCreate(): void {
             color="grey-8"
             text-color="white"
             :options="typeOptions.map((o) => ({ value: o.value, label: o.label }))"
+            data-testid="snippet-type-toggle"
           />
           <div class="text-caption text-grey-6 q-mt-xs">
             {{ typeOptions.find((o) => o.value === snippetType)?.description }}
@@ -159,6 +163,7 @@ function handleCreate(): void {
             (val) => val.trim().length <= 50 || t('validation.maxLength', { max: 50 }),
           ]"
           class="q-mb-md"
+          data-testid="snippet-name-input"
         >
           <template #hint>
             <div class="row items-center">
@@ -188,6 +193,7 @@ function handleCreate(): void {
           flat
           :label="t('common.cancel')"
           color="grey"
+          data-testid="cancel-btn"
           @click="handleClose"
         />
         <q-btn
@@ -195,6 +201,7 @@ function handleCreate(): void {
           :label="t('common.create')"
           color="primary"
           :disable="!isValid"
+          data-testid="create-snippet-btn"
           @click="handleCreate"
         />
       </q-card-actions>

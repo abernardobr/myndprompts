@@ -129,7 +129,10 @@ function formatDate(dateString: string): string {
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card class="open-prompt-dialog">
+    <q-card
+      class="open-prompt-dialog"
+      data-testid="open-prompt-dialog"
+    >
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">{{ t('dialogs.openPrompt.title') }}</div>
         <q-space />
@@ -151,6 +154,7 @@ function formatDate(dateString: string): string {
           dense
           clearable
           autofocus
+          data-testid="open-prompt-search"
         >
           <template #prepend>
             <q-icon name="search" />
@@ -229,6 +233,7 @@ function formatDate(dateString: string): string {
           :label="t('dialogs.openPrompt.browse')"
           color="grey"
           icon="folder_open"
+          data-testid="browse-btn"
           @click="handleBrowse"
         />
         <q-space />
@@ -236,6 +241,7 @@ function formatDate(dateString: string): string {
           flat
           :label="t('common.cancel')"
           color="grey"
+          data-testid="cancel-btn"
           @click="handleClose"
         />
         <q-btn
@@ -243,6 +249,7 @@ function formatDate(dateString: string): string {
           :label="t('common.open')"
           color="primary"
           :disable="!selectedPrompt"
+          data-testid="open-btn"
           @click="handleOpen"
         />
       </q-card-actions>

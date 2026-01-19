@@ -157,6 +157,43 @@ export interface IAIProviderConfig {
 export type AIProviderType = 'anthropic' | 'openai' | 'google' | 'xai' | 'ollama';
 
 /**
+ * File Sync - Project folder status
+ */
+export type ProjectFolderStatus = 'pending' | 'indexing' | 'indexed' | 'error';
+
+/**
+ * File Sync - Project folder configuration
+ * Stores the relationship between MyndPrompts projects and external folders
+ */
+export interface IProjectFolder {
+  id: string;
+  projectPath: string; // MyndPrompts project path (e.g., ~/.myndprompt/prompts/my-project)
+  folderPath: string; // External folder path (e.g., ~/Projects/my-app)
+  addedAt: Date;
+  lastIndexedAt: Date | null;
+  fileCount: number;
+  status: ProjectFolderStatus;
+  errorMessage?: string;
+}
+
+/**
+ * File Sync - Indexed file entry
+ * Stores metadata for indexed files for fast autocomplete search
+ */
+export interface IFileIndexEntry {
+  id: string;
+  projectFolderId: string; // FK to IProjectFolder.id
+  fileName: string; // Original name: "Café.tsx"
+  normalizedName: string; // Searchable: "cafe.tsx" (NFD normalized, diacritics removed)
+  fullPath: string; // Absolute path: "/Users/me/projects/app/src/Café.tsx"
+  relativePath: string; // Relative to folder: "src/Café.tsx"
+  extension: string; // File extension: ".tsx"
+  size: number; // File size in bytes
+  modifiedAt: Date; // File modification date
+  indexedAt: Date; // When the file was indexed
+}
+
+/**
  * Project metadata stored in IndexedDB
  * Projects are directories on the file system, but metadata is stored here
  */

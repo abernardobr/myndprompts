@@ -158,7 +158,10 @@ function closeDialog(): void {
     transition-show="slide-up"
     transition-hide="slide-down"
   >
-    <q-card class="git-history-dialog">
+    <q-card
+      class="git-history-dialog"
+      data-testid="git-history-dialog"
+    >
       <!-- Header -->
       <q-card-section class="git-history-dialog__header">
         <div class="git-history-dialog__title-row">

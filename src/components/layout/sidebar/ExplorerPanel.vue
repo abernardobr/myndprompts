@@ -26,6 +26,7 @@ import EditPromptDialog from '@/components/dialogs/EditPromptDialog.vue';
 import GitSetupDialog from '@/components/dialogs/GitSetupDialog.vue';
 import GitHistoryDialog from '@/components/dialogs/GitHistoryDialog.vue';
 import BranchDialog from '@/components/dialogs/BranchDialog.vue';
+import FileSyncDialog from '@/components/dialogs/FileSyncDialog.vue';
 
 const $q = useQuasar();
 const { t } = useI18n({ useScope: 'global' });
@@ -52,6 +53,8 @@ const showEditPromptDialog = ref(false);
 const showGitSetupDialog = ref(false);
 const showGitHistoryDialog = ref(false);
 const showBranchDialog = ref(false);
+const showFileSyncDialog = ref(false);
+const fileSyncProjectPath = ref('');
 
 // Git context for dialogs
 const gitProjectPath = ref('');
@@ -1112,6 +1115,12 @@ async function handleGitSync(projectPath: string): Promise<void> {
   }
 }
 
+// Open the File Sync dialog for a project
+function openFileSyncDialog(projectPath: string): void {
+  fileSyncProjectPath.value = projectPath;
+  showFileSyncDialog.value = true;
+}
+
 // Open branch dialog for a project
 function openBranchDialog(projectPath: string, projectName: string): void {
   gitProjectPath.value = projectPath;
@@ -1548,7 +1557,10 @@ watch(
 </script>
 
 <template>
-  <div class="explorer-panel">
+  <div
+    class="explorer-panel"
+    data-testid="explorer-panel"
+  >
     <!-- Header with search and actions -->
     <div class="explorer-panel__header">
       <q-input
@@ -1558,6 +1570,7 @@ watch(
         dense
         clearable
         class="explorer-panel__search"
+        data-testid="explorer-search"
       />
       <q-btn
         flat
@@ -1566,6 +1579,7 @@ watch(
         :icon="categoryFilter ? 'filter_alt' : 'filter_alt_off'"
         :color="categoryFilter ? 'primary' : undefined"
         size="sm"
+        data-testid="category-filter"
       >
         <q-tooltip>{{
           categoryFilter ? `Filter: ${getCategoryLabel(categoryFilter)}` : 'Filter by category'
@@ -1624,6 +1638,7 @@ watch(
             <q-item
               v-close-popup
               clickable
+              data-testid="new-prompt-btn"
               @click="showNewPromptDialog = true"
             >
               <q-item-section avatar>
@@ -1637,6 +1652,7 @@ watch(
             <q-item
               v-close-popup
               clickable
+              data-testid="new-project-btn"
               @click="showNewProjectDialog = true"
             >
               <q-item-section avatar>
@@ -1702,6 +1718,7 @@ watch(
         <div
           v-else
           class="explorer-panel__tree"
+          data-testid="project-tree"
         >
           <template
             v-for="folder in fileTree"
@@ -1713,6 +1730,7 @@ watch(
               :class="{
                 'explorer-panel__folder--drop-target': isDropTargetActive(folder),
               }"
+              :data-testid="`folder-${folder.id}`"
               @click="toggleFolder(folder.id)"
               @dragover="folder.isDropTarget ? handleDragOver($event, folder) : null"
               @dragleave="handleDragLeave"
@@ -1722,6 +1740,7 @@ watch(
                 :name="isExpanded(folder.id) ? 'expand_more' : 'chevron_right'"
                 size="18px"
                 class="explorer-panel__chevron"
+                data-testid="expand-icon"
               />
               <q-icon
                 :name="isExpanded(folder.id) ? 'folder_open' : 'folder'"
@@ -1832,6 +1851,7 @@ watch(
                     'explorer-panel__folder--drop-target': isDropTargetActive(child),
                   }"
                   :style="{ paddingLeft: `${(child.depth ?? 0) * 16 + 24}px` }"
+                  :data-testid="child.type === 'project' ? 'project-item' : 'directory-item'"
                   @click="toggleFolder(child.id)"
                   @dragover="handleDragOver($event, child)"
                   @dragleave="handleDragLeave"
@@ -2030,6 +2050,24 @@ watch(
                               </q-item>
                             </q-list>
                           </q-menu>
+                        </q-item>
+                      </template>
+
+                      <!-- File Sync option for projects -->
+                      <template v-if="child.type === 'project' && isElectron">
+                        <q-item
+                          v-close-popup
+                          clickable
+                          @click="openFileSyncDialog(child.filePath!)"
+                        >
+                          <q-item-section avatar>
+                            <q-icon
+                              name="mdi-folder-sync"
+                              size="20px"
+                              color="primary"
+                            />
+                          </q-item-section>
+                          <q-item-section>{{ t('fileSync.folders') }}</q-item-section>
                         </q-item>
                       </template>
 
@@ -2289,6 +2327,7 @@ watch(
                           class="explorer-panel__file"
                           :style="{ paddingLeft: `${(deepNested.depth ?? 2) * 16 + 32}px` }"
                           draggable="true"
+                          data-testid="file-item"
                           @click="openFile(deepNested)"
                           @dblclick="openFile(deepNested)"
                           @dragstart="handleDragStart($event, deepNested)"
@@ -2516,6 +2555,7 @@ watch(
                       class="explorer-panel__file"
                       :style="{ paddingLeft: `${(nested.depth ?? 1) * 16 + 32}px` }"
                       draggable="true"
+                      data-testid="file-item"
                       @click="openFile(nested)"
                       @dblclick="openFile(nested)"
                       @dragstart="handleDragStart($event, nested)"
@@ -2744,6 +2784,7 @@ watch(
                   class="explorer-panel__file"
                   :style="{ paddingLeft: `${(child.depth ?? 0) * 16 + 32}px` }"
                   :draggable="child.isDraggable ? 'true' : 'false'"
+                  data-testid="file-item"
                   @click="openFile(child)"
                   @dblclick="openFile(child)"
                   @dragstart="child.isDraggable ? handleDragStart($event, child) : null"
@@ -3053,6 +3094,12 @@ watch(
       :project-path="gitProjectPath"
       :project-name="gitProjectName"
       @branch-changed="handleBranchChanged"
+    />
+
+    <!-- File Sync Dialog -->
+    <FileSyncDialog
+      v-model="showFileSyncDialog"
+      :project-path="fileSyncProjectPath"
     />
   </div>
 </template>

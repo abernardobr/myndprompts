@@ -88,6 +88,7 @@ function handleKeydown(event: KeyboardEvent): void {
   >
     <q-card
       class="new-project-dialog"
+      data-testid="new-project-dialog"
       @keydown="handleKeydown"
     >
       <q-card-section class="row items-center q-pb-none">
@@ -114,6 +115,7 @@ function handleKeydown(event: KeyboardEvent): void {
           :error="!!nameError && name.length > 0"
           :error-message="nameError"
           class="q-mb-md"
+          data-testid="project-name-input"
         />
 
         <q-input
@@ -123,6 +125,7 @@ function handleKeydown(event: KeyboardEvent): void {
           outlined
           type="textarea"
           rows="3"
+          data-testid="project-description-input"
         />
       </q-card-section>
 
@@ -134,6 +137,7 @@ function handleKeydown(event: KeyboardEvent): void {
           flat
           :label="t('common.cancel')"
           color="grey"
+          data-testid="cancel-btn"
           @click="handleClose"
         />
         <q-btn
@@ -141,6 +145,7 @@ function handleKeydown(event: KeyboardEvent): void {
           :label="t('common.create')"
           color="primary"
           :disable="!isValid"
+          data-testid="create-project-btn"
           @click="handleCreate"
         />
       </q-card-actions>

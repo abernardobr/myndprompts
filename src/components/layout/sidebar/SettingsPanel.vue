@@ -11,6 +11,7 @@ import { useUIStore, type Theme } from '@/stores/uiStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useI18n } from 'vue-i18n';
 import CategoryListEditor from '@/components/settings/CategoryListEditor.vue';
+import FileSyncSection from '@/components/settings/FileSyncSection.vue';
 
 const { t, locale: i18nLocale } = useI18n({ useScope: 'global' });
 const uiStore = useUIStore();
@@ -97,6 +98,12 @@ const settingsSections = computed<ISettingsSection[]>(() => [
     type: 'categories',
   },
   {
+    id: 'fileSync',
+    label: t('fileSync.title'),
+    icon: 'sync',
+    type: 'fileSync',
+  },
+  {
     id: 'editor',
     label: t('settingsPanel.editor'),
     icon: 'edit',
@@ -122,17 +129,29 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="settings-panel">
+  <div
+    class="settings-panel"
+    data-testid="settings-panel"
+  >
     <div class="settings-panel__content">
       <div
         v-for="section in settingsSections"
         :key="section.id"
         class="settings-panel__section"
+        :data-testid="`${section.id}-section`"
       >
         <div
           class="settings-panel__section-header"
-          :class="{ 'settings-panel__section-header--clickable': section.type === 'categories' }"
-          @click="section.type === 'categories' ? toggleSection(section.id) : undefined"
+          :class="{
+            'settings-panel__section-header--clickable':
+              section.type === 'categories' || section.type === 'fileSync',
+          }"
+          data-testid="settings-header"
+          @click="
+            section.type === 'categories' || section.type === 'fileSync'
+              ? toggleSection(section.id)
+              : undefined
+          "
         >
           <q-icon
             :name="section.icon"
@@ -141,7 +160,7 @@ onMounted(async () => {
           <span>{{ section.label }}</span>
           <q-space />
           <q-icon
-            v-if="section.type === 'categories'"
+            v-if="section.type === 'categories' || section.type === 'fileSync'"
             :name="isSectionExpanded(section.id) ? 'expand_less' : 'expand_more'"
             size="18px"
             class="settings-panel__section-toggle"
@@ -153,8 +172,18 @@ onMounted(async () => {
           v-if="section.type === 'categories'"
           v-show="isSectionExpanded(section.id)"
           class="settings-panel__categories"
+          data-testid="category-editor"
         >
           <CategoryListEditor />
+        </div>
+
+        <!-- File Sync section -->
+        <div
+          v-else-if="section.type === 'fileSync'"
+          v-show="isSectionExpanded(section.id)"
+          class="settings-panel__file-sync"
+        >
+          <FileSyncSection />
         </div>
 
         <!-- Regular items -->
@@ -173,6 +202,7 @@ onMounted(async () => {
             <div
               v-if="item.type === 'theme'"
               class="settings-panel__theme-selector"
+              data-testid="theme-selector"
             >
               <q-btn-toggle
                 :model-value="currentTheme"
@@ -199,6 +229,7 @@ onMounted(async () => {
             <div
               v-else-if="item.type === 'language'"
               class="settings-panel__language-selector"
+              data-testid="language-selector"
             >
               <q-select
                 :model-value="currentLocale"
@@ -291,6 +322,10 @@ onMounted(async () => {
 
   &__categories {
     padding: 0 16px 8px;
+  }
+
+  &__file-sync {
+    padding: 0 8px;
   }
 
   &__items {

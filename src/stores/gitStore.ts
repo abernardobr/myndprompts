@@ -103,17 +103,22 @@ export const useGitStore = defineStore('git', () => {
   const gitService = getGitService();
 
   /**
-   * Initialize the Git store
+   * Initialize the Git store for a specific path.
+   * If the path is different from the current one, reinitialize for the new path.
    */
   async function initialize(promptsPath: string): Promise<void> {
-    if (isInitialized.value) return;
+    // If path changed, we need to reinitialize for the new path
+    const pathChanged = repoPath.value !== promptsPath;
+    if (isInitialized.value && !pathChanged) return;
 
     isLoading.value = true;
     error.value = null;
 
     try {
-      // Check if Git is installed
-      gitCheckResult.value = await gitService.isInstalled();
+      // Check if Git is installed (only need to check once)
+      if (gitCheckResult.value === null) {
+        gitCheckResult.value = await gitService.isInstalled();
+      }
 
       if (!gitCheckResult.value.isInstalled) {
         isInitialized.value = true;
@@ -131,6 +136,13 @@ export const useGitStore = defineStore('git', () => {
         await gitService.setWorkingDirectory(promptsPath);
         await refreshStatus();
         await loadUserConfig();
+      } else {
+        // Reset git state when not a repo
+        currentBranch.value = '';
+        statusSummary.value = null;
+        branches.value = [];
+        commits.value = [];
+        remotes.value = [];
       }
 
       isInitialized.value = true;
