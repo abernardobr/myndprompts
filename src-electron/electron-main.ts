@@ -469,6 +469,10 @@ ipcMain.handle('fs:is-directory-empty', async (_event, dirPath: string) => {
   return fileSystemService.isDirectoryEmpty(dirPath);
 });
 
+ipcMain.handle('fs:list-files-recursive', async (_event, dirPath: string) => {
+  return fileSystemService.listFilesRecursive(dirPath);
+});
+
 // ================================
 // Git IPC Handlers
 // ================================
