@@ -15,6 +15,8 @@ export default {
     recent: 'Recenti',
     noRecentFiles: 'Nessun file recente',
     keyboardShortcuts: 'Scorciatoie da Tastiera',
+    snippetTriggers: 'Trigger Snippet',
+    snippetTriggersDesc: "Digita nell'editor per inserire",
   },
 
   // Common actions

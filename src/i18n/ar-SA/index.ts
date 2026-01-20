@@ -15,6 +15,8 @@ export default {
     recent: 'الأخيرة',
     noRecentFiles: 'لا توجد ملفات حديثة',
     keyboardShortcuts: 'اختصارات لوحة المفاتيح',
+    snippetTriggers: 'مشغلات المقتطفات',
+    snippetTriggersDesc: 'اكتب في المحرر للإدراج',
   },
 
   // Common actions

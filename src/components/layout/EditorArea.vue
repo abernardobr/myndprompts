@@ -9,6 +9,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import { useQuasar } from 'quasar';
+import { useI18n } from 'vue-i18n';
 import { useUIStore } from '@/stores/uiStore';
 import { usePrompts } from '@/composables/usePrompts';
 import EditorPane from './EditorPane.vue';
@@ -21,6 +22,7 @@ interface IEditorPaneExposed {
 }
 
 const $q = useQuasar();
+const { t } = useI18n();
 const uiStore = useUIStore();
 const prompts = usePrompts();
 
@@ -47,6 +49,15 @@ const shortcuts = [
   { keys: 'Ctrl+Shift+F', description: 'Search' },
   { keys: 'Ctrl+,', description: 'Settings' },
 ];
+
+// Snippet triggers for reference
+const snippetTriggers = computed(() => [
+  { trigger: '@', description: t('snippetsPanel.triggerHelp.all') },
+  { trigger: '#', description: t('snippetsPanel.triggerHelp.text') },
+  { trigger: '$', description: t('snippetsPanel.triggerHelp.code') },
+  { trigger: '!', description: t('snippetsPanel.triggerHelp.templates') },
+  { trigger: '^', description: t('snippetsPanel.triggerHelp.files') },
+]);
 
 // Recent files from store
 const recentFiles = computed(() =>
@@ -315,7 +326,7 @@ watch(
 
           <!-- Help section -->
           <div class="editor-area__section">
-            <h6 class="editor-area__section-title">Keyboard Shortcuts</h6>
+            <h6 class="editor-area__section-title">{{ t('welcome.keyboardShortcuts') }}</h6>
             <div class="editor-area__shortcuts">
               <div
                 v-for="shortcut in shortcuts"
@@ -324,6 +335,21 @@ watch(
               >
                 <kbd class="editor-area__kbd">{{ shortcut.keys }}</kbd>
                 <span class="editor-area__shortcut-desc">{{ shortcut.description }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Snippet Triggers section -->
+          <div class="editor-area__section">
+            <h6 class="editor-area__section-title">{{ t('welcome.snippetTriggers') }}</h6>
+            <div class="editor-area__shortcuts">
+              <div
+                v-for="trigger in snippetTriggers"
+                :key="trigger.trigger"
+                class="editor-area__shortcut"
+              >
+                <kbd class="editor-area__kbd editor-area__kbd--trigger">{{ trigger.trigger }}</kbd>
+                <span class="editor-area__shortcut-desc">{{ trigger.description }}</span>
               </div>
             </div>
           </div>
@@ -540,6 +566,13 @@ watch(
     border: 1px solid var(--kbd-border, #454545);
     border-radius: 3px;
     color: var(--kbd-color, #cccccc);
+
+    &--trigger {
+      min-width: 30px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+    }
   }
 
   &__shortcut-desc {

@@ -15,6 +15,8 @@ export default {
     recent: 'Recentes',
     noRecentFiles: 'Nenhum arquivo recente',
     keyboardShortcuts: 'Atalhos de Teclado',
+    snippetTriggers: 'Gatilhos de Snippets',
+    snippetTriggersDesc: 'Digite no editor para inserir',
   },
 
   // Common actions

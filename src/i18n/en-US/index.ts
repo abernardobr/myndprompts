@@ -15,6 +15,8 @@ export default {
     recent: 'Recent',
     noRecentFiles: 'No recent files',
     keyboardShortcuts: 'Keyboard Shortcuts',
+    snippetTriggers: 'Snippet Triggers',
+    snippetTriggersDesc: 'Type in editor to insert',
   },
 
   // Common actions
