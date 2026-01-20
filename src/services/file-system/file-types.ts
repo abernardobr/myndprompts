@@ -727,3 +727,77 @@ export function getMonacoLanguage(filePath: string): string {
   }
   return EXTENSION_MONACO_LANGUAGE_MAP[extension] ?? 'plaintext';
 }
+
+/**
+ * Monaco language ID to human-readable display name mapping
+ */
+const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
+  markdown: 'Markdown',
+  javascript: 'JavaScript',
+  typescript: 'TypeScript',
+  json: 'JSON',
+  html: 'HTML',
+  css: 'CSS',
+  scss: 'SCSS',
+  less: 'Less',
+  python: 'Python',
+  java: 'Java',
+  go: 'Go',
+  rust: 'Rust',
+  c: 'C',
+  cpp: 'C++',
+  csharp: 'C#',
+  swift: 'Swift',
+  'objective-c': 'Objective-C',
+  php: 'PHP',
+  perl: 'Perl',
+  lua: 'Lua',
+  r: 'R',
+  scala: 'Scala',
+  clojure: 'Clojure',
+  elixir: 'Elixir',
+  erlang: 'Erlang',
+  haskell: 'Haskell',
+  fsharp: 'F#',
+  vb: 'Visual Basic',
+  dart: 'Dart',
+  kotlin: 'Kotlin',
+  julia: 'Julia',
+  ruby: 'Ruby',
+  shell: 'Shell',
+  powershell: 'PowerShell',
+  bat: 'Batch',
+  sql: 'SQL',
+  pgsql: 'PostgreSQL',
+  mysql: 'MySQL',
+  graphql: 'GraphQL',
+  yaml: 'YAML',
+  xml: 'XML',
+  ini: 'INI',
+  dockerfile: 'Dockerfile',
+  plaintext: 'Plain Text',
+  vue: 'Vue',
+  handlebars: 'Handlebars',
+  pug: 'Pug',
+  coffee: 'CoffeeScript',
+  apex: 'Apex',
+  azcli: 'Azure CLI',
+};
+
+/**
+ * Get the human-readable display name for a file's language
+ * @param filePath - The full path or filename
+ * @returns The human-readable language name for display in status bar
+ */
+export function getLanguageDisplayName(filePath: string): string {
+  const languageId = getMonacoLanguage(filePath);
+  return LANGUAGE_DISPLAY_NAMES[languageId] ?? capitalizeFirst(languageId);
+}
+
+/**
+ * Capitalize the first letter of a string
+ */
+function capitalizeFirst(str: string): string {
+  if (str.length === 0) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}

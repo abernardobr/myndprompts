@@ -13,6 +13,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useTheme } from '@/composables/useTheme';
 import { useI18n } from 'vue-i18n';
 import FileSyncDialog from '@/components/dialogs/FileSyncDialog.vue';
+import { getLanguageDisplayName } from '@services/file-system/file-types';
 
 const { t } = useI18n({ useScope: 'global' });
 const uiStore = useUIStore();
@@ -61,7 +62,14 @@ const panelCollapsed = computed(() => uiStore.panelCollapsed);
 const cursorPosition = ref({ line: 1, column: 1 });
 const encoding = ref('UTF-8');
 const lineEnding = ref('LF');
-const fileType = ref('Markdown');
+
+// Compute file type from active tab's file path
+const fileType = computed(() => {
+  if (activeTab.value?.filePath === undefined || activeTab.value.filePath === '') {
+    return 'Plain Text';
+  }
+  return getLanguageDisplayName(activeTab.value.filePath);
+});
 
 // Notification/sync status
 const syncStatus = ref<'synced' | 'syncing' | 'error'>('synced');
