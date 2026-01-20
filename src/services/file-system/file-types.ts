@@ -576,3 +576,154 @@ export function getExtensionsForCategory(category: FileCategory): string[] {
     .filter(([, cat]) => cat === category)
     .map(([ext]) => ext);
 }
+
+/**
+ * Monaco Editor language ID mappings by extension
+ */
+const EXTENSION_MONACO_LANGUAGE_MAP: Record<string, string> = {
+  // Markdown
+  '.md': 'markdown',
+
+  // JavaScript/TypeScript
+  '.js': 'javascript',
+  '.jsx': 'javascript',
+  '.ts': 'typescript',
+  '.tsx': 'typescript',
+  '.mjs': 'javascript',
+  '.cjs': 'javascript',
+
+  // Web
+  '.json': 'json',
+  '.jsonc': 'json',
+  '.html': 'html',
+  '.htm': 'html',
+  '.css': 'css',
+  '.scss': 'scss',
+  '.sass': 'scss',
+  '.less': 'less',
+  '.vue': 'vue',
+  '.svelte': 'html',
+
+  // Python
+  '.py': 'python',
+  '.pyw': 'python',
+
+  // JVM languages
+  '.java': 'java',
+  '.kt': 'kotlin',
+  '.kts': 'kotlin',
+  '.scala': 'scala',
+  '.clj': 'clojure',
+  '.cljs': 'clojure',
+  '.groovy': 'groovy',
+  '.gradle': 'groovy',
+
+  // Systems languages
+  '.go': 'go',
+  '.rs': 'rust',
+  '.c': 'c',
+  '.h': 'c',
+  '.cpp': 'cpp',
+  '.cc': 'cpp',
+  '.cxx': 'cpp',
+  '.hpp': 'cpp',
+  '.hxx': 'cpp',
+  '.cs': 'csharp',
+  '.swift': 'swift',
+  '.m': 'objective-c',
+  '.mm': 'objective-c',
+  '.d': 'c',
+  '.zig': 'c',
+  '.nim': 'c',
+  '.v': 'c',
+
+  // Scripting languages
+  '.rb': 'ruby',
+  '.php': 'php',
+  '.pl': 'perl',
+  '.pm': 'perl',
+  '.lua': 'lua',
+  '.r': 'r',
+  '.R': 'r',
+  '.dart': 'dart',
+
+  // Functional languages
+  '.ex': 'elixir',
+  '.exs': 'elixir',
+  '.erl': 'erlang',
+  '.hrl': 'erlang',
+  '.hs': 'haskell',
+  '.lhs': 'haskell',
+  '.ml': 'fsharp',
+  '.mli': 'fsharp',
+  '.fs': 'fsharp',
+  '.fsx': 'fsharp',
+  '.pas': 'pascal',
+  '.pp': 'pascal',
+
+  // Database/Query
+  '.sql': 'sql',
+  '.graphql': 'graphql',
+  '.gql': 'graphql',
+  '.prisma': 'graphql',
+
+  // Shell/Scripts
+  '.sh': 'shell',
+  '.bash': 'shell',
+  '.zsh': 'shell',
+  '.fish': 'shell',
+  '.ps1': 'powershell',
+  '.psm1': 'powershell',
+  '.bat': 'bat',
+  '.cmd': 'bat',
+
+  // Config/Data formats
+  '.xml': 'xml',
+  '.xsl': 'xml',
+  '.xslt': 'xml',
+  '.yaml': 'yaml',
+  '.yml': 'yaml',
+  '.toml': 'ini',
+  '.ini': 'ini',
+  '.cfg': 'ini',
+  '.conf': 'ini',
+  '.config': 'ini',
+  '.env': 'ini',
+  '.gitignore': 'ini',
+  '.gitattributes': 'ini',
+  '.editorconfig': 'ini',
+  '.eslintrc': 'json',
+  '.prettierrc': 'json',
+  '.babelrc': 'json',
+
+  // Infrastructure
+  '.dockerfile': 'dockerfile',
+  '.makefile': 'makefile',
+  '.cmake': 'cmake',
+  '.tf': 'hcl',
+  '.tfvars': 'hcl',
+  '.hcl': 'hcl',
+  '.proto': 'protobuf',
+
+  // Other text
+  '.txt': 'plaintext',
+  '.text': 'plaintext',
+  '.log': 'plaintext',
+  '.asm': 'asm',
+  '.s': 'asm',
+  '.nasm': 'asm',
+  '.wat': 'plaintext',
+};
+
+/**
+ * Gets the Monaco Editor language ID for a file based on its extension
+ * @param filePath - The full path or filename
+ * @returns The Monaco Editor language ID, defaults to 'markdown' for .md files, 'plaintext' for unknown
+ */
+export function getMonacoLanguage(filePath: string): string {
+  const extension = getExtension(filePath);
+  if (!extension) {
+    return 'plaintext';
+  }
+  return EXTENSION_MONACO_LANGUAGE_MAP[extension] ?? 'plaintext';
+}

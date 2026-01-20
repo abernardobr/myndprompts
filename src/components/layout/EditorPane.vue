@@ -13,7 +13,7 @@ import { useAutoSave } from '@/composables/useAutoSave';
 import { useQuasar } from 'quasar';
 import MonacoEditor from '@/components/editor/MonacoEditor.vue';
 import FileViewer from '@/components/viewers/FileViewer.vue';
-import { FileCategory } from '@services/file-system/file-types';
+import { FileCategory, getMonacoLanguage } from '@services/file-system/file-types';
 
 // Interface for MonacoEditor exposed methods
 interface IMonacoEditorExposed {
@@ -108,6 +108,12 @@ const isTextFile = computed(() => {
   // Default to markdown for legacy tabs that don't have fileCategory set
   const category = activeTab.value.fileCategory ?? FileCategory.MARKDOWN;
   return category === FileCategory.MARKDOWN || category === FileCategory.CODE;
+});
+
+// Get the Monaco Editor language based on file extension
+const editorLanguage = computed(() => {
+  if (!activeTab.value) return 'markdown';
+  return getMonacoLanguage(activeTab.value.filePath);
 });
 
 // Generate default content for new files
@@ -554,7 +560,7 @@ onMounted(() => {
           ref="editorRef"
           v-model="activeContent"
           :tab-id="activeTab.id"
-          language="markdown"
+          :language="editorLanguage"
           minimap
           word-wrap="on"
           @change="handleContentChange"
