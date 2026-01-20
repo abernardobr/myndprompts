@@ -3,6 +3,22 @@
 # MyndPrompt Build Script
 # Builds the application for macOS, Linux, and Windows
 # Outputs are saved to dist/Builds/{mac,windows,linux}
+#
+# macOS Code Signing & Notarization:
+# ----------------------------------
+# For signed and notarized macOS builds, set these environment variables:
+#
+#   export APPLE_ID="your-apple-id@email.com"
+#   export APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+#   export APPLE_TEAM_ID="CD298B4H7M"
+#
+# To get an App-Specific Password:
+#   1. Go to https://appleid.apple.com
+#   2. Sign in → Security → App-Specific Passwords
+#   3. Generate a new password for "MyndPrompts Notarization"
+#
+# If these variables are not set, the macOS build will still work but
+# users will see Gatekeeper warnings when installing the app.
 
 # Don't exit on error - we want to continue building other platforms even if one fails
 set +e
@@ -32,6 +48,14 @@ echo ""
 
 # Change to project root
 cd "$PROJECT_ROOT"
+
+# Load .env.signing if it exists (for macOS code signing)
+if [ -f "$PROJECT_ROOT/.env.signing" ]; then
+    echo -e "${BLUE}Loading signing configuration from .env.signing...${NC}"
+    set -a
+    source "$PROJECT_ROOT/.env.signing"
+    set +a
+fi
 
 # Clean previous builds (dist/Builds is outside dist/electron so it won't be auto-cleaned)
 echo -e "${YELLOW}Cleaning previous builds...${NC}"
@@ -106,9 +130,41 @@ MAC_SUCCESS=false
 LINUX_SUCCESS=false
 WIN_SUCCESS=false
 
+# Check macOS signing configuration
+check_macos_signing() {
+    echo ""
+    echo -e "${BLUE}Checking macOS code signing configuration...${NC}"
+
+    if [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+        echo -e "${GREEN}✓ Code signing environment variables are set${NC}"
+        echo -e "  APPLE_ID: $APPLE_ID"
+        echo -e "  APPLE_TEAM_ID: $APPLE_TEAM_ID"
+        echo -e "  APPLE_APP_SPECIFIC_PASSWORD: ****"
+
+        # Check for Developer ID certificate
+        if security find-identity -v -p codesigning 2>/dev/null | grep -q "Developer ID Application"; then
+            echo -e "${GREEN}✓ Developer ID Application certificate found${NC}"
+            echo -e "${GREEN}  → macOS build will be signed and notarized${NC}"
+            return 0
+        else
+            echo -e "${YELLOW}⚠ Developer ID Application certificate not found${NC}"
+            echo -e "${YELLOW}  → macOS build will NOT be signed${NC}"
+            return 1
+        fi
+    else
+        echo -e "${YELLOW}⚠ Code signing environment variables not set:${NC}"
+        [ -z "$APPLE_ID" ] && echo -e "  - APPLE_ID"
+        [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ] && echo -e "  - APPLE_APP_SPECIFIC_PASSWORD"
+        [ -z "$APPLE_TEAM_ID" ] && echo -e "  - APPLE_TEAM_ID"
+        echo -e "${YELLOW}  → macOS build will NOT be signed or notarized${NC}"
+        return 1
+    fi
+}
+
 # Build for macOS
 echo ""
 echo -e "${YELLOW}Starting macOS build...${NC}"
+check_macos_signing
 
 if build_platform "mac" "macOS"; then
     copy_builds "mac" "$MAC_OUTPUT"

@@ -371,6 +371,7 @@ export class GitService {
   /**
    * Pull from remote
    * Automatically determines current branch if not specified
+   * Sets up tracking if not already configured
    */
   async pull(
     remote: string = 'origin',
@@ -390,6 +391,17 @@ export class GitService {
       if (!targetBranch) {
         const branchSummary = await git.branch();
         targetBranch = branchSummary.current;
+      }
+
+      // Check if tracking is set up by looking at the status
+      const status = await git.status();
+      if (!status.tracking) {
+        // Set up tracking before pulling
+        try {
+          await git.branch(['--set-upstream-to', `${remote}/${targetBranch}`, targetBranch]);
+        } catch {
+          // Tracking setup may fail if remote branch doesn't exist yet, continue anyway
+        }
       }
 
       await git.pull(remote, targetBranch);
@@ -637,6 +649,7 @@ export class GitService {
 
   /**
    * Add a remote
+   * Also fetches from the remote and sets up tracking for the current branch
    */
   async addRemote(name: string, url: string, path?: string): Promise<IGitOperationResult> {
     const workingPath = path ?? this.currentPath;
@@ -647,6 +660,25 @@ export class GitService {
     try {
       const git = simpleGit(workingPath);
       await git.addRemote(name, url);
+
+      // Fetch from the new remote to get remote branches
+      try {
+        await git.fetch(name);
+      } catch {
+        // Fetch may fail if remote is empty, continue anyway
+      }
+
+      // Set up tracking for current branch
+      try {
+        const branchSummary = await git.branch();
+        const currentBranch = branchSummary.current;
+        if (currentBranch) {
+          await git.branch(['--set-upstream-to', `${name}/${currentBranch}`, currentBranch]);
+        }
+      } catch {
+        // Setting upstream may fail if remote branch doesn't exist, continue anyway
+      }
+
       return { success: true };
     } catch (error) {
       return {

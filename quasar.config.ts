@@ -105,6 +105,14 @@ export default configure(() => {
           category: 'public.app-category.developer-tools',
           target: ['dmg', 'zip'],
           icon: 'src-electron/icons/icon.icns',
+          hardenedRuntime: true,
+          gatekeeperAssess: false,
+          entitlements: 'build/entitlements.mac.plist',
+          entitlementsInherit: 'build/entitlements.mac.plist',
+          // Notarization - uses APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID env vars
+          notarize: {
+            teamId: process.env.APPLE_TEAM_ID || 'CD298B4H7M',
+          },
         },
 
         win: {

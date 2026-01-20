@@ -1,6 +1,6 @@
 {
   "name": "myndprompt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "AI Prompt Manager - Desktop application for managing, organizing, and optimizing prompts for AI coding tools",
   "productName": "MyndPrompts",
@@ -50,8 +50,9 @@
     "vue-router": "^4.2.5"
   },
   "devDependencies": {
-    "@playwright/test": "^1.48.0",
+    "@electron/notarize": "^3.1.1",
     "@intlify/unplugin-vue-i18n": "^2.0.0",
+    "@playwright/test": "^1.48.0",
     "@quasar/app-vite": "2.0.9",
     "@types/node": "^20.11.5",
     "@types/picomatch": "^4.0.2",
