@@ -704,6 +704,51 @@ export class FileSystemService {
   }
 
   /**
+   * List all files in a directory recursively (flat list)
+   * Returns IFileInfo array for all files found
+   */
+  async listFilesRecursive(dirPath: string): Promise<IFileInfo[]> {
+    const validPath = this.validatePath(dirPath);
+    const results: IFileInfo[] = [];
+
+    const processDirectory = async (currentPath: string): Promise<void> => {
+      try {
+        const entries = await fs.readdir(currentPath, { withFileTypes: true });
+
+        for (const entry of entries) {
+          const entryPath = path.join(currentPath, entry.name);
+
+          if (entry.isDirectory()) {
+            // Recursively process subdirectories
+            await processDirectory(entryPath);
+          } else {
+            // Get file stats and add to results
+            try {
+              const stats = await fs.stat(entryPath);
+              results.push({
+                path: entryPath,
+                name: entry.name,
+                extension: path.extname(entry.name),
+                size: stats.size,
+                isDirectory: false,
+                createdAt: stats.birthtime,
+                modifiedAt: stats.mtime,
+              });
+            } catch {
+              // Skip files we can't stat
+            }
+          }
+        }
+      } catch {
+        // Skip directories we can't read
+      }
+    };
+
+    await processDirectory(validPath);
+    return results;
+  }
+
+  /**
    * Join path segments safely
    */
   joinPath(...segments: string[]): string {

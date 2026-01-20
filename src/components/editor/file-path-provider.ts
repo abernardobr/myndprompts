@@ -1,12 +1,66 @@
 /**
  * File Path Provider for Monaco Editor
  *
- * Provides completion suggestions for file paths from indexed folders.
+ * Provides completion suggestions for file paths from indexed folders
+ * and from the current project (if the file being edited is in a project).
  * Triggered by the ^ character.
  */
 
 import * as monaco from 'monaco-editor';
 import { useFileSyncStore } from '@/stores/fileSyncStore';
+import { useProjectStore } from '@/stores/projectStore';
+
+/**
+ * Interface for file info from the file system API
+ */
+interface IFileInfo {
+  path: string;
+  name: string;
+  extension: string;
+  size: number;
+  isDirectory: boolean;
+  createdAt: Date;
+  modifiedAt: Date;
+}
+
+/**
+ * Unified file suggestion interface
+ */
+interface IFileSuggestion {
+  fileName: string;
+  fullPath: string;
+  relativePath: string;
+  extension: string;
+  size: number;
+  modifiedAt: Date;
+  normalizedName: string;
+  source: 'indexed' | 'project';
+}
+
+/**
+ * Get project files using the file system API
+ */
+async function getProjectFiles(projectPath: string): Promise<IFileSuggestion[]> {
+  if (!window?.fileSystemAPI) {
+    return [];
+  }
+
+  try {
+    const files: IFileInfo[] = await window.fileSystemAPI.listFilesRecursive(projectPath);
+    return files.map((file) => ({
+      fileName: file.name,
+      fullPath: file.path,
+      relativePath: file.path.replace(projectPath, '').replace(/^\//, ''),
+      extension: file.extension,
+      size: file.size,
+      modifiedAt: new Date(file.modifiedAt),
+      normalizedName: file.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
+      source: 'project' as const,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Creates a Monaco completion provider for file path suggestions.
@@ -23,6 +77,7 @@ export function createFilePathProvider(): monaco.languages.CompletionItemProvide
       _token: monaco.CancellationToken
     ): Promise<monaco.languages.CompletionList> {
       const fileSyncStore = useFileSyncStore();
+      const projectStore = useProjectStore();
 
       // Get text on current line up to cursor
       const textUntilPosition = model.getValueInRange({
@@ -39,16 +94,60 @@ export function createFilePathProvider(): monaco.languages.CompletionItemProvide
       }
 
       const query = triggerMatch[1] !== undefined && triggerMatch[1] !== '' ? triggerMatch[1] : '';
+      const queryLower = query.toLowerCase();
 
-      // Search indexed files
-      let files;
-      try {
-        files = await fileSyncStore.searchFiles(query);
-      } catch {
-        return { suggestions: [] };
+      // Get current file path from model URI
+      const currentFilePath = model.uri.scheme === 'file' ? model.uri.fsPath : '';
+
+      // Find project for current file
+      const currentProject =
+        currentFilePath !== '' ? projectStore.getProjectForPath(currentFilePath) : null;
+
+      // Collect all file suggestions
+      const allSuggestions: IFileSuggestion[] = [];
+      const seenPaths = new Set<string>();
+
+      // 1. Get project files if we're in a project
+      if (currentProject !== null) {
+        const projectFiles = await getProjectFiles(currentProject.folderPath);
+        for (const file of projectFiles) {
+          // Filter by query if provided
+          if (
+            queryLower === '' ||
+            file.normalizedName.includes(queryLower) ||
+            file.fileName.toLowerCase().includes(queryLower)
+          ) {
+            if (!seenPaths.has(file.fullPath)) {
+              seenPaths.add(file.fullPath);
+              allSuggestions.push(file);
+            }
+          }
+        }
       }
 
-      if (files.length === 0) {
+      // 2. Get indexed files from file sync
+      try {
+        const indexedFiles = await fileSyncStore.searchFiles(query);
+        for (const file of indexedFiles) {
+          if (!seenPaths.has(file.fullPath)) {
+            seenPaths.add(file.fullPath);
+            allSuggestions.push({
+              fileName: file.fileName,
+              fullPath: file.fullPath,
+              relativePath: file.relativePath,
+              extension: file.extension,
+              size: file.size,
+              modifiedAt: file.modifiedAt,
+              normalizedName: file.normalizedName,
+              source: 'indexed',
+            });
+          }
+        }
+      } catch {
+        // Continue even if indexed files fail
+      }
+
+      if (allSuggestions.length === 0) {
         return { suggestions: [] };
       }
 
@@ -60,11 +159,11 @@ export function createFilePathProvider(): monaco.languages.CompletionItemProvide
         endColumn: position.column,
       };
 
-      // Create suggestions
-      const suggestions: monaco.languages.CompletionItem[] = files.map((file, index) => ({
+      // Create suggestions - project files first, then indexed files
+      const suggestions: monaco.languages.CompletionItem[] = allSuggestions.map((file, index) => ({
         label: {
           label: file.fileName,
-          description: file.relativePath,
+          description: file.source === 'project' ? `📁 ${file.relativePath}` : file.relativePath,
         },
         kind: getFileKind(file.extension),
         insertText: file.fullPath,
@@ -75,10 +174,11 @@ export function createFilePathProvider(): monaco.languages.CompletionItemProvide
             `**Path:** \`${file.fullPath}\``,
             `**Size:** ${formatFileSize(file.size)}`,
             `**Modified:** ${file.modifiedAt.toLocaleDateString()}`,
+            file.source === 'project' ? '*(from current project)*' : '*(from indexed folders)*',
           ].join('\n\n'),
         },
         range,
-        sortText: String(index).padStart(4, '0'), // Preserve relevance order from store
+        sortText: String(index).padStart(4, '0'),
         filterText: `^${file.normalizedName}`,
       }));
 
@@ -164,9 +264,48 @@ function formatFileSize(bytes: number): string {
 }
 
 /**
+ * Common languages to register the file path provider for
+ */
+const SUPPORTED_LANGUAGES = [
+  'markdown',
+  'javascript',
+  'typescript',
+  'json',
+  'html',
+  'css',
+  'scss',
+  'less',
+  'python',
+  'java',
+  'go',
+  'rust',
+  'c',
+  'cpp',
+  'csharp',
+  'swift',
+  'php',
+  'ruby',
+  'shell',
+  'yaml',
+  'xml',
+  'sql',
+  'plaintext',
+  'vue',
+];
+
+/**
  * Initialize the file path provider.
- * Returns a disposable to clean up the provider.
+ * Returns a disposable to clean up all registered providers.
  */
 export function initializeFilePathProvider(): monaco.IDisposable {
-  return monaco.languages.registerCompletionItemProvider('markdown', createFilePathProvider());
+  const provider = createFilePathProvider();
+  const disposables = SUPPORTED_LANGUAGES.map((lang) =>
+    monaco.languages.registerCompletionItemProvider(lang, provider)
+  );
+
+  return {
+    dispose: () => {
+      disposables.forEach((d) => d.dispose());
+    },
+  };
 }

@@ -437,6 +437,10 @@ ipcMain.handle('fs:is-directory-empty', async (_event, dirPath: string) => {
   return fileSystemService.isDirectoryEmpty(dirPath);
 });
 
+ipcMain.handle('fs:list-files-recursive', async (_event, dirPath: string) => {
+  return fileSystemService.listFilesRecursive(dirPath);
+});
+
 // Path utilities
 ipcMain.handle('fs:join-path', (_event, ...paths: string[]) => {
   return fileSystemService.joinPath(...paths);

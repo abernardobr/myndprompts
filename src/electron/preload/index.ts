@@ -127,6 +127,7 @@ export interface FileSystemAPI {
   listDirectoryTree: (dirPath: string) => Promise<IDirectoryInfo>;
   getDirectoryContentsCount: (dirPath: string) => Promise<IDirectoryContentsCount>;
   isDirectoryEmpty: (dirPath: string) => Promise<boolean>;
+  listFilesRecursive: (dirPath: string) => Promise<IFileInfo[]>;
 
   // Path utilities
   joinPath: (...paths: string[]) => Promise<string>;
@@ -301,6 +302,8 @@ const fileSystemApi: FileSystemAPI = {
     ) as Promise<IDirectoryContentsCount>,
   isDirectoryEmpty: (dirPath) =>
     ipcRenderer.invoke('fs:is-directory-empty', dirPath) as Promise<boolean>,
+  listFilesRecursive: (dirPath) =>
+    ipcRenderer.invoke('fs:list-files-recursive', dirPath) as Promise<IFileInfo[]>,
 
   // Path utilities
   joinPath: (...paths) => ipcRenderer.invoke('fs:join-path', ...paths) as Promise<string>,

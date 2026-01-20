@@ -560,6 +560,7 @@ onMounted(() => {
           ref="editorRef"
           v-model="activeContent"
           :tab-id="activeTab.id"
+          :file-path="activeTab.filePath"
           :language="editorLanguage"
           minimap
           word-wrap="on"

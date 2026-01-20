@@ -37,6 +37,7 @@ interface Props {
   lineNumbers?: 'on' | 'off' | 'relative' | 'interval';
   wordWrap?: 'on' | 'off' | 'wordWrapColumn' | 'bounded';
   tabId?: string;
+  filePath?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -46,6 +47,7 @@ const props = withDefaults(defineProps<Props>(), {
   lineNumbers: 'on',
   wordWrap: 'on',
   tabId: '',
+  filePath: '',
 });
 
 /**
@@ -121,11 +123,24 @@ function initializeEditor(): void {
     const filePathDisposable = initializeFilePathProvider();
     disposables.push(filePathDisposable);
 
+    // Create a model with the file path as URI (for file-path-provider to know current file)
+    const modelUri = props.filePath
+      ? monaco.Uri.file(props.filePath)
+      : monaco.Uri.parse(`inmemory://model/${props.tabId || Date.now()}`);
+
+    // Check if model already exists and dispose it
+    const existingModel = monaco.editor.getModel(modelUri);
+    if (existingModel) {
+      existingModel.dispose();
+    }
+
+    // Create the model with file path URI
+    const model = monaco.editor.createModel(props.modelValue, props.language, modelUri);
+
     // Create editor with options
     const options: monaco.editor.IStandaloneEditorConstructionOptions = {
       ...getDefaultEditorOptions(),
-      value: props.modelValue,
-      language: props.language,
+      model,
       theme: currentTheme.value,
       readOnly: props.readOnly,
       lineNumbers: props.lineNumbers,
