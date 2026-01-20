@@ -220,10 +220,12 @@ function closeOtherTabs(tabId: string): void {
 }
 
 function closeAllTabs(): void {
-  tabs.value.forEach((t) => {
+  // Create a copy of the tabs array to avoid mutation during iteration
+  const tabsToClose = [...tabs.value];
+  tabsToClose.forEach((t) => {
     autoSave.cleanupFile(t.filePath);
   });
-  tabs.value.forEach((t) => {
+  tabsToClose.forEach((t) => {
     uiStore.closeTabInPane(t.id, props.pane.id);
   });
 }
