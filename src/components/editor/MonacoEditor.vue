@@ -356,6 +356,51 @@ watch(
   }
 );
 
+// Update model URI when file path changes (for file-path-provider to know current file)
+watch(
+  () => props.filePath,
+  (newFilePath) => {
+    if (!editor.value) return;
+
+    const currentModel = editor.value.getModel();
+    if (!currentModel) return;
+
+    // Create new model URI
+    const newUri = newFilePath
+      ? monaco.Uri.file(newFilePath)
+      : monaco.Uri.parse(`inmemory://model/${props.tabId || Date.now()}`);
+
+    // If URI hasn't changed, skip
+    if (currentModel.uri.toString() === newUri.toString()) return;
+
+    // Get current content and cursor position
+    const content = currentModel.getValue();
+    const cursorPosition = editor.value.getPosition();
+
+    // Check if model with this URI already exists
+    const existingModel = monaco.editor.getModel(newUri);
+    if (existingModel && existingModel !== currentModel) {
+      existingModel.dispose();
+    }
+
+    // Create new model with updated URI
+    const newModel = monaco.editor.createModel(content, props.language, newUri);
+
+    // Set the new model on the editor
+    editor.value.setModel(newModel);
+
+    // Restore cursor position
+    if (cursorPosition) {
+      editor.value.setPosition(cursorPosition);
+    }
+
+    // Dispose old model
+    currentModel.dispose();
+
+    console.log('[MonacoEditor] Model URI updated:', newUri.toString());
+  }
+);
+
 // Lifecycle
 onMounted(() => {
   initializeEditor();

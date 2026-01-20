@@ -79,6 +79,15 @@ export function createFilePathProvider(): monaco.languages.CompletionItemProvide
       const fileSyncStore = useFileSyncStore();
       const projectStore = useProjectStore();
 
+      // Ensure project store is initialized
+      if (!projectStore.isInitialized) {
+        try {
+          await projectStore.initialize();
+        } catch (err) {
+          console.warn('[file-path-provider] Failed to initialize project store:', err);
+        }
+      }
+
       // Get text on current line up to cursor
       const textUntilPosition = model.getValueInRange({
         startLineNumber: position.lineNumber,
@@ -99,9 +108,29 @@ export function createFilePathProvider(): monaco.languages.CompletionItemProvide
       // Get current file path from model URI
       const currentFilePath = model.uri.scheme === 'file' ? model.uri.fsPath : '';
 
+      // Debug: log model URI info
+      console.log('[file-path-provider] Model URI:', {
+        scheme: model.uri.scheme,
+        fsPath: model.uri.fsPath,
+        path: model.uri.path,
+        currentFilePath,
+      });
+
       // Find project for current file
       const currentProject =
         currentFilePath !== '' ? projectStore.getProjectForPath(currentFilePath) : null;
+
+      // Debug: log project info
+      console.log('[file-path-provider] Project lookup:', {
+        currentFilePath,
+        currentProject: currentProject
+          ? { name: currentProject.name, folderPath: currentProject.folderPath }
+          : null,
+        allProjects: projectStore.allProjects.map((p) => ({
+          name: p.name,
+          folderPath: p.folderPath,
+        })),
+      });
 
       // Collect all file suggestions
       const allSuggestions: IFileSuggestion[] = [];
@@ -110,6 +139,7 @@ export function createFilePathProvider(): monaco.languages.CompletionItemProvide
       // 1. Get project files if we're in a project
       if (currentProject !== null) {
         const projectFiles = await getProjectFiles(currentProject.folderPath);
+        console.log('[file-path-provider] Project files found:', projectFiles.length);
         for (const file of projectFiles) {
           // Filter by query if provided
           if (
