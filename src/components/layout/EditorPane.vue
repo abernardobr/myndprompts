@@ -12,6 +12,8 @@ import { usePrompts } from '@/composables/usePrompts';
 import { useAutoSave } from '@/composables/useAutoSave';
 import { useQuasar } from 'quasar';
 import MonacoEditor from '@/components/editor/MonacoEditor.vue';
+import FileViewer from '@/components/viewers/FileViewer.vue';
+import { FileCategory } from '@services/file-system/file-types';
 
 // Interface for MonacoEditor exposed methods
 interface IMonacoEditorExposed {
@@ -38,10 +40,22 @@ const $q = useQuasar();
 const uiStore = useUIStore();
 const prompts = usePrompts();
 
+// Helper to save any file type
+async function saveAnyFile(filePath: string): Promise<void> {
+  // Find the tab to determine file category
+  const tab = props.pane.tabs.find((t) => t.filePath === filePath);
+  const category = tab?.fileCategory ?? FileCategory.MARKDOWN;
+  if (category === FileCategory.MARKDOWN) {
+    await prompts.savePrompt(filePath);
+  } else {
+    await prompts.saveGenericFile(filePath);
+  }
+}
+
 // Auto-save setup for this pane
 const autoSave = useAutoSave({
   onSave: async (filePath: string) => {
-    await prompts.savePrompt(filePath);
+    await saveAnyFile(filePath);
   },
   onSaveError: (filePath: string, error: Error) => {
     console.error('[AutoSave] Failed to save:', filePath, error);
@@ -67,13 +81,33 @@ const activeTab = computed(() => tabs.value.find((t) => t.id === activeTabId.val
 const activeContent = computed({
   get: () => {
     if (!activeTab.value) return '';
-    return prompts.getContent(activeTab.value.filePath) ?? getDefaultContent(activeTab.value.title);
+    const content = prompts.getFileContent(activeTab.value.filePath);
+    if (content !== undefined) return content;
+    // Only provide default content for markdown files
+    const category = activeTab.value.fileCategory ?? FileCategory.MARKDOWN;
+    if (category === FileCategory.MARKDOWN) {
+      return getDefaultContent(activeTab.value.title);
+    }
+    return '';
   },
   set: (value: string) => {
     if (activeTab.value) {
-      prompts.updateContent(activeTab.value.filePath, value);
+      const category = activeTab.value.fileCategory ?? FileCategory.MARKDOWN;
+      if (category === FileCategory.MARKDOWN) {
+        prompts.updateContent(activeTab.value.filePath, value);
+      } else {
+        prompts.updateFileContent(activeTab.value.filePath, value);
+      }
     }
   },
+});
+
+// Check if active tab is a text/code file that should be edited in Monaco
+const isTextFile = computed(() => {
+  if (!activeTab.value) return false;
+  // Default to markdown for legacy tabs that don't have fileCategory set
+  const category = activeTab.value.fileCategory ?? FileCategory.MARKDOWN;
+  return category === FileCategory.MARKDOWN || category === FileCategory.CODE;
 });
 
 // Generate default content for new files
@@ -104,9 +138,9 @@ async function handleSave(): Promise<void> {
   if (activeTab.value) {
     autoSave.cancelAutoSave(activeTab.value.filePath);
     try {
-      await prompts.savePrompt(activeTab.value.filePath);
+      await saveAnyFile(activeTab.value.filePath);
     } catch (error) {
-      console.error('Failed to save prompt:', error);
+      console.error('Failed to save file:', error);
     }
   }
 }
@@ -127,7 +161,14 @@ watch(
   async (newTab) => {
     if (!newTab) return;
 
-    const existingContent = prompts.getContent(newTab.filePath);
+    // Only load content for text/code files (handled by prompts composable)
+    // Non-text files (images, videos, etc.) are handled by FileViewer component internally
+    const category = newTab.fileCategory ?? FileCategory.MARKDOWN;
+    if (category !== FileCategory.MARKDOWN && category !== FileCategory.CODE) {
+      return;
+    }
+
+    const existingContent = prompts.getFileContent(newTab.filePath);
     if (existingContent !== undefined) {
       await nextTick();
       editorRef.value?.layout?.();
@@ -136,9 +177,14 @@ watch(
 
     try {
       isLoadingContent.value = true;
-      await prompts.openPrompt(newTab.filePath);
+      // Use different loading method based on file category
+      if (category === FileCategory.MARKDOWN) {
+        await prompts.openPrompt(newTab.filePath);
+      } else {
+        await prompts.openFile(newTab.filePath);
+      }
     } catch (error) {
-      console.error('Failed to load prompt:', error);
+      console.error('Failed to load file:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('ENOENT') || errorMessage.includes('no such file')) {
         uiStore.closeTabInPane(newTab.id, props.pane.id);
@@ -250,10 +296,23 @@ function splitDown(): void {
 
 // File icon helper
 function getFileIcon(fileName: string): string {
-  if (fileName.endsWith('.snippet.md')) return 'code';
-  if (fileName.endsWith('.persona.md')) return 'person';
-  if (fileName.endsWith('.template.md')) return 'article';
-  if (fileName.endsWith('.md')) return 'description';
+  const lowerName = fileName.toLowerCase();
+  // Special markdown types
+  if (lowerName.endsWith('.snippet.md')) return 'code';
+  if (lowerName.endsWith('.persona.md')) return 'person';
+  if (lowerName.endsWith('.template.md')) return 'article';
+  if (lowerName.endsWith('.md')) return 'description';
+  // Images
+  if (/\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/.test(lowerName)) return 'image';
+  // Videos
+  if (/\.(mp4|webm|mov|avi|mkv)$/.test(lowerName)) return 'movie';
+  // Audio
+  if (/\.(mp3|wav|ogg|flac|aac|m4a)$/.test(lowerName)) return 'audiotrack';
+  // Documents
+  if (/\.(pdf|doc|docx)$/.test(lowerName)) return 'article';
+  // Spreadsheets
+  if (/\.(xls|xlsx|csv)$/.test(lowerName)) return 'grid_on';
+  // Default
   return 'insert_drive_file';
 }
 
@@ -272,11 +331,18 @@ function layout(): void {
 defineExpose({ layout });
 
 onMounted(() => {
-  // Ensure content is loaded for initial tab
+  // Ensure content is loaded for initial text/code tab
   if (activeTab.value) {
-    const existingContent = prompts.getContent(activeTab.value.filePath);
-    if (existingContent === undefined) {
-      void prompts.openPrompt(activeTab.value.filePath);
+    const category = activeTab.value.fileCategory ?? FileCategory.MARKDOWN;
+    if (category === FileCategory.MARKDOWN || category === FileCategory.CODE) {
+      const existingContent = prompts.getFileContent(activeTab.value.filePath);
+      if (existingContent === undefined) {
+        if (category === FileCategory.MARKDOWN) {
+          void prompts.openPrompt(activeTab.value.filePath);
+        } else {
+          void prompts.openFile(activeTab.value.filePath);
+        }
+      }
     }
   }
 });
@@ -477,9 +543,9 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Active file editor -->
+      <!-- Monaco Editor for Markdown files -->
       <div
-        v-else-if="activeTab"
+        v-else-if="activeTab && isTextFile"
         class="editor-pane__editor"
       >
         <MonacoEditor
@@ -491,6 +557,19 @@ onMounted(() => {
           word-wrap="on"
           @change="handleContentChange"
           @save="handleSave"
+        />
+      </div>
+
+      <!-- FileViewer for other file types -->
+      <div
+        v-else-if="activeTab && !isTextFile"
+        class="editor-pane__viewer"
+      >
+        <FileViewer
+          :file-path="activeTab.filePath"
+          :file-name="activeTab.fileName"
+          :file-category="activeTab.fileCategory"
+          :mime-type="activeTab.mimeType"
         />
       </div>
 
@@ -667,6 +746,11 @@ onMounted(() => {
   &__editor {
     height: 100%;
     overflow: auto;
+  }
+
+  &__viewer {
+    height: 100%;
+    overflow: hidden;
   }
 
   &__placeholder {

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type {
   IFileInfo,
   IDirectoryListing,
@@ -92,6 +92,7 @@ export interface FileSystemAPI {
 
   // Basic file operations
   readFile: (filePath: string, options?: IReadFileOptions) => Promise<string>;
+  readFileAsDataUrl: (filePath: string, mimeType?: string) => Promise<string>;
   writeFile: (
     filePath: string,
     content: string,
@@ -99,9 +100,23 @@ export interface FileSystemAPI {
   ) => Promise<IFileOperationResult>;
   deleteFile: (filePath: string) => Promise<IFileOperationResult>;
   copyFile: (source: string, destination: string) => Promise<IFileOperationResult>;
+  copyFileToDirectory: (
+    sourcePath: string,
+    destDir: string
+  ) => Promise<{ success: boolean; newPath?: string; error?: string }>;
+  writeBinaryFileToDirectory: (
+    destDir: string,
+    fileName: string,
+    content: Uint8Array
+  ) => Promise<{ success: boolean; newPath?: string; error?: string }>;
+  copyDirectory: (
+    sourcePath: string,
+    destDir: string
+  ) => Promise<{ success: boolean; newPath?: string; error?: string }>;
   moveFile: (source: string, destination: string) => Promise<IFileOperationResult>;
   fileExists: (filePath: string) => Promise<boolean>;
   getFileInfo: (filePath: string) => Promise<IFileInfo | null>;
+  getExternalFileInfo: (filePath: string) => Promise<IFileInfo | null>;
 
   // Directory operations
   readDirectory: (dirPath: string) => Promise<IDirectoryListing>;
@@ -135,6 +150,16 @@ export interface FileSystemAPI {
   startIndexing: (folderPath: string, operationId: string) => Promise<IIndexedFile[]>;
   cancelIndexing: (operationId: string) => Promise<boolean>;
   onIndexProgress: (callback: (data: IIndexProgress) => void) => () => void;
+
+  // Utility for drag-and-drop (synchronous, runs in preload context)
+  getPathForFile: (file: File) => string;
+}
+
+// External Apps API
+export interface ExternalAppsAPI {
+  showInFolder: (filePath: string) => Promise<void>;
+  openWithDefault: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+  openInApp: (filePath: string, appName: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 // Git API
@@ -217,6 +242,8 @@ const fileSystemApi: FileSystemAPI = {
   // Basic file operations
   readFile: (filePath, options) =>
     ipcRenderer.invoke('fs:read-file', filePath, options) as Promise<string>,
+  readFileAsDataUrl: (filePath, mimeType) =>
+    ipcRenderer.invoke('fs:read-file-as-data-url', filePath, mimeType) as Promise<string>,
   writeFile: (filePath, content, options) =>
     ipcRenderer.invoke(
       'fs:write-file',
@@ -228,11 +255,31 @@ const fileSystemApi: FileSystemAPI = {
     ipcRenderer.invoke('fs:delete-file', filePath) as Promise<IFileOperationResult>,
   copyFile: (source, destination) =>
     ipcRenderer.invoke('fs:copy-file', source, destination) as Promise<IFileOperationResult>,
+  copyFileToDirectory: (sourcePath, destDir) =>
+    ipcRenderer.invoke('fs:copy-file-to-directory', sourcePath, destDir) as Promise<{
+      success: boolean;
+      newPath?: string;
+      error?: string;
+    }>,
+  writeBinaryFileToDirectory: (destDir, fileName, content) =>
+    ipcRenderer.invoke('fs:write-binary-file-to-directory', destDir, fileName, content) as Promise<{
+      success: boolean;
+      newPath?: string;
+      error?: string;
+    }>,
+  copyDirectory: (sourcePath, destDir) =>
+    ipcRenderer.invoke('fs:copy-directory', sourcePath, destDir) as Promise<{
+      success: boolean;
+      newPath?: string;
+      error?: string;
+    }>,
   moveFile: (source, destination) =>
     ipcRenderer.invoke('fs:move-file', source, destination) as Promise<IFileOperationResult>,
   fileExists: (filePath) => ipcRenderer.invoke('fs:file-exists', filePath) as Promise<boolean>,
   getFileInfo: (filePath) =>
     ipcRenderer.invoke('fs:get-file-info', filePath) as Promise<IFileInfo | null>,
+  getExternalFileInfo: (filePath) =>
+    ipcRenderer.invoke('fs:get-external-file-info', filePath) as Promise<IFileInfo | null>,
 
   // Directory operations
   readDirectory: (dirPath) =>
@@ -302,6 +349,24 @@ const fileSystemApi: FileSystemAPI = {
       ipcRenderer.removeListener('fs:index-progress', handler);
     };
   },
+
+  // Get file path for dropped files (uses Electron's webUtils)
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
+};
+
+const externalAppsApi: ExternalAppsAPI = {
+  showInFolder: (filePath) =>
+    ipcRenderer.invoke('external-apps:show-in-folder', filePath) as Promise<void>,
+  openWithDefault: (filePath) =>
+    ipcRenderer.invoke('external-apps:open-default', filePath) as Promise<{
+      success: boolean;
+      error?: string;
+    }>,
+  openInApp: (filePath, appName) =>
+    ipcRenderer.invoke('external-apps:open-in-app', filePath, appName) as Promise<{
+      success: boolean;
+      error?: string;
+    }>,
 };
 
 const gitApi: GitAPI = {
@@ -372,6 +437,7 @@ const gitApi: GitAPI = {
 
 contextBridge.exposeInMainWorld('electronAPI', electronApi);
 contextBridge.exposeInMainWorld('fileSystemAPI', fileSystemApi);
+contextBridge.exposeInMainWorld('externalAppsAPI', externalAppsApi);
 contextBridge.exposeInMainWorld('gitAPI', gitApi);
 
 // Type augmentation for window object
@@ -379,6 +445,7 @@ declare global {
   interface Window {
     electronAPI: ElectronAPI;
     fileSystemAPI: FileSystemAPI;
+    externalAppsAPI: ExternalAppsAPI;
     gitAPI: GitAPI;
   }
 }

@@ -186,34 +186,34 @@ Drag & Drop Support:
 
 ### Phase 1: Foundation
 
-- [ ] Task 1: Create file type classification service
-- [ ] Task 2: Create FileViewer router component
-- [ ] Task 3: Enhance IOpenTab interface with file category
+- [x] Task 1: Create file type classification service
+- [x] Task 2: Create FileViewer router component
+- [x] Task 3: Enhance IOpenTab interface with file category
 
 ### Phase 2: Media Viewers
 
-- [ ] Task 4: Create ImageViewer component
-- [ ] Task 5: Create VideoPlayer component
-- [ ] Task 6: Create AudioPlayer component
+- [x] Task 4: Create ImageViewer component
+- [x] Task 5: Create VideoPlayer component
+- [x] Task 6: Create AudioPlayer component
 
 ### Phase 3: Document Integration
 
-- [ ] Task 7: Create external app service
-- [ ] Task 8: Create DocumentViewer component
-- [ ] Task 9: Create SpreadsheetViewer component
-- [ ] Task 10: Create FallbackViewer component
+- [x] Task 7: Create external app service
+- [x] Task 8: Create DocumentViewer component
+- [x] Task 9: Create SpreadsheetViewer component
+- [x] Task 10: Create FallbackViewer component
 
 ### Phase 4: Explorer Enhancements
 
-- [ ] Task 11: Add file/folder copy IPC handlers
-- [ ] Task 12: Add "Add File" context menu action
-- [ ] Task 13: Add "Add Folder" context menu action
-- [ ] Task 14: Implement drag-and-drop for external files
+- [x] Task 11: Add file/folder copy IPC handlers
+- [x] Task 12: Add "Add File" context menu action
+- [x] Task 13: Add "Add Folder" context menu action
+- [x] Task 14: Implement drag-and-drop for external files
 
 ### Phase 5: Integration
 
-- [ ] Task 15: Update EditorPane to use FileViewer
-- [ ] Task 16: Update openFile function to detect file types
+- [x] Task 15: Update EditorPane to use FileViewer
+- [x] Task 16: Update openFile function to detect file types
 - [ ] Task 17: Testing and polish
 
 ---

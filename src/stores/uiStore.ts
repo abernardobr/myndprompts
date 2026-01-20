@@ -11,6 +11,10 @@ import { Dark } from 'quasar';
 import { getUIStateRepository } from '@/services/storage';
 import type { IUIState, IEditorSplitConfig } from '@/services/storage';
 import { setAppLocale } from '@/boot/i18n';
+import { FileCategory, getFileCategory, getMimeType } from '@/services/file-system/file-types';
+
+// Re-export FileCategory for convenience
+export { FileCategory } from '@/services/file-system/file-types';
 
 /**
  * Activity bar view types
@@ -44,6 +48,10 @@ export interface IOpenTab {
   title: string;
   isDirty: boolean;
   isPinned: boolean;
+  /** File category - determines which viewer to use */
+  fileCategory: FileCategory;
+  /** Optional MIME type for media files */
+  mimeType?: string;
 }
 
 /**
@@ -131,6 +139,13 @@ export const useUIStore = defineStore('ui', () => {
 
   const isDarkMode = computed(() => effectiveTheme.value === 'dark');
 
+  /**
+   * Get all tabs that match a specific file category
+   */
+  function getTabsByCategory(category: FileCategory): IOpenTab[] {
+    return openTabs.value.filter((tab) => tab.fileCategory === category);
+  }
+
   // Watch theme changes and apply to Quasar
   watch(
     effectiveTheme,
@@ -169,14 +184,22 @@ export const useUIStore = defineStore('ui', () => {
 
         // Restore tabs (without content, just references)
         if (savedState.openTabs.length > 0) {
-          openTabs.value = savedState.openTabs.map((filePath) => ({
-            id: filePath,
-            filePath,
-            fileName: filePath.split('/').pop() ?? filePath,
-            title: filePath.split('/').pop()?.replace(/\.md$/, '') ?? filePath,
-            isDirty: false,
-            isPinned: false,
-          }));
+          openTabs.value = savedState.openTabs.map((filePath) => {
+            // Detect file category from extension
+            const fileCategory = getFileCategory(filePath);
+            const mimeType = getMimeType(filePath);
+            const fileName = filePath.split('/').pop() ?? filePath;
+            return {
+              id: filePath,
+              filePath,
+              fileName,
+              title: fileName.replace(/\.md$/, ''),
+              isDirty: false,
+              isPinned: false,
+              fileCategory,
+              mimeType,
+            };
+          });
           activeTabId.value = savedState.activeTab ?? savedState.openTabs[0];
         }
 
@@ -190,13 +213,19 @@ export const useUIStore = defineStore('ui', () => {
               // Find tab in openTabs or create new one
               const existingTab = openTabs.value.find((t) => t.filePath === filePath);
               if (existingTab) return existingTab;
+              // Detect file category from extension for new tabs
+              const fileCategory = getFileCategory(filePath);
+              const mimeType = getMimeType(filePath);
+              const fileName = filePath.split('/').pop() ?? filePath;
               return {
                 id: filePath,
                 filePath,
-                fileName: filePath.split('/').pop() ?? filePath,
-                title: filePath.split('/').pop()?.replace(/\.md$/, '') ?? filePath,
+                fileName,
+                title: fileName.replace(/\.md$/, ''),
                 isDirty: false,
                 isPinned: false,
+                fileCategory,
+                mimeType,
               };
             }),
             activeTabId: paneConfig.activeTab,
@@ -316,8 +345,16 @@ export const useUIStore = defineStore('ui', () => {
     void saveState();
   }
 
+  /**
+   * Input type for opening a tab (fileCategory defaults to MARKDOWN for backward compatibility)
+   */
+  type OpenTabInput = Omit<IOpenTab, 'id' | 'fileCategory' | 'mimeType'> & {
+    fileCategory?: FileCategory;
+    mimeType?: string;
+  };
+
   // Tab actions
-  function openTab(tab: Omit<IOpenTab, 'id'>): void {
+  function openTab(tab: OpenTabInput): void {
     // If panes exist, delegate to openTabInPane to ensure pane is updated
     if (editorPanes.value.length > 0) {
       openTabInPane(tab);
@@ -327,11 +364,20 @@ export const useUIStore = defineStore('ui', () => {
     const existingTab = openTabs.value.find((t) => t.filePath === tab.filePath);
 
     if (existingTab) {
+      // Update fileCategory and mimeType if provided (in case file was re-opened with different info)
+      if (tab.fileCategory !== undefined) {
+        existingTab.fileCategory = tab.fileCategory;
+      }
+      if (tab.mimeType !== undefined) {
+        existingTab.mimeType = tab.mimeType;
+      }
       activeTabId.value = existingTab.id;
     } else {
       const newTab: IOpenTab = {
         ...tab,
         id: tab.filePath,
+        // Default to MARKDOWN for backward compatibility
+        fileCategory: tab.fileCategory ?? FileCategory.MARKDOWN,
       };
       openTabs.value.push(newTab);
       activeTabId.value = newTab.id;
@@ -344,6 +390,31 @@ export const useUIStore = defineStore('ui', () => {
     if (tabIndex === -1) return;
 
     openTabs.value.splice(tabIndex, 1);
+
+    // Also remove from any panes that contain this tab
+    for (const pane of editorPanes.value) {
+      const paneTabIndex = pane.tabs.findIndex((t) => t.id === tabId);
+      if (paneTabIndex !== -1) {
+        pane.tabs.splice(paneTabIndex, 1);
+
+        // Update active tab in pane if needed
+        if (pane.activeTabId === tabId) {
+          if (pane.tabs.length > 0) {
+            const newIndex = Math.min(paneTabIndex, pane.tabs.length - 1);
+            pane.activeTabId = pane.tabs[newIndex]?.id;
+          } else {
+            pane.activeTabId = undefined;
+          }
+        }
+      }
+    }
+
+    // Close any empty panes (except the last one)
+    while (editorPanes.value.length > 1) {
+      const emptyPaneIndex = editorPanes.value.findIndex((p) => p.tabs.length === 0);
+      if (emptyPaneIndex === -1) break;
+      editorPanes.value.splice(emptyPaneIndex, 1);
+    }
 
     // Update active tab if the closed tab was active
     if (activeTabId.value === tabId) {
@@ -422,18 +493,41 @@ export const useUIStore = defineStore('ui', () => {
 
   /**
    * Update a tab's file path after rename
+   * Preserves fileCategory and mimeType from the original tab
    */
   function updateTabFilePath(oldFilePath: string, newFilePath: string, newTitle: string): void {
     const tab = openTabs.value.find((t) => t.filePath === oldFilePath);
     if (tab) {
+      // Preserve fileCategory and mimeType
+      const { fileCategory, mimeType } = tab;
+
       tab.id = newFilePath;
       tab.filePath = newFilePath;
       tab.fileName = newFilePath.split('/').pop() ?? newFilePath;
       tab.title = newTitle;
+      tab.fileCategory = fileCategory;
+      tab.mimeType = mimeType;
 
       // Update activeTabId if this was the active tab
       if (activeTabId.value === oldFilePath) {
         activeTabId.value = newFilePath;
+      }
+
+      // Also update in any editor panes
+      for (const pane of editorPanes.value) {
+        const paneTab = pane.tabs.find((t) => t.filePath === oldFilePath);
+        if (paneTab) {
+          paneTab.id = newFilePath;
+          paneTab.filePath = newFilePath;
+          paneTab.fileName = newFilePath.split('/').pop() ?? newFilePath;
+          paneTab.title = newTitle;
+          paneTab.fileCategory = fileCategory;
+          paneTab.mimeType = mimeType;
+
+          if (pane.activeTabId === oldFilePath) {
+            pane.activeTabId = newFilePath;
+          }
+        }
       }
 
       void saveState();
@@ -628,7 +722,7 @@ export const useUIStore = defineStore('ui', () => {
   /**
    * Open a tab in a specific pane
    */
-  function openTabInPane(tab: Omit<IOpenTab, 'id'>, paneId?: string): void {
+  function openTabInPane(tab: OpenTabInput, paneId?: string): void {
     ensurePaneExists();
 
     const targetPaneId = paneId ?? activePaneId.value;
@@ -639,7 +733,11 @@ export const useUIStore = defineStore('ui', () => {
       targetPane = editorPanes.value[0];
       if (!targetPane) {
         // No panes available, add to global tabs only
-        const newTab: IOpenTab = { ...tab, id: tab.filePath };
+        const newTab: IOpenTab = {
+          ...tab,
+          id: tab.filePath,
+          fileCategory: tab.fileCategory ?? FileCategory.MARKDOWN,
+        };
         if (!openTabs.value.some((t) => t.filePath === tab.filePath)) {
           openTabs.value.push(newTab);
         }
@@ -663,7 +761,13 @@ export const useUIStore = defineStore('ui', () => {
     }
 
     if (existingTab && existingPane) {
-      // Tab exists, just activate it
+      // Tab exists, update fileCategory and mimeType if provided, then activate it
+      if (tab.fileCategory !== undefined) {
+        existingTab.fileCategory = tab.fileCategory;
+      }
+      if (tab.mimeType !== undefined) {
+        existingTab.mimeType = tab.mimeType;
+      }
       existingPane.activeTabId = existingTab.id;
       activePaneId.value = existingPane.id;
       activeTabId.value = existingTab.id;
@@ -672,6 +776,7 @@ export const useUIStore = defineStore('ui', () => {
       const newTab: IOpenTab = {
         ...tab,
         id: tab.filePath,
+        fileCategory: tab.fileCategory ?? FileCategory.MARKDOWN,
       };
 
       // Add to global tabs list
@@ -805,6 +910,7 @@ export const useUIStore = defineStore('ui', () => {
     effectiveTheme,
     isDarkMode,
     isSplitView,
+    getTabsByCategory,
 
     // Actions
     initialize,

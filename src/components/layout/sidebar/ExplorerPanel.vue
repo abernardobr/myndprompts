@@ -9,6 +9,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia';
 import { usePromptStore } from '@/stores/promptStore';
 import { useSnippetStore } from '@/stores/snippetStore';
 import { useProjectStore } from '@/stores/projectStore';
@@ -16,6 +17,12 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useGitStore } from '@/stores/gitStore';
 import type { IPromptFile, ISnippetMetadata } from '@/services/file-system/types';
+import {
+  getFileCategory,
+  getMimeType,
+  getIconForFile,
+  FileCategory,
+} from '@services/file-system/file-types';
 import NewPromptDialog from '@/components/dialogs/NewPromptDialog.vue';
 import NewSnippetDialog from '@/components/dialogs/NewSnippetDialog.vue';
 import NewProjectDialog from '@/components/dialogs/NewProjectDialog.vue';
@@ -27,6 +34,7 @@ import GitSetupDialog from '@/components/dialogs/GitSetupDialog.vue';
 import GitHistoryDialog from '@/components/dialogs/GitHistoryDialog.vue';
 import BranchDialog from '@/components/dialogs/BranchDialog.vue';
 import FileSyncDialog from '@/components/dialogs/FileSyncDialog.vue';
+import ExplorerTreeNode from '@/components/layout/sidebar/ExplorerTreeNode.vue';
 
 const $q = useQuasar();
 const { t } = useI18n({ useScope: 'global' });
@@ -38,6 +46,11 @@ const projectStore = useProjectStore();
 const settingsStore = useSettingsStore();
 const uiStore = useUIStore();
 const gitStore = useGitStore();
+
+// Extract reactive refs from stores for proper reactivity in computed
+const { allPrompts } = storeToRefs(promptStore);
+const { allSnippets } = storeToRefs(snippetStore);
+const { allProjects } = storeToRefs(projectStore);
 
 // Check if running in Electron
 const isElectron = computed(() => typeof window !== 'undefined' && !!window.fileSystemAPI);
@@ -85,9 +98,19 @@ const expandedFolders = ref<Set<string>>(new Set(['prompts']));
 const draggedNode = ref<ITreeNode | null>(null);
 const dropTarget = ref<ITreeNode | null>(null);
 
+// External file drop state
+const externalDropTargetId = ref<string | null>(null);
+
 // Directory structure cache (for showing empty directories)
 const directoryStructures = ref<Map<string, string[]>>(new Map());
 const directoryStructureVersion = ref(0); // Used to trigger reactivity
+
+// Non-markdown files cache (for showing in tree)
+interface INonMarkdownFile {
+  path: string;
+  name: string;
+}
+const directoryFiles = ref<Map<string, INonMarkdownFile[]>>(new Map());
 
 // Branch cache per project (projectPath -> branchName)
 const projectBranches = ref<Map<string, string>>(new Map());
@@ -106,7 +129,7 @@ interface ITreeNode {
   id: string;
   label: string;
   icon: string;
-  type: 'folder' | 'prompt' | 'snippet' | 'project' | 'directory';
+  type: 'folder' | 'prompt' | 'snippet' | 'project' | 'directory' | 'file';
   filePath?: string;
   children?: ITreeNode[];
   snippetType?: ISnippetMetadata['type'];
@@ -137,7 +160,8 @@ onMounted(async () => {
 // Build tree structure
 const fileTree = computed<ITreeNode[]>(() => {
   // Depend on directoryStructureVersion for reactivity when empty dirs are added
-  void directoryStructureVersion.value;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const version = directoryStructureVersion.value;
 
   const tree: ITreeNode[] = [];
 
@@ -145,7 +169,8 @@ const fileTree = computed<ITreeNode[]>(() => {
   const searchLower = searchQuery.value.trim().toLowerCase();
   const selectedCategory = categoryFilter.value;
 
-  let filteredPrompts = promptStore.allPrompts;
+  // Use reactive refs from storeToRefs for proper reactivity
+  let filteredPrompts = [...allPrompts.value];
 
   // Apply text search filter
   if (searchLower) {
@@ -165,14 +190,15 @@ const fileTree = computed<ITreeNode[]>(() => {
     filteredPrompts = filteredPrompts.filter((p) => p.metadata.category === selectedCategory);
   }
 
-  // Filter snippets based on search
+  // Filter snippets based on search (use reactive ref)
+  const snippetsList = [...allSnippets.value];
   const filteredSnippets = searchLower
-    ? snippetStore.allSnippets.filter(
+    ? snippetsList.filter(
         (s) =>
           s.metadata.name.toLowerCase().includes(searchLower) ||
           s.metadata.shortcut.toLowerCase().includes(searchLower)
       )
-    : snippetStore.allSnippets;
+    : snippetsList;
 
   // Build prompts folder with projects and standalone prompts
   const promptsFolder = buildPromptsFolder(filteredPrompts);
@@ -257,7 +283,8 @@ const fileTree = computed<ITreeNode[]>(() => {
 
 // Build prompts folder with projects and standalone prompts
 function buildPromptsFolder(prompts: IPromptFile[]): ITreeNode {
-  const projects = projectStore.allProjects;
+  // Use reactive ref for proper reactivity
+  const projects = [...allProjects.value];
 
   // Separate standalone prompts from project prompts
   const standalonePrompts: IPromptFile[] = [];
@@ -378,7 +405,7 @@ function buildDirectoryChildren(
     });
   }
 
-  // Add direct prompts
+  // Add direct prompts (markdown files)
   for (const prompt of directPrompts) {
     children.push({
       id: prompt.filePath,
@@ -390,6 +417,21 @@ function buildDirectoryChildren(
       depth,
       isDraggable: true,
       category: prompt.metadata.category,
+    });
+  }
+
+  // Add non-markdown files from the cache
+  const nonMdFiles = directoryFiles.value.get(dirPath) ?? [];
+  for (const file of nonMdFiles) {
+    children.push({
+      id: file.path,
+      label: file.name,
+      icon: getIconForFile(file.path),
+      type: 'file',
+      filePath: file.path,
+      parentPath: dirPath,
+      depth,
+      isDraggable: true,
     });
   }
 
@@ -420,7 +462,7 @@ async function toggleFolder(folderId: string): Promise<void> {
     if (folderId.startsWith('/')) {
       await loadDirectoryStructure(folderId);
       // Load branch info and file statuses for projects
-      const isProject = projectStore.allProjects.some((p) => p.folderPath === folderId);
+      const isProject = allProjects.value.some((p) => p.folderPath === folderId);
       if (isProject) {
         await loadProjectBranch(folderId);
         await loadProjectFileStatuses(folderId);
@@ -570,25 +612,57 @@ function fileIsTracked(filePath: string): boolean {
 }
 
 // Load directory structure from file system
-async function loadDirectoryStructure(dirPath: string): Promise<void> {
+// When recursive=true, loads all nested directories (used when adding folders)
+// When skipCache=true, bypasses the cache to get fresh data
+async function loadDirectoryStructure(
+  dirPath: string,
+  recursive = false,
+  skipCache = false
+): Promise<void> {
   if (!isElectron.value) return;
 
   try {
-    const tree = await projectStore.getDirectoryTree(dirPath);
+    // When loading recursively or skipCache is true, bypass the cache to get fresh data
+    const useCache = !(recursive || skipCache);
+    const tree = await projectStore.getDirectoryTree(dirPath, useCache);
     // Extract immediate child directories (excluding hidden directories like .git)
     const childDirs = tree.children
       .filter((c) => !c.path.endsWith('.md') && !c.name.startsWith('.'))
       .map((c) => c.path);
 
-    if (childDirs.length > 0) {
-      directoryStructures.value.set(dirPath, childDirs);
-      directoryStructureVersion.value++;
-    }
+    // Extract non-markdown files (excluding hidden files)
+    const nonMdFiles: INonMarkdownFile[] = tree.files
+      .filter((f) => !f.name.startsWith('.') && !f.name.endsWith('.md'))
+      .map((f) => ({ path: f.path, name: f.name }));
 
-    // Also recursively load child directories that are expanded
+    // Create new Map instances to ensure Vue reactivity detects the change
+    const newDirStructures = new Map(directoryStructures.value);
+    if (childDirs.length > 0) {
+      newDirStructures.set(dirPath, childDirs);
+    }
+    directoryStructures.value = newDirStructures;
+
+    const newDirFiles = new Map(directoryFiles.value);
+    if (nonMdFiles.length > 0) {
+      newDirFiles.set(dirPath, nonMdFiles);
+    } else {
+      // Clear if no files (in case directory was emptied)
+      newDirFiles.delete(dirPath);
+    }
+    directoryFiles.value = newDirFiles;
+
+    directoryStructureVersion.value++;
+
+    // Recursively load child directories
+    // When recursive=true: load ALL children (for newly added folders)
+    // When recursive=false: only load already expanded children
     for (const childDir of childDirs) {
-      if (expandedFolders.value.has(childDir)) {
-        await loadDirectoryStructure(childDir);
+      if (recursive || expandedFolders.value.has(childDir)) {
+        // Auto-expand when loading recursively so the tree shows the contents
+        if (recursive) {
+          expandedFolders.value.add(childDir);
+        }
+        await loadDirectoryStructure(childDir, recursive, skipCache);
       }
     }
   } catch (err) {
@@ -608,6 +682,7 @@ function clearDirectoryFromCache(deletedPath: string): void {
 
   // Remove any entries where the deleted path was the parent
   directoryStructures.value.delete(deletedPath);
+  directoryFiles.value.delete(deletedPath);
 
   // Also remove any nested paths under the deleted directory
   const keysToDelete: string[] = [];
@@ -616,7 +691,10 @@ function clearDirectoryFromCache(deletedPath: string): void {
       keysToDelete.push(key);
     }
   });
-  keysToDelete.forEach((key) => directoryStructures.value.delete(key));
+  keysToDelete.forEach((key) => {
+    directoryStructures.value.delete(key);
+    directoryFiles.value.delete(key);
+  });
 
   // Trigger reactivity
   directoryStructureVersion.value++;
@@ -636,6 +714,9 @@ async function openFile(node: ITreeNode): Promise<void> {
   if (!node.filePath) return;
 
   try {
+    const fileCategory = getFileCategory(node.filePath);
+    const mimeType = getMimeType(node.filePath);
+
     if (node.type === 'prompt') {
       // Load prompt and open tab
       const prompt = await promptStore.loadPrompt(node.filePath);
@@ -645,6 +726,7 @@ async function openFile(node: ITreeNode): Promise<void> {
         title: prompt.metadata.title || prompt.fileName.replace('.md', ''),
         isDirty: false,
         isPinned: false,
+        fileCategory: FileCategory.MARKDOWN,
       });
     } else if (node.type === 'snippet') {
       // Load snippet and open tab
@@ -655,6 +737,21 @@ async function openFile(node: ITreeNode): Promise<void> {
         title: snippet.metadata.name,
         isDirty: false,
         isPinned: false,
+        fileCategory: FileCategory.MARKDOWN,
+      });
+    } else {
+      // Non-markdown files - open directly without loading content
+      const fileName = node.filePath.split('/').pop() ?? 'Unknown';
+      const title = fileName;
+
+      uiStore.openTab({
+        filePath: node.filePath,
+        fileName: fileName,
+        title: title,
+        isDirty: false,
+        isPinned: false,
+        fileCategory: fileCategory,
+        mimeType: mimeType,
       });
     }
   } catch (err) {
@@ -688,12 +785,24 @@ async function handleDeleteConfirm(): Promise<void> {
   if (!node.filePath) return;
 
   try {
+    const parentDir = node.parentPath;
+
     if (node.type === 'prompt') {
       await promptStore.deletePrompt(node.filePath);
       uiStore.closeTab(node.filePath);
+      // Refresh tree to update the explorer
+      await refreshFiles();
+      // Also reload parent directory structure for non-markdown files
+      if (parentDir) {
+        // Invalidate cache so we get fresh data from file system
+        projectStore.invalidateTreeCache(parentDir);
+        await loadDirectoryStructure(parentDir);
+      }
     } else if (node.type === 'snippet') {
       await snippetStore.deleteSnippet(node.filePath);
       uiStore.closeTab(node.filePath);
+      // Refresh tree to update the explorer
+      await refreshFiles();
     } else if (node.type === 'project') {
       await projectStore.deleteProject(node.filePath, true);
       // Close any tabs for files in this project
@@ -704,6 +813,8 @@ async function handleDeleteConfirm(): Promise<void> {
       }
       // Clear the deleted project from the local cache
       clearDirectoryFromCache(node.filePath);
+      // Refresh tree to update the explorer
+      await refreshFiles();
     } else if (node.type === 'directory') {
       await projectStore.deleteDirectory(node.filePath, true);
       // Close any tabs for files in this directory
@@ -714,8 +825,24 @@ async function handleDeleteConfirm(): Promise<void> {
       }
       // Clear the deleted directory from the local cache
       clearDirectoryFromCache(node.filePath);
-      await promptStore.refreshAllPrompts();
+      // Refresh tree to update the explorer
+      await refreshFiles();
+    } else if (node.type === 'file') {
+      // Delete non-markdown file
+      await window.fileSystemAPI.deleteFile(node.filePath);
+      uiStore.closeTab(node.filePath);
+      // Refresh tree and directory structure to update the explorer
+      await refreshFiles();
+      if (parentDir) {
+        // Invalidate cache so we get fresh data from file system
+        projectStore.invalidateTreeCache(parentDir);
+        await loadDirectoryStructure(parentDir);
+      }
     }
+
+    // Force reactivity update for the file tree
+    directoryStructureVersion.value++;
+    showSuccess(`Deleted "${node.label}"`);
   } catch (err) {
     console.error('Failed to delete:', err);
     showError('Failed to delete');
@@ -770,6 +897,19 @@ async function handleRename(newName: string): Promise<void> {
         }
       }
       await promptStore.refreshAllPrompts();
+    } else if (node.type === 'file') {
+      // Rename non-markdown file (using moveFile which handles rename)
+      const parentDir = node.parentPath ?? filePath.substring(0, filePath.lastIndexOf('/'));
+      const newPath = `${parentDir}/${newName}`;
+      await window.fileSystemAPI.moveFile(filePath, newPath);
+      // Update tab if file is open
+      uiStore.updateTabFilePath(filePath, newPath, newName);
+      // Refresh directory to update tree
+      if (parentDir) {
+        // Invalidate cache so we get fresh data from file system
+        projectStore.invalidateTreeCache(parentDir);
+        await loadDirectoryStructure(parentDir);
+      }
     }
   } catch (err) {
     console.error('Failed to rename:', err);
@@ -940,6 +1080,135 @@ function openNewDirectoryDialog(parentPath: string, parentName: string): void {
 function openNewPromptDialogForDirectory(dirPath: string): void {
   newPromptDirectory.value = dirPath;
   showNewPromptDialog.value = true;
+}
+
+// Add file(s) to a directory
+async function addFileToDirectory(targetDir: string): Promise<void> {
+  if (!targetDir) {
+    targetDir = promptsDir.value;
+  }
+
+  if (!targetDir) {
+    $q.notify({
+      type: 'negative',
+      message: t('explorer.errorNoTargetDirectory'),
+    });
+    return;
+  }
+
+  // Open file dialog (multi-select allowed)
+  const result = await window.electronAPI.showOpenDialog({
+    properties: ['openFile', 'multiSelections'],
+    title: t('explorer.selectFilesToAdd'),
+  });
+
+  if (result.canceled || !result.filePaths.length) return;
+
+  let successCount = 0;
+  let errorCount = 0;
+
+  // Copy each file
+  for (const filePath of result.filePaths) {
+    const copyResult = await window.fileSystemAPI.copyFileToDirectory(filePath, targetDir);
+    if (copyResult.success) {
+      successCount++;
+    } else {
+      errorCount++;
+      console.error(`Failed to copy file: ${copyResult.error}`);
+    }
+  }
+
+  // Refresh tree and reload directory structure for non-markdown files
+  await refreshFiles();
+  // Invalidate cache so we get fresh data from file system
+  projectStore.invalidateTreeCache(targetDir);
+  // Also reload the specific directory to update non-markdown files cache
+  await loadDirectoryStructure(targetDir);
+  // Auto-expand the parent folder so user can see the new files
+  expandedFolders.value.add(targetDir);
+  // Trigger Vue reactivity by creating a new Set reference
+  expandedFolders.value = new Set(expandedFolders.value);
+
+  // Show notification
+  if (successCount > 0) {
+    $q.notify({
+      type: 'positive',
+      message: t('explorer.filesAdded', { count: successCount }),
+    });
+  }
+  if (errorCount > 0) {
+    $q.notify({
+      type: 'negative',
+      message: t('explorer.filesAddError', { count: errorCount }),
+    });
+  }
+}
+
+// Add folder to a directory
+async function addFolderToDirectory(targetDir: string): Promise<void> {
+  if (!targetDir) {
+    targetDir = promptsDir.value;
+  }
+
+  if (!targetDir) {
+    $q.notify({
+      type: 'negative',
+      message: t('explorer.errorNoTargetDirectory'),
+    });
+    return;
+  }
+
+  // Open folder dialog
+  const result = await window.electronAPI.showOpenDialog({
+    properties: ['openDirectory'],
+    title: t('explorer.selectFolderToAdd'),
+  });
+
+  if (result.canceled || !result.filePaths.length) return;
+
+  const folderPath = result.filePaths[0];
+
+  // Show loading indicator
+  $q.loading.show({ message: t('explorer.copyingFolder') });
+
+  try {
+    const copyResult = await window.fileSystemAPI.copyDirectory(folderPath, targetDir);
+
+    if (copyResult.success) {
+      // Refresh tree and reload directory structure for non-markdown files
+      await refreshFiles();
+      // Invalidate cache so we get fresh data from file system
+      projectStore.invalidateTreeCache(targetDir);
+      // Also reload the specific directory to update non-markdown files cache
+      await loadDirectoryStructure(targetDir);
+
+      // Also load the newly copied folder's structure recursively so all nested contents are available
+      if (copyResult.newPath) {
+        projectStore.invalidateTreeCache(copyResult.newPath);
+        // Auto-expand the parent folder (targetDir) so user can see the new folder
+        expandedFolders.value.add(targetDir);
+        // Auto-expand the newly added folder
+        expandedFolders.value.add(copyResult.newPath);
+        // Load recursively to get all nested subdirectories and files
+        await loadDirectoryStructure(copyResult.newPath, true);
+        // Trigger Vue reactivity by creating a new Set reference
+        expandedFolders.value = new Set(expandedFolders.value);
+      }
+
+      $q.notify({
+        type: 'positive',
+        message: t('explorer.folderAdded'),
+      });
+    } else {
+      $q.notify({
+        type: 'negative',
+        message: t('explorer.folderAddError'),
+      });
+      console.error(`Failed to copy folder: ${copyResult.error}`);
+    }
+  } finally {
+    $q.loading.hide();
+  }
 }
 
 // Get folder ID for snippet type
@@ -1303,6 +1572,43 @@ async function handleGitAddFile(filePath: string): Promise<void> {
   }
 }
 
+// Unstage a file (git reset)
+async function handleGitUnstageFile(filePath: string): Promise<void> {
+  try {
+    const project = projectStore.getProjectForPath(filePath);
+    if (!project) {
+      showError('File is not in a project');
+      return;
+    }
+
+    await gitStore.initialize(project.folderPath);
+
+    if (!gitStore.isRepo) {
+      showError('Not a Git repository');
+      return;
+    }
+
+    const relativePath = filePath.slice(project.folderPath.length + 1);
+    const success = await gitStore.unstageFiles([relativePath]);
+
+    if (success) {
+      $q.notify({
+        type: 'positive',
+        message: 'File unstaged',
+        position: 'top',
+        timeout: 3000,
+      });
+      // Refresh file statuses
+      await loadProjectFileStatuses(project.folderPath);
+    } else {
+      showError(gitStore.error ?? 'Failed to unstage file');
+    }
+  } catch (err) {
+    console.error('Failed to unstage file:', err);
+    showError('Failed to unstage file');
+  }
+}
+
 // Add file to .gitignore
 async function handleGitIgnoreFile(filePath: string): Promise<void> {
   try {
@@ -1415,6 +1721,19 @@ function handleDragStart(event: DragEvent, node: ITreeNode): void {
 }
 
 function handleDragOver(event: DragEvent, node: ITreeNode): void {
+  // Check if dragging external files from file manager
+  const isExternalFileDrag = event.dataTransfer?.types.includes('Files');
+
+  if (isExternalFileDrag && node.isDropTarget) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+    externalDropTargetId.value = node.id;
+    return;
+  }
+
+  // Internal drag (moving prompts within the app)
   if (!node.isDropTarget || !draggedNode.value) return;
 
   event.preventDefault();
@@ -1424,21 +1743,46 @@ function handleDragOver(event: DragEvent, node: ITreeNode): void {
   dropTarget.value = node;
 }
 
-function handleDragLeave(): void {
+function handleDragLeave(event: DragEvent, node: ITreeNode): void {
+  // Only clear if leaving the node (not entering a child)
+  const relatedTarget = event.relatedTarget as HTMLElement;
+  if (relatedTarget?.closest(`[data-node-id="${node.id}"]`)) {
+    return;
+  }
   dropTarget.value = null;
+  externalDropTargetId.value = null;
+}
+
+// Check if node is external drop target
+function isExternalDropTarget(node: ITreeNode): boolean {
+  return externalDropTargetId.value === node.id;
 }
 
 async function handleDrop(event: DragEvent, targetNode: ITreeNode): Promise<void> {
   event.preventDefault();
   dropTarget.value = null;
+  externalDropTargetId.value = null;
 
-  if (!draggedNode.value || !targetNode.isDropTarget) return;
+  const targetDirPath = targetNode.filePath ?? promptsDir.value;
+
+  if (!targetDirPath || !targetNode.isDropTarget) {
+    return;
+  }
+
+  // Check if this is an external file drop (from file manager)
+  const files = event.dataTransfer?.files;
+  if (files && files.length > 0 && !draggedNode.value) {
+    await handleExternalFileDrop(files, targetDirPath);
+    return;
+  }
+
+  // Internal drag (moving prompts within the app)
+  if (!draggedNode.value) return;
 
   const sourceFilePath = draggedNode.value.filePath;
-  const targetDirPath = targetNode.filePath ?? promptsDir.value;
   const fileName = draggedNode.value.label;
 
-  if (!sourceFilePath || !targetDirPath) return;
+  if (!sourceFilePath) return;
 
   // Don't drop on same directory
   const sourceDir = sourceFilePath.substring(0, sourceFilePath.lastIndexOf('/'));
@@ -1501,6 +1845,154 @@ async function handleDrop(event: DragEvent, targetNode: ITreeNode): Promise<void
   draggedNode.value = null;
 }
 
+// Handle external file drop from file manager
+async function handleExternalFileDrop(files: FileList, targetDir: string): Promise<void> {
+  $q.loading.show({ message: t('explorer.copyingFiles') });
+
+  let successCount = 0;
+  let errorCount = 0;
+
+  const copiedDirPaths: string[] = [];
+
+  try {
+    for (const file of Array.from(files)) {
+      // Use Electron's webUtils.getPathForFile to get the file path (more reliable than file.path)
+      let filePath: string | undefined;
+      try {
+        filePath = window.fileSystemAPI.getPathForFile(file);
+      } catch {
+        // Fallback to file.path if getPathForFile is not available
+        filePath = (file as File & { path?: string }).path;
+      }
+
+      // If file.path is not available (e.g., dragging from certain apps or sandboxed locations),
+      // fall back to reading the file content via the File API
+      if (!filePath) {
+        // Directories can't be read via File API, so we can only handle files here
+        // Check if it might be a directory (heuristic: no extension, empty type, size 0)
+        const hasExtension = file.name.includes('.');
+        if (!hasExtension && file.type === '' && file.size === 0) {
+          errorCount++;
+          continue;
+        }
+
+        try {
+          // Read file content using the File API
+          const arrayBuffer = await file.arrayBuffer();
+          const content = new Uint8Array(arrayBuffer);
+
+          // Write the file to the target directory
+          const result = await window.fileSystemAPI.writeBinaryFileToDirectory(
+            targetDir,
+            file.name,
+            content
+          );
+
+          if (result.success) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (readError) {
+          // NotFoundError typically means it's a directory (can't read directories via File API)
+          const isNotFoundError =
+            readError instanceof Error &&
+            (readError.name === 'NotFoundError' ||
+              readError.message.includes('could not be found'));
+
+          if (isNotFoundError) {
+            $q.notify({
+              type: 'warning',
+              message: t('explorer.cannotCopyFolderFromSource', { name: file.name }),
+              position: 'top',
+              timeout: 4000,
+            });
+          }
+          errorCount++;
+        }
+        continue;
+      }
+
+      // Check if it's a file or directory using the file path
+      let isDirectory = false;
+
+      // Try to get file info via IPC
+      if (window.fileSystemAPI.getExternalFileInfo) {
+        const fileInfo = await window.fileSystemAPI.getExternalFileInfo(filePath);
+        isDirectory = fileInfo?.isDirectory ?? false;
+      } else {
+        // Fallback: directories typically have no extension and empty type
+        const hasExtension = filePath.split('/').pop()?.includes('.') ?? false;
+        isDirectory = !hasExtension && file.type === '' && file.size === 0;
+      }
+
+      if (isDirectory) {
+        const result = await window.fileSystemAPI.copyDirectory(filePath, targetDir);
+        if (result.success) {
+          successCount++;
+          // Track copied directory paths for loading their contents
+          if (result.newPath) {
+            copiedDirPaths.push(result.newPath);
+          }
+        } else {
+          errorCount++;
+        }
+      } else {
+        const result = await window.fileSystemAPI.copyFileToDirectory(filePath, targetDir);
+        if (result.success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      }
+    }
+
+    // Refresh tree and reload directory structure for non-markdown files
+    await refreshFiles();
+    // Invalidate cache so we get fresh data from file system
+    projectStore.invalidateTreeCache(targetDir);
+    // Also reload the specific directory to update non-markdown files cache
+    await loadDirectoryStructure(targetDir);
+
+    // Auto-expand the parent folder so user can see the new items
+    expandedFolders.value.add(targetDir);
+
+    // Load contents of copied directories recursively and auto-expand them
+    for (const dirPath of copiedDirPaths) {
+      projectStore.invalidateTreeCache(dirPath);
+      expandedFolders.value.add(dirPath);
+      // Load recursively to get all nested subdirectories and files
+      await loadDirectoryStructure(dirPath, true);
+    }
+
+    // Trigger Vue reactivity by creating a new Set reference
+    expandedFolders.value = new Set(expandedFolders.value);
+
+    // Show notification
+    if (successCount > 0) {
+      $q.notify({
+        type: 'positive',
+        message: t('explorer.itemsAdded', { count: successCount }),
+        position: 'top',
+        timeout: 2000,
+      });
+    }
+    if (errorCount > 0) {
+      $q.notify({
+        type: 'negative',
+        message: t('explorer.itemsAddError', { count: errorCount }),
+        position: 'top',
+        timeout: 4000,
+      });
+    }
+  } catch (err) {
+    console.error('Failed to copy files:', err);
+    showError(t('explorer.dropError'));
+  } finally {
+    $q.loading.hide();
+  }
+}
+
 function handleDragEnd(): void {
   draggedNode.value = null;
   dropTarget.value = null;
@@ -1521,6 +2013,15 @@ function showError(message: string): void {
   });
 }
 
+function showSuccess(message: string): void {
+  $q.notify({
+    type: 'positive',
+    message,
+    position: 'top',
+    timeout: 2000,
+  });
+}
+
 // Initialize stores (only in Electron)
 onMounted(async () => {
   if (!isElectron.value) return;
@@ -1535,7 +2036,7 @@ onMounted(async () => {
     await promptStore.refreshAllPrompts();
 
     // Load directory structures for all projects
-    for (const project of projectStore.allProjects) {
+    for (const project of allProjects.value) {
       await loadDirectoryStructure(project.folderPath);
     }
   } catch (err) {
@@ -1543,15 +2044,13 @@ onMounted(async () => {
   }
 });
 
-// Watch for changes to refresh
+// Watch for changes to refresh the tree (using reactive refs for proper tracking)
 watch(
-  [
-    () => promptStore.allPrompts.length,
-    () => snippetStore.allSnippets.length,
-    () => projectStore.allProjects.length,
-  ],
+  [() => allPrompts.value.length, () => allSnippets.value.length, () => allProjects.value.length],
   () => {
     // Tree will automatically update via computed
+    // Force reactivity update
+    directoryStructureVersion.value++;
   }
 );
 </script>
@@ -1729,11 +2228,13 @@ watch(
               class="explorer-panel__folder"
               :class="{
                 'explorer-panel__folder--drop-target': isDropTargetActive(folder),
+                'explorer-panel__folder--external-drop-target': isExternalDropTarget(folder),
               }"
               :data-testid="`folder-${folder.id}`"
+              :data-node-id="folder.id"
               @click="toggleFolder(folder.id)"
               @dragover="folder.isDropTarget ? handleDragOver($event, folder) : null"
-              @dragleave="handleDragLeave"
+              @dragleave="handleDragLeave($event, folder)"
               @drop="folder.isDropTarget ? handleDrop($event, folder) : null"
             >
               <q-icon
@@ -1789,6 +2290,34 @@ watch(
                       />
                     </q-item-section>
                     <q-item-section>{{ t('explorer.newProject') }}</q-item-section>
+                  </q-item>
+                  <q-item
+                    v-if="folder.id === 'prompts'"
+                    v-close-popup
+                    clickable
+                    @click="addFileToDirectory(promptsDir)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon
+                        name="note_add"
+                        size="20px"
+                      />
+                    </q-item-section>
+                    <q-item-section>{{ t('explorer.addFile') }}</q-item-section>
+                  </q-item>
+                  <q-item
+                    v-if="folder.id === 'prompts'"
+                    v-close-popup
+                    clickable
+                    @click="addFolderToDirectory(promptsDir)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon
+                        name="folder_copy"
+                        size="20px"
+                      />
+                    </q-item-section>
+                    <q-item-section>{{ t('explorer.addFolder') }}</q-item-section>
                   </q-item>
                   <q-item
                     v-if="folder.id !== 'prompts'"
@@ -1849,12 +2378,14 @@ watch(
                   :class="{
                     'explorer-panel__folder--nested': true,
                     'explorer-panel__folder--drop-target': isDropTargetActive(child),
+                    'explorer-panel__folder--external-drop-target': isExternalDropTarget(child),
                   }"
                   :style="{ paddingLeft: `${(child.depth ?? 0) * 16 + 24}px` }"
                   :data-testid="child.type === 'project' ? 'project-item' : 'directory-item'"
+                  :data-node-id="child.id"
                   @click="toggleFolder(child.id)"
                   @dragover="handleDragOver($event, child)"
-                  @dragleave="handleDragLeave"
+                  @dragleave="handleDragLeave($event, child)"
                   @drop="handleDrop($event, child)"
                 >
                   <q-icon
@@ -1928,6 +2459,32 @@ watch(
                           />
                         </q-item-section>
                         <q-item-section>{{ t('explorer.newDirectory') }}</q-item-section>
+                      </q-item>
+                      <q-item
+                        v-close-popup
+                        clickable
+                        @click="addFileToDirectory(child.filePath!)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon
+                            name="note_add"
+                            size="20px"
+                          />
+                        </q-item-section>
+                        <q-item-section>{{ t('explorer.addFile') }}</q-item-section>
+                      </q-item>
+                      <q-item
+                        v-close-popup
+                        clickable
+                        @click="addFolderToDirectory(child.filePath!)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon
+                            name="folder_copy"
+                            size="20px"
+                          />
+                        </q-item-section>
+                        <q-item-section>{{ t('explorer.addFolder') }}</q-item-section>
                       </q-item>
 
                       <!-- Git submenu for projects -->
@@ -2123,11 +2680,14 @@ watch(
                       class="explorer-panel__folder explorer-panel__folder--nested"
                       :class="{
                         'explorer-panel__folder--drop-target': isDropTargetActive(nested),
+                        'explorer-panel__folder--external-drop-target':
+                          isExternalDropTarget(nested),
                       }"
                       :style="{ paddingLeft: `${(nested.depth ?? 1) * 16 + 24}px` }"
+                      :data-node-id="nested.id"
                       @click="toggleFolder(nested.id)"
                       @dragover="handleDragOver($event, nested)"
-                      @dragleave="handleDragLeave"
+                      @dragleave="handleDragLeave($event, nested)"
                       @drop="handleDrop($event, nested)"
                     >
                       <q-icon
@@ -2181,6 +2741,32 @@ watch(
                             </q-item-section>
                             <q-item-section>{{ t('explorer.newDirectory') }}</q-item-section>
                           </q-item>
+                          <q-item
+                            v-close-popup
+                            clickable
+                            @click="addFileToDirectory(nested.filePath!)"
+                          >
+                            <q-item-section avatar>
+                              <q-icon
+                                name="note_add"
+                                size="20px"
+                              />
+                            </q-item-section>
+                            <q-item-section>{{ t('explorer.addFile') }}</q-item-section>
+                          </q-item>
+                          <q-item
+                            v-close-popup
+                            clickable
+                            @click="addFolderToDirectory(nested.filePath!)"
+                          >
+                            <q-item-section avatar>
+                              <q-icon
+                                name="folder_copy"
+                                size="20px"
+                              />
+                            </q-item-section>
+                            <q-item-section>{{ t('explorer.addFolder') }}</q-item-section>
+                          </q-item>
                           <q-separator />
                           <q-item
                             v-close-popup
@@ -2215,338 +2801,40 @@ watch(
                       </q-menu>
                     </div>
 
-                    <!-- Children of nested directory (recursive) -->
+                    <!-- Children of nested directory (recursive via ExplorerTreeNode) -->
                     <template v-if="isExpanded(nested.id) && nested.children">
-                      <template
-                        v-for="deepNested in nested.children"
-                        :key="deepNested.id"
-                      >
-                        <!-- Deep nested directory -->
-                        <div
-                          v-if="deepNested.type === 'directory'"
-                          class="explorer-panel__folder explorer-panel__folder--nested"
-                          :class="{
-                            'explorer-panel__folder--drop-target': isDropTargetActive(deepNested),
-                          }"
-                          :style="{ paddingLeft: `${(deepNested.depth ?? 2) * 16 + 24}px` }"
-                          @click="toggleFolder(deepNested.id)"
-                          @dragover="handleDragOver($event, deepNested)"
-                          @dragleave="handleDragLeave"
-                          @drop="handleDrop($event, deepNested)"
-                        >
-                          <q-icon
-                            :name="isExpanded(deepNested.id) ? 'expand_more' : 'chevron_right'"
-                            size="18px"
-                            class="explorer-panel__chevron"
-                          />
-                          <q-icon
-                            :name="isExpanded(deepNested.id) ? 'folder_open' : 'folder'"
-                            size="18px"
-                            class="explorer-panel__folder-icon"
-                          />
-                          <span class="explorer-panel__folder-label">{{ deepNested.label }}</span>
-                          <q-badge
-                            v-if="deepNested.count !== undefined && deepNested.count > 0"
-                            :label="deepNested.count"
-                            color="grey-7"
-                            text-color="white"
-                            class="explorer-panel__count"
-                          />
-
-                          <!-- Deep nested directory context menu -->
-                          <q-menu context-menu>
-                            <q-list
-                              dense
-                              style="min-width: 150px"
-                            >
-                              <q-item
-                                v-close-popup
-                                clickable
-                                @click="openNewPromptDialogForDirectory(deepNested.filePath!)"
-                              >
-                                <q-item-section avatar>
-                                  <q-icon
-                                    name="add"
-                                    size="20px"
-                                  />
-                                </q-item-section>
-                                <q-item-section>{{ t('explorer.newPrompt') }}</q-item-section>
-                              </q-item>
-                              <q-item
-                                v-close-popup
-                                clickable
-                                @click="
-                                  openNewDirectoryDialog(deepNested.filePath!, deepNested.label)
-                                "
-                              >
-                                <q-item-section avatar>
-                                  <q-icon
-                                    name="create_new_folder"
-                                    size="20px"
-                                  />
-                                </q-item-section>
-                                <q-item-section>{{ t('explorer.newDirectory') }}</q-item-section>
-                              </q-item>
-                              <q-separator />
-                              <q-item
-                                v-close-popup
-                                clickable
-                                @click="openRenameDialog(deepNested)"
-                              >
-                                <q-item-section avatar>
-                                  <q-icon
-                                    name="edit"
-                                    size="20px"
-                                  />
-                                </q-item-section>
-                                <q-item-section>{{ t('common.rename') }}</q-item-section>
-                              </q-item>
-                              <q-separator />
-                              <q-item
-                                v-close-popup
-                                clickable
-                                class="text-negative"
-                                @click="confirmDelete(deepNested)"
-                              >
-                                <q-item-section avatar>
-                                  <q-icon
-                                    name="delete"
-                                    size="20px"
-                                    color="negative"
-                                  />
-                                </q-item-section>
-                                <q-item-section>{{ t('common.delete') }}</q-item-section>
-                              </q-item>
-                            </q-list>
-                          </q-menu>
-                        </div>
-
-                        <!-- File in deep nested directory -->
-                        <div
-                          v-else
-                          class="explorer-panel__file"
-                          :style="{ paddingLeft: `${(deepNested.depth ?? 2) * 16 + 32}px` }"
-                          draggable="true"
-                          data-testid="file-item"
-                          @click="openFile(deepNested)"
-                          @dblclick="openFile(deepNested)"
-                          @dragstart="handleDragStart($event, deepNested)"
-                          @dragend="handleDragEnd"
-                        >
-                          <q-icon
-                            :name="deepNested.icon"
-                            size="16px"
-                            class="explorer-panel__file-icon"
-                          />
-                          <span class="explorer-panel__file-label">{{ deepNested.label }}</span>
-                          <q-badge
-                            v-if="deepNested.type === 'prompt' && deepNested.category"
-                            :label="getCategoryLabel(deepNested.category)"
-                            color="grey-7"
-                            text-color="white"
-                            class="explorer-panel__category-badge"
-                          />
-
-                          <!-- File context menu -->
-                          <q-menu context-menu>
-                            <q-list
-                              dense
-                              style="min-width: 180px"
-                            >
-                              <q-item
-                                v-close-popup
-                                clickable
-                                @click="openFile(deepNested)"
-                              >
-                                <q-item-section avatar>
-                                  <q-icon
-                                    name="open_in_new"
-                                    size="20px"
-                                  />
-                                </q-item-section>
-                                <q-item-section>{{ t('common.open') }}</q-item-section>
-                              </q-item>
-                              <q-item
-                                v-if="deepNested.type === 'prompt'"
-                                v-close-popup
-                                clickable
-                                @click="toggleFavorite(deepNested)"
-                              >
-                                <q-item-section avatar>
-                                  <q-icon
-                                    name="star"
-                                    size="20px"
-                                  />
-                                </q-item-section>
-                                <q-item-section>{{ t('explorer.toggleFavorite') }}</q-item-section>
-                              </q-item>
-                              <!-- Edit for prompts -->
-                              <q-item
-                                v-if="deepNested.type === 'prompt'"
-                                v-close-popup
-                                clickable
-                                @click="openEditPromptDialog(deepNested)"
-                              >
-                                <q-item-section avatar>
-                                  <q-icon
-                                    name="edit"
-                                    size="20px"
-                                  />
-                                </q-item-section>
-                                <q-item-section>{{ t('common.edit') }}</q-item-section>
-                              </q-item>
-                              <!-- Rename for snippets -->
-                              <q-item
-                                v-else
-                                v-close-popup
-                                clickable
-                                @click="openRenameDialog(deepNested)"
-                              >
-                                <q-item-section avatar>
-                                  <q-icon
-                                    name="edit"
-                                    size="20px"
-                                  />
-                                </q-item-section>
-                                <q-item-section>{{ t('common.rename') }}</q-item-section>
-                              </q-item>
-
-                              <!-- Git submenu for files in projects -->
-                              <template
-                                v-if="
-                                  deepNested.type === 'prompt' &&
-                                  deepNested.filePath &&
-                                  fileIsInProject(deepNested.filePath)
-                                "
-                              >
-                                <q-separator />
-                                <q-item clickable>
-                                  <q-item-section avatar>
-                                    <q-icon
-                                      name="mdi-git"
-                                      size="20px"
-                                      color="orange"
-                                    />
-                                  </q-item-section>
-                                  <q-item-section>{{ t('gitPanel.title') }}</q-item-section>
-                                  <q-item-section side>
-                                    <q-icon name="keyboard_arrow_right" />
-                                  </q-item-section>
-
-                                  <!-- Git submenu -->
-                                  <q-menu
-                                    anchor="top end"
-                                    self="top start"
-                                  >
-                                    <q-list
-                                      dense
-                                      style="min-width: 160px"
-                                    >
-                                      <!-- Add File (if not staged) -->
-                                      <q-item
-                                        v-if="fileNeedsAdd(deepNested.filePath)"
-                                        v-close-popup
-                                        clickable
-                                        @click="handleGitAddFile(deepNested.filePath)"
-                                      >
-                                        <q-item-section avatar>
-                                          <q-icon
-                                            name="mdi-plus-circle"
-                                            size="20px"
-                                            color="positive"
-                                          />
-                                        </q-item-section>
-                                        <q-item-section>{{ t('common.add') }}</q-item-section>
-                                      </q-item>
-                                      <!-- Ignore File (if untracked) -->
-                                      <q-item
-                                        v-if="fileCanBeIgnored(deepNested.filePath)"
-                                        v-close-popup
-                                        clickable
-                                        @click="handleGitIgnoreFile(deepNested.filePath)"
-                                      >
-                                        <q-item-section avatar>
-                                          <q-icon
-                                            name="mdi-eye-off"
-                                            size="20px"
-                                            color="grey"
-                                          />
-                                        </q-item-section>
-                                        <q-item-section>{{ t('explorer.ignore') }}</q-item-section>
-                                      </q-item>
-                                      <!-- Commit File (if staged) -->
-                                      <q-item
-                                        v-if="fileIsStaged(deepNested.filePath)"
-                                        v-close-popup
-                                        clickable
-                                        @click="handleGitCommitFile(deepNested.filePath)"
-                                      >
-                                        <q-item-section avatar>
-                                          <q-icon
-                                            name="mdi-source-commit"
-                                            size="20px"
-                                          />
-                                        </q-item-section>
-                                        <q-item-section>{{ t('gitPanel.commit') }}</q-item-section>
-                                      </q-item>
-                                      <!-- Reject/Discard (if staged) -->
-                                      <q-item
-                                        v-if="fileIsStaged(deepNested.filePath)"
-                                        v-close-popup
-                                        clickable
-                                        @click="handleGitDiscardChanges(deepNested.filePath)"
-                                      >
-                                        <q-item-section avatar>
-                                          <q-icon
-                                            name="mdi-undo"
-                                            size="20px"
-                                            color="negative"
-                                          />
-                                        </q-item-section>
-                                        <q-item-section>{{ t('gitPanel.discard') }}</q-item-section>
-                                      </q-item>
-                                      <!-- History (if tracked - has commits) -->
-                                      <q-item
-                                        v-if="fileIsTracked(deepNested.filePath)"
-                                        v-close-popup
-                                        clickable
-                                        @click="handleGitHistory(deepNested.filePath)"
-                                      >
-                                        <q-item-section avatar>
-                                          <q-icon
-                                            name="mdi-history"
-                                            size="20px"
-                                          />
-                                        </q-item-section>
-                                        <q-item-section>{{
-                                          t('gitPanel.viewHistory')
-                                        }}</q-item-section>
-                                      </q-item>
-                                    </q-list>
-                                  </q-menu>
-                                </q-item>
-                              </template>
-
-                              <q-separator />
-                              <q-item
-                                v-close-popup
-                                clickable
-                                class="text-negative"
-                                @click="confirmDelete(deepNested)"
-                              >
-                                <q-item-section avatar>
-                                  <q-icon
-                                    name="delete"
-                                    size="20px"
-                                    color="negative"
-                                  />
-                                </q-item-section>
-                                <q-item-section>{{ t('common.delete') }}</q-item-section>
-                              </q-item>
-                            </q-list>
-                          </q-menu>
-                        </div>
-                      </template>
+                      <ExplorerTreeNode
+                        v-for="deepChild in nested.children"
+                        :key="deepChild.id"
+                        :node="deepChild"
+                        :is-expanded="isExpanded"
+                        :is-drop-target-active="isDropTargetActive"
+                        :is-external-drop-target="isExternalDropTarget"
+                        :get-category-label="getCategoryLabel"
+                        :file-is-in-project="fileIsInProject"
+                        :file-is-tracked="fileIsTracked"
+                        :file-is-staged="fileIsStaged"
+                        @toggle-folder="toggleFolder"
+                        @open-file="openFile"
+                        @confirm-delete="confirmDelete"
+                        @open-rename-dialog="openRenameDialog"
+                        @open-edit-prompt-dialog="openEditPromptDialog"
+                        @toggle-favorite="toggleFavorite"
+                        @open-new-prompt-dialog="openNewPromptDialogForDirectory"
+                        @open-new-directory-dialog="openNewDirectoryDialog"
+                        @add-file-to-directory="addFileToDirectory"
+                        @add-folder-to-directory="addFolderToDirectory"
+                        @drag-start="handleDragStart"
+                        @drag-end="handleDragEnd"
+                        @drag-over="handleDragOver"
+                        @drag-leave="handleDragLeave"
+                        @drop="handleDrop"
+                        @git-stage="handleGitAddFile"
+                        @git-unstage="handleGitUnstageFile"
+                        @git-commit="handleGitCommitFile"
+                        @git-discard="handleGitDiscardChanges"
+                        @git-history="handleGitHistory"
+                      />
                     </template>
 
                     <!-- File in nested directory -->
@@ -2640,7 +2928,12 @@ watch(
                           </q-item>
 
                           <!-- Git submenu for files in projects -->
-                          <template v-if="nested.type === 'prompt' && nested.filePath">
+                          <template
+                            v-if="
+                              (nested.type === 'prompt' || nested.type === 'file') &&
+                              nested.filePath
+                            "
+                          >
                             <q-separator />
                             <q-item clickable>
                               <q-item-section avatar>
@@ -2871,7 +3164,7 @@ watch(
                       <!-- Git submenu for files in projects -->
                       <template
                         v-if="
-                          child.type === 'prompt' &&
+                          (child.type === 'prompt' || child.type === 'file') &&
                           child.filePath &&
                           fileIsInProject(child.filePath)
                         "
@@ -3054,7 +3347,9 @@ watch(
             ? 'directory'
             : deleteTarget?.node.type === 'snippet'
               ? 'snippet'
-              : 'prompt'
+              : deleteTarget?.node.type === 'file'
+                ? 'file'
+                : 'prompt'
       "
       :contents-count="deleteTarget?.contentsCount"
       @confirm="handleDeleteConfirm"
@@ -3178,6 +3473,11 @@ watch(
       background-color: var(--drop-target-bg, rgba(0, 120, 212, 0.2)) !important;
       outline: 1px dashed var(--drop-target-border, #0078d4);
     }
+
+    &--external-drop-target {
+      background-color: var(--external-drop-bg, rgba(34, 139, 34, 0.2)) !important;
+      outline: 2px dashed var(--external-drop-border, #228b22);
+    }
   }
 
   &__chevron {
@@ -3278,6 +3578,8 @@ watch(
   --file-icon-color: #424242;
   --drop-target-bg: rgba(0, 120, 212, 0.1);
   --drop-target-border: #0078d4;
+  --external-drop-bg: rgba(34, 139, 34, 0.15);
+  --external-drop-border: #228b22;
 }
 
 // Dark theme
@@ -3292,5 +3594,7 @@ watch(
   --file-icon-color: #c5c5c5;
   --drop-target-bg: rgba(0, 120, 212, 0.2);
   --drop-target-border: #0078d4;
+  --external-drop-bg: rgba(34, 139, 34, 0.25);
+  --external-drop-border: #32cd32;
 }
 </style>

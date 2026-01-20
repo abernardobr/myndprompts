@@ -39,6 +39,18 @@ export const usePromptStore = defineStore('prompts', () => {
   // Prompt cache - keyed by file path
   const promptCache = shallowRef<Map<string, IPromptCache>>(new Map());
 
+  /**
+   * Generic file content cache entry (for non-markdown files like code files)
+   */
+  interface IFileCache {
+    originalContent: string;
+    currentContent: string;
+    isDirty: boolean;
+  }
+
+  // Generic file cache - for code/text files that aren't prompts
+  const fileCache = shallowRef<Map<string, IFileCache>>(new Map());
+
   // Recent files
   const recentFiles = ref<IRecentFile[]>([]);
 
@@ -590,6 +602,135 @@ export const usePromptStore = defineStore('prompts', () => {
     promptCache.value = newCache;
   }
 
+  // ================================
+  // Generic File Operations (for code/text files)
+  // ================================
+
+  /**
+   * Load a generic text file and cache its content
+   * @param filePath - Path to the file
+   */
+  async function loadFile(filePath: string): Promise<string> {
+    if (!isElectron()) {
+      throw new Error('Loading files is only available in the desktop app');
+    }
+
+    // Check if already cached
+    const cached = fileCache.value.get(filePath);
+    if (cached) {
+      return cached.currentContent;
+    }
+
+    try {
+      const content = await window.fileSystemAPI.readFile(filePath);
+
+      // Add to cache
+      const newCache = new Map(fileCache.value);
+      newCache.set(filePath, {
+        originalContent: content,
+        currentContent: content,
+        isDirty: false,
+      });
+      fileCache.value = newCache;
+
+      return content;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to load file';
+      throw err;
+    }
+  }
+
+  /**
+   * Get generic file content from cache
+   * @param filePath - Path to the file
+   */
+  function getFileContent(filePath: string): string | undefined {
+    // First check file cache
+    const fileCached = fileCache.value.get(filePath);
+    if (fileCached) {
+      return fileCached.currentContent;
+    }
+    // Fall back to prompt cache for backward compatibility
+    return promptCache.value.get(filePath)?.currentContent;
+  }
+
+  /**
+   * Update generic file content in cache (marks as dirty)
+   * @param filePath - Path to the file
+   * @param content - New content
+   */
+  function updateFileContent(filePath: string, content: string): void {
+    const cached = fileCache.value.get(filePath);
+    if (!cached) return;
+
+    const isDirty = content !== cached.originalContent;
+
+    const newCache = new Map(fileCache.value);
+    newCache.set(filePath, {
+      ...cached,
+      currentContent: content,
+      isDirty,
+    });
+    fileCache.value = newCache;
+
+    // Update tab dirty state
+    const uiStore = useUIStore();
+    uiStore.setTabDirty(filePath, isDirty);
+  }
+
+  /**
+   * Check if a generic file has unsaved changes
+   * @param filePath - Path to the file
+   */
+  function isFileDirty(filePath: string): boolean {
+    return fileCache.value.get(filePath)?.isDirty ?? false;
+  }
+
+  /**
+   * Save a generic file to disk
+   * @param filePath - Path to the file
+   */
+  async function saveFile(filePath: string): Promise<void> {
+    if (!isElectron()) {
+      throw new Error('Saving files is only available in the desktop app');
+    }
+
+    const cached = fileCache.value.get(filePath);
+    if (!cached) {
+      throw new Error('File not found in cache');
+    }
+
+    try {
+      await window.fileSystemAPI.writeFile(filePath, cached.currentContent);
+
+      // Update cache to mark as not dirty
+      const newCache = new Map(fileCache.value);
+      newCache.set(filePath, {
+        ...cached,
+        originalContent: cached.currentContent,
+        isDirty: false,
+      });
+      fileCache.value = newCache;
+
+      // Update tab dirty state
+      const uiStore = useUIStore();
+      uiStore.setTabDirty(filePath, false);
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to save file';
+      throw err;
+    }
+  }
+
+  /**
+   * Unload a generic file from cache
+   * @param filePath - Path to the file
+   */
+  function unloadFile(filePath: string): void {
+    const newCache = new Map(fileCache.value);
+    newCache.delete(filePath);
+    fileCache.value = newCache;
+  }
+
   /**
    * Clear error state
    */
@@ -631,5 +772,13 @@ export const usePromptStore = defineStore('prompts', () => {
     updatePromptMetadata,
     unloadPrompt,
     clearError,
+
+    // Generic file operations
+    loadFile,
+    getFileContent,
+    updateFileContent,
+    isFileDirty,
+    saveFile,
+    unloadFile,
   };
 });

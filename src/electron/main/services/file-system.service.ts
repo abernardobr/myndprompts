@@ -125,6 +125,33 @@ export class FileSystemService {
   }
 
   /**
+   * Read a file as base64 data URL (for images and binary files)
+   */
+  async readFileAsDataUrl(filePath: string, mimeType?: string): Promise<string> {
+    const validPath = this.validatePath(filePath);
+    const buffer = await fs.readFile(validPath);
+    const base64 = buffer.toString('base64');
+
+    // Determine MIME type from extension if not provided
+    const ext = path.extname(validPath).toLowerCase();
+    const mimeMap: Record<string, string> = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+      '.bmp': 'image/bmp',
+      '.ico': 'image/x-icon',
+      '.tiff': 'image/tiff',
+      '.tif': 'image/tiff',
+    };
+    const mime = mimeType ?? mimeMap[ext] ?? 'application/octet-stream';
+
+    return `data:${mime};base64,${base64}`;
+  }
+
+  /**
    * Write a file
    */
   async writeFile(
@@ -150,6 +177,41 @@ export class FileSystemService {
         error: error instanceof Error ? error.message : 'Unknown error',
         path: filePath,
       };
+    }
+  }
+
+  /**
+   * Write binary file content to a directory (for drag-and-drop without file path)
+   * @param destDir - Destination directory path
+   * @param fileName - Name of the file to create
+   * @param content - Binary content as Uint8Array
+   * @returns New file path or error
+   */
+  async writeBinaryFileToDirectory(
+    destDir: string,
+    fileName: string,
+    content: Uint8Array
+  ): Promise<{ success: boolean; newPath?: string; error?: string }> {
+    try {
+      const validDestDir = this.validatePath(destDir);
+
+      // Validate destination is a directory
+      const destStats = await fs.stat(validDestDir);
+      if (!destStats.isDirectory()) {
+        return { success: false, error: 'Destination is not a directory' };
+      }
+
+      // Get unique file name
+      const uniqueName = await this.getUniqueFileName(validDestDir, fileName);
+      const destPath = path.join(validDestDir, uniqueName);
+
+      // Write the file
+      await fs.writeFile(destPath, Buffer.from(content));
+
+      return { success: true, newPath: destPath };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -185,6 +247,132 @@ export class FileSystemService {
       await fs.copyFile(validSource, validDest);
       return { success: true, path: validDest };
     } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Generate a unique file name by appending (1), (2), etc. if needed
+   */
+  private async getUniqueFileName(destDir: string, fileName: string): Promise<string> {
+    const ext = path.extname(fileName);
+    const baseName = path.basename(fileName, ext);
+    let newName = fileName;
+
+    for (let counter = 1; counter <= 1000; counter++) {
+      const fullPath = path.join(destDir, newName);
+      try {
+        await fs.access(fullPath);
+        // File exists, try next number
+        newName = `${baseName} (${counter})${ext}`;
+      } catch {
+        // File doesn't exist, use this name
+        return newName;
+      }
+    }
+    // Fallback after 1000 attempts
+    return `${baseName} (${Date.now()})${ext}`;
+  }
+
+  /**
+   * Generate a unique directory name by appending (1), (2), etc. if needed
+   */
+  private async getUniqueDirName(destDir: string, dirName: string): Promise<string> {
+    let newName = dirName;
+
+    for (let counter = 1; counter <= 1000; counter++) {
+      const fullPath = path.join(destDir, newName);
+      try {
+        await fs.access(fullPath);
+        // Directory exists, try next number
+        newName = `${dirName} (${counter})`;
+      } catch {
+        // Directory doesn't exist, use this name
+        return newName;
+      }
+    }
+    // Fallback after 1000 attempts
+    return `${dirName} (${Date.now()})`;
+  }
+
+  /**
+   * Copy a file to a destination directory (with automatic name collision handling)
+   * @param sourcePath - Full path to source file
+   * @param destDir - Destination directory path
+   * @returns New file path or error
+   */
+  async copyFileToDirectory(
+    sourcePath: string,
+    destDir: string
+  ): Promise<{ success: boolean; newPath?: string; error?: string }> {
+    try {
+      // Validate source exists and is a file
+      const sourceStats = await fs.stat(sourcePath);
+      if (!sourceStats.isFile()) {
+        return { success: false, error: 'Source is not a file' };
+      }
+
+      // Validate destination is a directory
+      const destStats = await fs.stat(destDir);
+      if (!destStats.isDirectory()) {
+        return { success: false, error: 'Destination is not a directory' };
+      }
+
+      // Get unique file name
+      const originalName = path.basename(sourcePath);
+      const uniqueName = await this.getUniqueFileName(destDir, originalName);
+      const destPath = path.join(destDir, uniqueName);
+
+      // Copy the file
+      await fs.copyFile(sourcePath, destPath);
+
+      return { success: true, newPath: destPath };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Copy a directory recursively to a destination (with automatic name collision handling)
+   * @param sourcePath - Full path to source directory
+   * @param destDir - Destination parent directory
+   * @returns New directory path or error
+   */
+  async copyDirectoryToDirectory(
+    sourcePath: string,
+    destDir: string
+  ): Promise<{ success: boolean; newPath?: string; error?: string }> {
+    try {
+      // Validate source exists and is a directory
+      const sourceStats = await fs.stat(sourcePath);
+      if (!sourceStats.isDirectory()) {
+        return { success: false, error: 'Source is not a directory' };
+      }
+
+      // Validate destination is a directory
+      const destStats = await fs.stat(destDir);
+      if (!destStats.isDirectory()) {
+        return { success: false, error: 'Destination is not a directory' };
+      }
+
+      // Get unique directory name
+      const originalName = path.basename(sourcePath);
+      const uniqueName = await this.getUniqueDirName(destDir, originalName);
+      const destPath = path.join(destDir, uniqueName);
+
+      // Copy the directory recursively (Node.js 16.7+)
+      await fs.cp(sourcePath, destPath, { recursive: true });
+
+      return { success: true, newPath: destPath };
+    } catch (error) {
+      console.error('Failed to copy directory:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -238,6 +426,28 @@ export class FileSystemService {
         path: validPath,
         name: path.basename(validPath),
         extension: path.extname(validPath),
+        size: stats.size,
+        isDirectory: stats.isDirectory(),
+        createdAt: stats.birthtime,
+        modifiedAt: stats.mtime,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get file information for external paths (no path validation)
+   * Used for drag-and-drop from external file managers
+   */
+  async getExternalFileInfo(filePath: string): Promise<IFileInfo | null> {
+    try {
+      const normalizedPath = path.normalize(filePath);
+      const stats = await fs.stat(normalizedPath);
+      return {
+        path: normalizedPath,
+        name: path.basename(normalizedPath),
+        extension: path.extname(normalizedPath),
         size: stats.size,
         isDirectory: stats.isDirectory(),
         createdAt: stats.birthtime,

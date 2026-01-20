@@ -214,6 +214,46 @@ export function usePrompts() {
     }
   }
 
+  // ================================
+  // Generic File Operations (for code/text files)
+  // ================================
+
+  /**
+   * Open a generic file and load its content
+   * @param filePath - Path to the file
+   */
+  async function openFile(filePath: string): Promise<string> {
+    return promptStore.loadFile(filePath);
+  }
+
+  /**
+   * Get content for any file (prompt or generic)
+   */
+  function getFileContent(filePath: string): string | undefined {
+    return promptStore.getFileContent(filePath);
+  }
+
+  /**
+   * Update content for any file (prompt or generic)
+   */
+  function updateFileContent(filePath: string, content: string): void {
+    promptStore.updateFileContent(filePath, content);
+  }
+
+  /**
+   * Save a generic file
+   */
+  async function saveGenericFile(filePath: string): Promise<void> {
+    await promptStore.saveFile(filePath);
+  }
+
+  /**
+   * Check if a generic file is dirty
+   */
+  function isFileDirty(filePath: string): boolean {
+    return promptStore.isFileDirty(filePath);
+  }
+
   /**
    * Handle keyboard shortcuts for prompt operations
    */
@@ -285,5 +325,12 @@ export function usePrompts() {
     deletePrompt,
     reloadPrompt,
     saveAllPrompts,
+
+    // Generic file operations
+    openFile,
+    getFileContent,
+    updateFileContent,
+    saveGenericFile,
+    isFileDirty,
   };
 }

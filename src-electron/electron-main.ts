@@ -342,6 +342,10 @@ ipcMain.handle('fs:read-file', async (_event, filePath: string, options?: IReadF
   return fileSystemService.readFile(filePath, options);
 });
 
+ipcMain.handle('fs:read-file-as-data-url', async (_event, filePath: string, mimeType?: string) => {
+  return fileSystemService.readFileAsDataUrl(filePath, mimeType);
+});
+
 ipcMain.handle(
   'fs:write-file',
   async (_event, filePath: string, content: string, options?: IWriteFileOptions) => {
@@ -357,6 +361,21 @@ ipcMain.handle('fs:copy-file', async (_event, source: string, destination: strin
   return fileSystemService.copyFile(source, destination);
 });
 
+ipcMain.handle('fs:copy-file-to-directory', async (_event, sourcePath: string, destDir: string) => {
+  return fileSystemService.copyFileToDirectory(sourcePath, destDir);
+});
+
+ipcMain.handle(
+  'fs:write-binary-file-to-directory',
+  async (_event, destDir: string, fileName: string, content: Uint8Array) => {
+    return fileSystemService.writeBinaryFileToDirectory(destDir, fileName, content);
+  }
+);
+
+ipcMain.handle('fs:copy-directory', async (_event, sourcePath: string, destDir: string) => {
+  return fileSystemService.copyDirectoryToDirectory(sourcePath, destDir);
+});
+
 ipcMain.handle('fs:move-file', async (_event, source: string, destination: string) => {
   return fileSystemService.moveFile(source, destination);
 });
@@ -367,6 +386,10 @@ ipcMain.handle('fs:file-exists', async (_event, filePath: string) => {
 
 ipcMain.handle('fs:get-file-info', async (_event, filePath: string) => {
   return fileSystemService.getFileInfo(filePath);
+});
+
+ipcMain.handle('fs:get-external-file-info', async (_event, filePath: string) => {
+  return fileSystemService.getExternalFileInfo(filePath);
 });
 
 // Directory operations
@@ -598,4 +621,78 @@ ipcMain.handle('fs:start-indexing', async (event, folderPath: string, operationI
 ipcMain.handle('fs:cancel-indexing', (_event, operationId: string) => {
   const indexer = getFileIndexerService();
   return indexer.cancelIndexing(operationId);
+});
+
+// ================================
+// External Apps IPC Handlers
+// ================================
+
+// Show file in folder (Finder on macOS, Explorer on Windows)
+ipcMain.handle('external-apps:show-in-folder', (_event, filePath: string) => {
+  shell.showItemInFolder(filePath);
+});
+
+// Open file with system default application
+ipcMain.handle('external-apps:open-default', async (_event, filePath: string) => {
+  try {
+    const error = await shell.openPath(filePath);
+    if (error) {
+      return { success: false, error };
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+});
+
+// Open file in a specific application
+ipcMain.handle('external-apps:open-in-app', async (_event, filePath: string, appName: string) => {
+  try {
+    const isMac = platform === 'darwin';
+    const isWindows = platform === 'win32';
+
+    if (isMac) {
+      // On macOS, use 'open -a' command
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+
+      try {
+        await execAsync(`open -a "${appName}" "${filePath}"`);
+        return { success: true };
+      } catch (execErr) {
+        return {
+          success: false,
+          error: execErr instanceof Error ? execErr.message : 'Failed to open application',
+        };
+      }
+    } else if (isWindows) {
+      // On Windows, use 'start' command with application
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+
+      try {
+        // Windows command to open file with specific app
+        await execAsync(`start "" "${appName}" "${filePath}"`);
+        return { success: true };
+      } catch (execErr) {
+        // Fallback to just opening with default app
+        const error = await shell.openPath(filePath);
+        if (error) {
+          return { success: false, error };
+        }
+        return { success: true };
+      }
+    } else {
+      // On Linux, try xdg-open as fallback
+      const error = await shell.openPath(filePath);
+      if (error) {
+        return { success: false, error };
+      }
+      return { success: true };
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
 });

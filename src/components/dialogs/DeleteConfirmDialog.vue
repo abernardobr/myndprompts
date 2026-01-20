@@ -12,7 +12,7 @@ import { useI18n } from 'vue-i18n';
 interface Props {
   modelValue: boolean;
   itemName: string;
-  itemType: 'prompt' | 'snippet' | 'directory' | 'project';
+  itemType: 'prompt' | 'snippet' | 'directory' | 'project' | 'file';
   contentsCount?: { files: number; directories: number };
 }
 
@@ -61,6 +61,8 @@ const dialogTitle = computed(() => {
       return t('dialogs.delete.deleteDirectory');
     case 'project':
       return t('dialogs.delete.deleteProject');
+    case 'file':
+      return t('dialogs.delete.deleteFile', 'Delete File');
     default:
       return t('dialogs.delete.title');
   }
@@ -77,6 +79,8 @@ const itemIcon = computed(() => {
       return 'folder';
     case 'project':
       return 'folder_special';
+    case 'file':
+      return 'insert_drive_file';
     default:
       return 'delete';
   }
