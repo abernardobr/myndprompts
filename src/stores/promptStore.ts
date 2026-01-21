@@ -145,10 +145,9 @@ export const usePromptStore = defineStore('prompts', () => {
     } else if (type === 'unlink') {
       // File was deleted - remove from cache
       promptCache.value.delete(path);
+      // Only refresh on delete (file list changed)
+      void refreshAllPrompts();
     }
-
-    // Refresh all prompts list
-    void refreshAllPrompts();
   }
 
   /**
@@ -229,7 +228,16 @@ export const usePromptStore = defineStore('prompts', () => {
     try {
       const prompt = await promptService.loadPrompt(filePath);
 
-      // Update cache
+      // Check if content is actually different before updating cache
+      // This prevents unnecessary reactivity updates when file watcher fires
+      // after we just saved (the content would be identical)
+      const cached = promptCache.value.get(filePath);
+      if (cached && cached.currentContent === prompt.content) {
+        // Content is the same, no need to trigger reactivity
+        return cached.prompt;
+      }
+
+      // Update cache only if content changed
       const newCache = new Map(promptCache.value);
       newCache.set(filePath, {
         prompt,
@@ -319,10 +327,6 @@ export const usePromptStore = defineStore('prompts', () => {
         isDirty: false,
       });
       promptCache.value = newCache;
-
-      // Update recent files
-      await recentFilesRepository.addRecentFile(filePath, updatedPrompt.fileName, 'prompt');
-      await refreshRecentFiles();
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to save prompt';
       throw err;
