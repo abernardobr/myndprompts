@@ -1,6 +1,6 @@
 {
   "name": "myndprompt",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "description": "AI Prompt Manager - Desktop application for managing, organizing, and optimizing prompts for AI coding tools",
   "productName": "MyndPrompts",
