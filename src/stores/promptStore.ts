@@ -156,6 +156,8 @@ export const usePromptStore = defineStore('prompts', () => {
    */
   async function refreshRecentFiles(): Promise<void> {
     try {
+      // Clean up files that no longer exist on disk
+      await recentFilesRepository.removeNonExistentFiles();
       recentFiles.value = await recentFilesRepository.getRecentFiles(10);
     } catch (err) {
       console.error('Failed to refresh recent files:', err);

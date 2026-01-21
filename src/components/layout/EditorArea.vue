@@ -59,14 +59,6 @@ const snippetTriggers = computed(() => [
   { trigger: '^', description: t('snippetsPanel.triggerHelp.files') },
 ]);
 
-// Recent files from store
-const recentFiles = computed(() =>
-  prompts.recentFiles.value.map((f) => ({
-    path: f.filePath,
-    name: f.fileName,
-  }))
-);
-
 // Welcome screen actions
 function handleNewPromptClick(): void {
   showNewPromptDialog.value = true;
@@ -97,15 +89,6 @@ async function handleCreatePrompt(data: { title: string; category?: string }): P
 }
 
 async function handleOpenPromptFile(filePath: string): Promise<void> {
-  try {
-    await prompts.openPrompt(filePath);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to open prompt';
-    showError(message);
-  }
-}
-
-async function handleOpenRecent(filePath: string): Promise<void> {
   try {
     await prompts.openPrompt(filePath);
   } catch (error) {
@@ -265,66 +248,37 @@ watch(
         <h4 class="editor-area__title">MyndPrompts</h4>
         <p class="editor-area__subtitle">Your AI Prompt Management Studio</p>
 
+        <!-- Start section - centered on top -->
+        <div class="editor-area__start">
+          <div class="editor-area__links editor-area__links--horizontal">
+            <a
+              href="#"
+              class="editor-area__link"
+              @click.prevent="handleNewPromptClick"
+            >
+              <q-icon
+                name="add"
+                size="18px"
+              />
+              <span>New Prompt</span>
+            </a>
+            <a
+              href="#"
+              class="editor-area__link"
+              @click.prevent="handleOpenPromptClick"
+            >
+              <q-icon
+                name="folder_open"
+                size="18px"
+              />
+              <span>Open Prompt</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Help sections - side by side below -->
         <div class="editor-area__sections">
-          <!-- Start section -->
-          <div class="editor-area__section">
-            <h6 class="editor-area__section-title">Start</h6>
-            <div class="editor-area__links">
-              <a
-                href="#"
-                class="editor-area__link"
-                @click.prevent="handleNewPromptClick"
-              >
-                <q-icon
-                  name="add"
-                  size="16px"
-                />
-                <span>New Prompt</span>
-              </a>
-              <a
-                href="#"
-                class="editor-area__link"
-                @click.prevent="handleOpenPromptClick"
-              >
-                <q-icon
-                  name="folder_open"
-                  size="16px"
-                />
-                <span>Open Prompt</span>
-              </a>
-            </div>
-          </div>
-
-          <!-- Recent section -->
-          <div class="editor-area__section">
-            <h6 class="editor-area__section-title">Recent</h6>
-            <div
-              v-if="recentFiles.length === 0"
-              class="editor-area__no-recent"
-            >
-              <span class="text-grey-6 text-caption">No recent files</span>
-            </div>
-            <div
-              v-else
-              class="editor-area__links"
-            >
-              <a
-                v-for="file in recentFiles"
-                :key="file.path"
-                href="#"
-                class="editor-area__link"
-                @click.prevent="handleOpenRecent(file.path)"
-              >
-                <q-icon
-                  name="description"
-                  size="16px"
-                />
-                <span>{{ file.name }}</span>
-              </a>
-            </div>
-          </div>
-
-          <!-- Help section -->
+          <!-- Keyboard Shortcuts section -->
           <div class="editor-area__section">
             <h6 class="editor-area__section-title">{{ t('welcome.keyboardShortcuts') }}</h6>
             <div class="editor-area__shortcuts">
@@ -495,7 +449,11 @@ watch(
   &__subtitle {
     font-size: 14px;
     color: var(--subtitle-color, #858585);
-    margin: 0 0 40px;
+    margin: 0 0 32px;
+  }
+
+  &__start {
+    margin-bottom: 40px;
   }
 
   &__sections {
@@ -523,6 +481,17 @@ watch(
     display: flex;
     flex-direction: column;
     gap: 8px;
+
+    &--horizontal {
+      flex-direction: row;
+      justify-content: center;
+      gap: 32px;
+
+      .editor-area__link {
+        font-size: 15px;
+        gap: 10px;
+      }
+    }
   }
 
   &__link {
@@ -538,10 +507,6 @@ watch(
       color: var(--link-hover-color, #75beff);
       text-decoration: underline;
     }
-  }
-
-  &__no-recent {
-    padding: 8px 0;
   }
 
   &__shortcuts {

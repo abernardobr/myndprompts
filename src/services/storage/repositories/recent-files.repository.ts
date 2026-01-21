@@ -161,6 +161,37 @@ export class RecentFilesRepository extends BaseRepository<IRecentFile, string> {
   }
 
   /**
+   * Remove files that no longer exist on the file system
+   */
+  async removeNonExistentFiles(): Promise<number> {
+    // Only works in Electron environment
+    if (!window?.fileSystemAPI) {
+      return 0;
+    }
+
+    const allFiles = await this.getAll();
+    const idsToRemove: string[] = [];
+
+    for (const file of allFiles) {
+      try {
+        const exists = await window.fileSystemAPI.fileExists(file.filePath);
+        if (!exists) {
+          idsToRemove.push(file.id);
+        }
+      } catch {
+        // If we can't check, assume it doesn't exist
+        idsToRemove.push(file.id);
+      }
+    }
+
+    if (idsToRemove.length > 0) {
+      await this.deleteMany(idsToRemove);
+    }
+
+    return idsToRemove.length;
+  }
+
+  /**
    * Reset singleton instance (for testing)
    */
   static resetInstance(): void {

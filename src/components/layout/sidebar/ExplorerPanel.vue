@@ -952,6 +952,8 @@ async function handleEditPromptSave(data: { name: string; category?: string }): 
     // Refresh if anything changed
     if (nameChanged || categoryChanged) {
       await promptStore.refreshAllPrompts();
+      // Refresh recent files list (for welcome screen)
+      await promptStore.refreshRecentFiles();
     }
   } catch (err) {
     console.error('Failed to edit prompt:', err);
