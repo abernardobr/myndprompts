@@ -25,6 +25,7 @@ import { initializeMarkdownLanguage } from './markdown-language';
 import { initializeSnippetProvider } from './snippet-provider';
 import { initializeFilePathProvider } from './file-path-provider';
 import { useUIStore } from '@/stores/uiStore';
+import { useI18n } from 'vue-i18n';
 
 /**
  * Props interface
@@ -70,6 +71,9 @@ const editor = shallowRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
 // Store
 const uiStore = useUIStore();
+
+// i18n
+const { t } = useI18n({ useScope: 'global' });
 
 // Theme tracking
 const isDark = computed(() => uiStore.isDarkMode);
@@ -175,6 +179,130 @@ function initializeEditor(): void {
 }
 
 /**
+ * Check if the current file is a markdown file
+ */
+function isMarkdownFile(): boolean {
+  return props.language === 'markdown' || props.filePath.toLowerCase().endsWith('.md');
+}
+
+/**
+ * Get the directory containing the current file
+ */
+async function getFileDirectory(): Promise<string> {
+  if (!props.filePath) return '';
+  return await window.fileSystemAPI.getDirectoryName(props.filePath);
+}
+
+/**
+ * Insert an image into the editor
+ * @param imagePath - The source path of the image to insert
+ */
+async function insertImage(imagePath: string): Promise<void> {
+  if (!editor.value || !props.filePath) return;
+
+  try {
+    // Get the directory of the current file
+    const fileDir = await getFileDirectory();
+    if (!fileDir) return;
+
+    // Create images folder if it doesn't exist
+    const imagesDir = await window.fileSystemAPI.joinPath(fileDir, 'images');
+    const imagesDirExists = await window.fileSystemAPI.directoryExists(imagesDir);
+    if (!imagesDirExists) {
+      await window.fileSystemAPI.createDirectory(imagesDir);
+    }
+
+    // Copy the image to the images folder
+    const result = await window.fileSystemAPI.copyFileToDirectory(imagePath, imagesDir);
+    if (!result.success || !result.newPath) {
+      console.error('Failed to copy image:', result.error);
+      return;
+    }
+
+    // Get the filename for the markdown syntax
+    const fileName = await window.fileSystemAPI.getFileName(result.newPath);
+
+    // Use angle bracket syntax for paths with special characters (spaces, parentheses, etc.)
+    // This is standard markdown and handles all special characters
+    const hasSpecialChars = /[\s()[\]#?]/.test(fileName);
+    const markdownPath = hasSpecialChars ? `<images/${fileName}>` : `images/${fileName}`;
+
+    // Insert markdown image syntax at cursor position
+    const imageMarkdown = `![${fileName}](${markdownPath})`;
+    insertText(imageMarkdown);
+  } catch (error) {
+    console.error('Failed to insert image:', error);
+  }
+}
+
+/**
+ * Open file picker to select an image
+ */
+async function openImagePicker(): Promise<void> {
+  try {
+    const result = await window.electronAPI.showOpenDialog({
+      title: 'Select Image',
+      filters: [
+        {
+          name: 'Images',
+          extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'],
+        },
+      ],
+      properties: ['openFile'],
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+      await insertImage(result.filePaths[0]);
+    }
+  } catch (error) {
+    console.error('Failed to open image picker:', error);
+  }
+}
+
+/**
+ * Handle drag over event
+ */
+function handleDragOver(event: DragEvent): void {
+  if (!isMarkdownFile()) return;
+
+  // Check if dragging files
+  if (event.dataTransfer?.types.includes('Files')) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }
+}
+
+/**
+ * Handle drop event for images
+ */
+async function handleDrop(event: DragEvent): Promise<void> {
+  if (!isMarkdownFile()) return;
+
+  const files = event.dataTransfer?.files;
+  if (!files || files.length === 0) return;
+
+  // Check if any file is an image
+  const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'];
+
+  for (const file of Array.from(files)) {
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (imageExtensions.includes(ext)) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Get the actual file path using Electron's webUtils
+      const filePath = window.fileSystemAPI.getPathForFile(file);
+      if (filePath) {
+        await insertImage(filePath);
+      }
+    }
+  }
+}
+
+/**
  * Setup editor event listeners
  */
 function setupEventListeners(): void {
@@ -213,6 +341,20 @@ function setupEventListeners(): void {
     },
   });
   disposables.push(saveActionDisposable);
+
+  // Insert Image action (context menu) - only for markdown files
+  if (isMarkdownFile()) {
+    const insertImageActionDisposable = editor.value.addAction({
+      id: 'myndprompts.insertImage',
+      label: t('editor.insertImage'),
+      contextMenuGroupId: 'modification',
+      contextMenuOrder: 1.5,
+      run: () => {
+        void openImagePicker();
+      },
+    });
+    disposables.push(insertImageActionDisposable);
+  }
 
   // Focus/blur handlers for state persistence
   const blurDisposable = editor.value.onDidBlurEditorWidget(() => {
@@ -481,6 +623,8 @@ defineExpose({
       ref="editorContainer"
       class="monaco-editor-container"
       :class="{ 'monaco-editor-hidden': isLoading || loadError }"
+      @dragover="handleDragOver"
+      @drop="handleDrop"
     />
   </div>
 </template>

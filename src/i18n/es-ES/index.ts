@@ -442,6 +442,7 @@ export default {
     unpinTab: 'Desfijar Pestaña',
     copyPath: 'Copiar Ruta',
     revealInSidebar: 'Revelar en Barra Lateral',
+    insertImage: 'Insertar Imagen',
   },
 
   // Status bar

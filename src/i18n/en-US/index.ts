@@ -458,6 +458,7 @@ export default {
     unpinTab: 'Unpin Tab',
     copyPath: 'Copy Path',
     revealInSidebar: 'Reveal in Sidebar',
+    insertImage: 'Insert Image',
   },
 
   // Status bar

@@ -443,6 +443,7 @@ export default {
     unpinTab: 'Sblocca Scheda',
     copyPath: 'Copia Percorso',
     revealInSidebar: 'Mostra nella Barra Laterale',
+    insertImage: 'Inserisci Immagine',
   },
 
   // Status bar

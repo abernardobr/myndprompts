@@ -34,10 +34,12 @@
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",
+    "@types/marked": "^5.0.2",
     "buffer": "^6.0.3",
     "chokidar": "^3.6.0",
     "dexie": "^4.0.1",
     "gray-matter": "^4.0.3",
+    "marked": "^17.0.1",
     "monaco-editor": "^0.55.1",
     "picomatch": "^4.0.3",
     "pinia": "^2.1.7",

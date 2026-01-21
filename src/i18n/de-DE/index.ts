@@ -443,6 +443,7 @@ export default {
     unpinTab: 'Tab Lösen',
     copyPath: 'Pfad Kopieren',
     revealInSidebar: 'In Seitenleiste Anzeigen',
+    insertImage: 'Bild Einfügen',
   },
 
   // Status bar

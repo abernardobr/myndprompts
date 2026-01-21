@@ -19,14 +19,7 @@ export { FileCategory } from '@/services/file-system/file-types';
 /**
  * Activity bar view types
  */
-export type ActivityView =
-  | 'explorer'
-  | 'search'
-  | 'snippets'
-  | 'favorites'
-  | 'git'
-  | 'ai'
-  | 'settings';
+export type ActivityView = 'explorer' | 'search' | 'snippets' | 'favorites' | 'git' | 'ai';
 
 /**
  * Panel tab types

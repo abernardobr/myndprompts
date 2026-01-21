@@ -8,7 +8,11 @@
 
 import { computed } from 'vue';
 import { useUIStore } from '@/stores/uiStore';
+import { useAppStore } from '@/stores/appStore';
 import { useI18n } from 'vue-i18n';
+
+const appStore = useAppStore();
+const isMac = computed(() => appStore.isMac);
 
 // Sub-components for each view
 import ExplorerPanel from './sidebar/ExplorerPanel.vue';
@@ -16,7 +20,6 @@ import SearchPanel from './sidebar/SearchPanel.vue';
 import SnippetsPanel from './sidebar/SnippetsPanel.vue';
 import FavoritesPanel from './sidebar/FavoritesPanel.vue';
 import GitPanel from './sidebar/GitPanel.vue';
-import SettingsPanel from './sidebar/SettingsPanel.vue';
 
 const { t } = useI18n({ useScope: 'global' });
 const uiStore = useUIStore();
@@ -30,7 +33,6 @@ const currentTitle = computed(() => {
     snippets: t('sidebar.snippets'),
     favorites: t('sidebar.favorites'),
     git: t('sidebar.sourceControl'),
-    settings: t('sidebar.settings'),
   };
   return titles[activeActivity.value] ?? t('common.loading');
 });
@@ -38,7 +40,7 @@ const currentTitle = computed(() => {
 
 <template>
   <div
-    class="sidebar"
+    :class="['sidebar', { 'sidebar--macos': isMac }]"
     data-testid="sidebar"
   >
     <div
@@ -54,7 +56,6 @@ const currentTitle = computed(() => {
       <SnippetsPanel v-else-if="activeActivity === 'snippets'" />
       <FavoritesPanel v-else-if="activeActivity === 'favorites'" />
       <GitPanel v-else-if="activeActivity === 'git'" />
-      <SettingsPanel v-else-if="activeActivity === 'settings'" />
     </div>
   </div>
 </template>
@@ -67,6 +68,11 @@ const currentTitle = computed(() => {
   min-height: 0; // Allow shrinking in flex/grid contexts
   background-color: var(--sidebar-bg, #252526);
   overflow: hidden;
+
+  // macOS: add padding at top below the header
+  &--macos {
+    padding-top: 38px;
+  }
 
   &__header {
     display: flex;

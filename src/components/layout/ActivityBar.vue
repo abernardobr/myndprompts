@@ -8,8 +8,12 @@
 
 import { computed } from 'vue';
 import { useUIStore, type ActivityView } from '@/stores/uiStore';
+import { useAppStore } from '@/stores/appStore';
 
 const uiStore = useUIStore();
+const appStore = useAppStore();
+
+const isMac = computed(() => appStore.isMac);
 
 interface ActivityItem {
   id: ActivityView;
@@ -26,10 +30,6 @@ const activities: ActivityItem[] = [
   { id: 'git', icon: 'git', label: 'Source Control', shortcut: 'Ctrl+Shift+G' },
 ];
 
-const bottomActivities: ActivityItem[] = [
-  { id: 'settings', icon: 'settings', label: 'Settings', shortcut: 'Ctrl+,' },
-];
-
 const activeActivity = computed(() => uiStore.activeActivity);
 
 function handleActivityClick(activity: ActivityView): void {
@@ -43,11 +43,14 @@ function isActive(activity: ActivityView): boolean {
 
 <template>
   <div
-    class="activity-bar"
+    :class="['activity-bar', { 'activity-bar--macos': isMac }]"
     data-testid="activity-bar"
   >
-    <!-- Logo -->
-    <div class="activity-bar__logo">
+    <!-- Logo (also serves as drag handle on macOS) -->
+    <div
+      class="activity-bar__logo"
+      :class="{ 'activity-bar__logo--draggable': isMac }"
+    >
       <img
         src="@/assets/images/logo-icon.png"
         alt="MyndPrompts"
@@ -65,33 +68,6 @@ function isActive(activity: ActivityView): boolean {
     <div class="activity-bar__top">
       <q-btn
         v-for="item in activities"
-        :key="item.id"
-        flat
-        dense
-        square
-        :icon="item.icon"
-        :class="['activity-bar__item', { 'activity-bar__item--active': isActive(item.id) }]"
-        :data-testid="`activity-${item.id}`"
-        @click="handleActivityClick(item.id)"
-      >
-        <q-tooltip
-          anchor="center right"
-          self="center left"
-          :offset="[10, 0]"
-        >
-          {{ item.label }}
-          <span
-            v-if="item.shortcut"
-            class="text-grey-5 q-ml-sm"
-            >{{ item.shortcut }}</span
-          >
-        </q-tooltip>
-      </q-btn>
-    </div>
-
-    <div class="activity-bar__bottom">
-      <q-btn
-        v-for="item in bottomActivities"
         :key="item.id"
         flat
         dense
@@ -138,10 +114,17 @@ function isActive(activity: ActivityView): boolean {
     cursor: pointer;
     flex-shrink: 0;
 
+    // macOS: make logo area draggable for window movement
+    &--draggable {
+      -webkit-app-region: drag;
+      cursor: default;
+    }
+
     &-img {
       width: 32px;
       height: 32px;
       object-fit: contain;
+      -webkit-app-region: no-drag; // Allow clicking the logo itself
     }
   }
 
@@ -159,13 +142,6 @@ function isActive(activity: ActivityView): boolean {
     &::-webkit-scrollbar {
       display: none;
     }
-  }
-
-  &__bottom {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex-shrink: 0; // Never shrink the bottom section
   }
 
   &__item {

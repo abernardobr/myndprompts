@@ -163,6 +163,14 @@ export interface ExternalAppsAPI {
   openInApp: (filePath: string, appName: string) => Promise<{ success: boolean; error?: string }>;
 }
 
+// Menu API (events from application menu)
+export interface MenuAPI {
+  onSettings: (callback: () => void) => () => void;
+  onNewPrompt: (callback: () => void) => () => void;
+  onOpen: (callback: () => void) => () => void;
+  onSave: (callback: () => void) => () => void;
+}
+
 // Git API
 export interface GitAPI {
   // Prerequisites
@@ -438,10 +446,34 @@ const gitApi: GitAPI = {
   getTrackedFiles: (path) => ipcRenderer.invoke('git:tracked-files', path) as Promise<string[]>,
 };
 
+const menuApi: MenuAPI = {
+  onSettings: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu:settings', handler);
+    return () => ipcRenderer.removeListener('menu:settings', handler);
+  },
+  onNewPrompt: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu:new-prompt', handler);
+    return () => ipcRenderer.removeListener('menu:new-prompt', handler);
+  },
+  onOpen: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu:open', handler);
+    return () => ipcRenderer.removeListener('menu:open', handler);
+  },
+  onSave: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu:save', handler);
+    return () => ipcRenderer.removeListener('menu:save', handler);
+  },
+};
+
 contextBridge.exposeInMainWorld('electronAPI', electronApi);
 contextBridge.exposeInMainWorld('fileSystemAPI', fileSystemApi);
 contextBridge.exposeInMainWorld('externalAppsAPI', externalAppsApi);
 contextBridge.exposeInMainWorld('gitAPI', gitApi);
+contextBridge.exposeInMainWorld('menuAPI', menuApi);
 
 // Type augmentation for window object
 declare global {
@@ -450,5 +482,6 @@ declare global {
     fileSystemAPI: FileSystemAPI;
     externalAppsAPI: ExternalAppsAPI;
     gitAPI: GitAPI;
+    menuAPI: MenuAPI;
   }
 }

@@ -441,6 +441,7 @@ export default {
     unpinTab: 'إلغاء تثبيت علامة التبويب',
     copyPath: 'نسخ المسار',
     revealInSidebar: 'إظهار في الشريط الجانبي',
+    insertImage: 'إدراج صورة',
   },
 
   // Status bar

@@ -409,6 +409,15 @@ watch(
   background-color: var(--editor-bg, #1e1e1e);
   overflow: hidden;
 
+  // macOS drag handle at top for window dragging
+  &__drag-handle {
+    width: 100%;
+    height: 28px;
+    flex-shrink: 0;
+    -webkit-app-region: drag;
+    background-color: var(--editor-bg, #1e1e1e);
+  }
+
   &__pane {
     height: 100%;
     min-height: 0; // Allow shrinking

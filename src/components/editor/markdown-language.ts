@@ -126,35 +126,32 @@ function createMarkdownMonarch(): monaco.languages.IMonarchLanguage {
         [/\$\{[^}]+\}/, 'variable.md'],
 
         // Headers
-        [/^(#{1,6})(\s)(.*)$/, ['keyword.md', '', 'keyword.md']],
+        [/^#{1,6}\s.*$/, 'keyword.md'],
 
         // Code blocks with language
-        [/^```\s*(\w+)\s*$/, { token: 'string.code', next: '@codeblock' }],
-        [/^```\s*$/, { token: 'string.code', next: '@codeblock' }],
+        [/^```\s*\w*\s*$/, { token: 'string.code', next: '@codeblock' }],
 
         // Inline code
         [/`[^`]+`/, 'string.code'],
 
         // Bold
-        [/\*\*([^*]+)\*\*/, 'strong'],
-        [/__([^_]+)__/, 'strong'],
+        [/\*\*[^*]+\*\*/, 'strong'],
+        [/__[^_]+__/, 'strong'],
 
         // Italic
-        [/\*([^*]+)\*/, 'emphasis'],
-        [/_([^_]+)_/, 'emphasis'],
+        [/\*[^*]+\*/, 'emphasis'],
+        [/_[^_]+_/, 'emphasis'],
 
         // Strikethrough
-        [/~~([^~]+)~~/, 'invalid'],
+        [/~~[^~]+~~/, 'invalid'],
 
-        // Links
-        [/\[([^\]]+)\]\(([^)]+)\)/, ['string.link.md', 'string.link.md']],
-        [/\[([^\]]+)\]\[([^\]]*)\]/, ['string.link.md', 'string.link.md']],
-
-        // Images
-        [/!\[([^\]]*)\]\(([^)]+)\)/, ['string.link.md', 'string.link.md']],
+        // Links and images (single token for simplicity)
+        [/!\[[^\]]*\]\([^)]+\)/, 'string.link.md'],
+        [/\[[^\]]+\]\([^)]+\)/, 'string.link.md'],
+        [/\[[^\]]+\]\[[^\]]*\]/, 'string.link.md'],
 
         // Reference links
-        [/^\[([^\]]+)\]:\s*(.+)$/, ['string.link.md', 'string.link.md']],
+        [/^\[[^\]]+\]:.*$/, 'string.link.md'],
 
         // Blockquotes
         [/^\s*>+/, 'comment'],
@@ -167,7 +164,7 @@ function createMarkdownMonarch(): monaco.languages.IMonarchLanguage {
         [/^\s*\d+\.\s/, 'keyword.md'],
 
         // Task lists
-        [/^\s*[-*+]\s+\[[x ]\]\s/, 'keyword.md'],
+        [/^\s*[-*+]\s+\[[xX ]\]\s/, 'keyword.md'],
 
         // Tables
         [/\|/, 'keyword.md'],

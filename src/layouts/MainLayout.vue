@@ -12,7 +12,7 @@
  * Uses splitpanes for resizable panels.
  */
 
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, onUnmounted, provide, ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css';
 
@@ -23,6 +23,7 @@ import Sidebar from '@/components/layout/Sidebar.vue';
 import EditorArea from '@/components/layout/EditorArea.vue';
 import BottomPanel from '@/components/layout/BottomPanel.vue';
 import StatusBar from '@/components/layout/StatusBar.vue';
+import SettingsDialog from '@/components/dialogs/SettingsDialog.vue';
 
 const uiStore = useUIStore();
 const appStore = useAppStore();
@@ -72,9 +73,33 @@ function onVerticalResize(panes: { size: number }[]): void {
   }
 }
 
+// Settings dialog state
+const showSettingsDialog = ref(false);
+
+// Provide function to open settings dialog from child components
+function openSettingsDialog(): void {
+  showSettingsDialog.value = true;
+}
+provide('openSettingsDialog', openSettingsDialog);
+
+// Menu event listener cleanup
+let cleanupMenuListener: (() => void) | null = null;
+
 // Initialize stores on mount
 onMounted(async () => {
   await Promise.all([appStore.initialize(), uiStore.initialize()]);
+
+  // Listen for menu:settings event from Electron menu
+  if (window.menuAPI) {
+    cleanupMenuListener = window.menuAPI.onSettings(() => {
+      showSettingsDialog.value = true;
+    });
+  }
+});
+
+// Cleanup on unmount
+onUnmounted(() => {
+  cleanupMenuListener?.();
 });
 </script>
 
@@ -83,10 +108,10 @@ onMounted(async () => {
     class="main-layout"
     :class="{ 'main-layout--macos': isMac }"
   >
-    <!-- macOS full-width titlebar spacer -->
+    <!-- Traffic lights area (macOS only) -->
     <div
       v-if="isMac"
-      class="main-layout__titlebar"
+      class="main-layout__traffic-lights"
     />
 
     <!-- Activity Bar -->
@@ -143,6 +168,9 @@ onMounted(async () => {
 
     <!-- Status Bar -->
     <StatusBar class="main-layout__status-bar" />
+
+    <!-- Settings Dialog -->
+    <SettingsDialog v-model="showSettingsDialog" />
   </div>
 </template>
 
@@ -247,21 +275,22 @@ onMounted(async () => {
     'activity content'
     'status status';
 
-  // macOS layout with full-width titlebar
+  // macOS layout: activity bar starts below traffic lights, editor spans full height
   &--macos {
-    grid-template-rows: 28px 1fr 22px;
+    position: relative;
+    grid-template-columns: 48px 1fr;
+    grid-template-rows: 38px 1fr 22px;
     grid-template-areas:
-      'titlebar titlebar'
+      'traffic content'
       'activity content'
       'status status';
   }
 
-  &__titlebar {
-    grid-area: titlebar;
-    height: 28px;
-    min-height: 28px;
+  // Traffic lights area - transparent to show window chrome
+  &__traffic-lights {
+    grid-area: traffic;
+    background-color: transparent;
     -webkit-app-region: drag;
-    background-color: var(--titlebar-bg, #333333);
   }
 
   &__activity-bar {

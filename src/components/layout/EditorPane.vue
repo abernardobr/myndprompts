@@ -6,12 +6,13 @@
  * Used within EditorArea to support split view functionality.
  */
 
-import { ref, computed, watch, nextTick, onMounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, inject } from 'vue';
 import { useUIStore, type IEditorPane, type IOpenTab } from '@/stores/uiStore';
 import { usePrompts } from '@/composables/usePrompts';
 import { useAutoSave } from '@/composables/useAutoSave';
 import { useQuasar } from 'quasar';
 import MonacoEditor from '@/components/editor/MonacoEditor.vue';
+import MarkdownPreview from '@/components/editor/MarkdownPreview.vue';
 import FileViewer from '@/components/viewers/FileViewer.vue';
 import { FileCategory, getMonacoLanguage } from '@services/file-system/file-types';
 
@@ -110,6 +111,27 @@ const isTextFile = computed(() => {
   return category === FileCategory.MARKDOWN || category === FileCategory.CODE;
 });
 
+// Check if active tab is a markdown file (supports preview)
+const isMarkdownFile = computed(() => {
+  if (!activeTab.value) return false;
+  const category = activeTab.value.fileCategory ?? FileCategory.MARKDOWN;
+  return category === FileCategory.MARKDOWN;
+});
+
+// View mode for markdown files: 'edit' or 'preview'
+type ViewMode = 'edit' | 'preview';
+const viewMode = ref<ViewMode>('edit');
+
+// Toggle between edit and preview mode
+function toggleViewMode(): void {
+  viewMode.value = viewMode.value === 'edit' ? 'preview' : 'edit';
+}
+
+// Reset to edit mode when changing tabs
+watch(activeTabId, () => {
+  viewMode.value = 'edit';
+});
+
 // Get the Monaco Editor language based on file extension
 const editorLanguage = computed(() => {
   if (!activeTab.value) return 'markdown';
@@ -133,6 +155,14 @@ Write your prompt content here...
 
 // Handle content changes
 function handleContentChange(content: string): void {
+  if (activeTab.value) {
+    prompts.updateContent(activeTab.value.filePath, content);
+    autoSave.scheduleAutoSave(activeTab.value.filePath);
+  }
+}
+
+// Handle content updates from preview (e.g., checkbox toggles)
+function handlePreviewContentUpdate(content: string): void {
   if (activeTab.value) {
     prompts.updateContent(activeTab.value.filePath, content);
     autoSave.scheduleAutoSave(activeTab.value.filePath);
@@ -300,6 +330,14 @@ function splitRight(): void {
 
 function splitDown(): void {
   emit('split', 'vertical');
+}
+
+// Inject settings dialog opener from MainLayout
+const openSettingsDialog = inject<() => void>('openSettingsDialog');
+
+// Settings action
+function handleSettingsClick(): void {
+  openSettingsDialog?.();
 }
 
 // File icon helper
@@ -504,6 +542,18 @@ onMounted(() => {
 
       <!-- Tab bar actions -->
       <div class="editor-pane__actions">
+        <!-- Preview/Edit toggle for markdown files -->
+        <q-btn
+          v-if="isMarkdownFile && activeTab"
+          flat
+          dense
+          round
+          size="sm"
+          :icon="viewMode === 'edit' ? 'visibility' : 'edit'"
+          @click="toggleViewMode"
+        >
+          <q-tooltip>{{ viewMode === 'edit' ? 'Preview' : 'Edit' }}</q-tooltip>
+        </q-btn>
         <q-btn
           flat
           dense
@@ -535,6 +585,17 @@ onMounted(() => {
         >
           <q-tooltip>Close Pane</q-tooltip>
         </q-btn>
+        <q-btn
+          flat
+          dense
+          round
+          size="sm"
+          icon="settings"
+          class="editor-pane__settings-btn"
+          @click="handleSettingsClick"
+        >
+          <q-tooltip>Settings (Ctrl+,)</q-tooltip>
+        </q-btn>
       </div>
     </div>
 
@@ -551,7 +612,19 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Monaco Editor for Markdown files -->
+      <!-- Markdown Preview mode -->
+      <div
+        v-else-if="activeTab && isMarkdownFile && viewMode === 'preview'"
+        class="editor-pane__preview"
+      >
+        <MarkdownPreview
+          :content="activeContent"
+          :file-path="activeTab.filePath"
+          @update:content="handlePreviewContentUpdate"
+        />
+      </div>
+
+      <!-- Monaco Editor for text/code files -->
       <div
         v-else-if="activeTab && isTextFile"
         class="editor-pane__editor"
@@ -755,6 +828,11 @@ onMounted(() => {
   &__editor {
     height: 100%;
     overflow: auto;
+  }
+
+  &__preview {
+    height: 100%;
+    overflow: hidden;
   }
 
   &__viewer {

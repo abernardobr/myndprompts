@@ -189,8 +189,8 @@ function createWindow(): void {
     useContentSize: true,
     frame: platform !== 'darwin',
     titleBarStyle: platform === 'darwin' ? 'hiddenInset' : 'default',
-    // Center traffic lights vertically in 28px titlebar
-    trafficLightPosition: platform === 'darwin' ? { x: 13, y: 12 } : undefined,
+    // Position traffic lights centered in 38px header (buttons ~12px, y = (38-12)/2 = 13)
+    trafficLightPosition: platform === 'darwin' ? { x: 12, y: 13 } : undefined,
     backgroundColor: '#1e1e1e',
     icon: iconPath,
     webPreferences: {

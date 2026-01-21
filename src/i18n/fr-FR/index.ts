@@ -443,6 +443,7 @@ export default {
     unpinTab: "Désépingler l'Onglet",
     copyPath: 'Copier le Chemin',
     revealInSidebar: 'Révéler dans la Barre Latérale',
+    insertImage: 'Insérer une Image',
   },
 
   // Status bar

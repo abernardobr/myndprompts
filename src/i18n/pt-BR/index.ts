@@ -443,6 +443,7 @@ export default {
     unpinTab: 'Desafixar Aba',
     copyPath: 'Copiar Caminho',
     revealInSidebar: 'Revelar na Barra Lateral',
+    insertImage: 'Inserir Imagem',
   },
 
   // Status bar
