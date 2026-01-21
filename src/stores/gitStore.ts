@@ -568,6 +568,44 @@ export const useGitStore = defineStore('git', () => {
   }
 
   /**
+   * Remove Git repository (delete .git folder)
+   */
+  async function removeGit(path?: string): Promise<boolean> {
+    const targetPath = path ?? repoPath.value;
+    if (!targetPath) {
+      error.value = 'No path specified';
+      return false;
+    }
+
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const result = await gitService.removeGit(targetPath);
+      if (result.success) {
+        // Reset state after removing git
+        isRepo.value = false;
+        repoPath.value = null;
+        currentBranch.value = '';
+        statusSummary.value = null;
+        branches.value = [];
+        commits.value = [];
+        remotes.value = [];
+        userConfig.value = {};
+        return true;
+      } else {
+        error.value = result.error ?? 'Failed to remove Git repository';
+        return false;
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to remove Git repository';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
    * Get list of tracked files (files that have been committed)
    */
   async function getTrackedFiles(): Promise<string[]> {
@@ -635,5 +673,6 @@ export const useGitStore = defineStore('git', () => {
     setUserConfig,
     clearError,
     getTrackedFiles,
+    removeGit,
   };
 });

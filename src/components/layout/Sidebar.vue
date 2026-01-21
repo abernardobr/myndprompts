@@ -68,10 +68,23 @@ const currentTitle = computed(() => {
   min-height: 0; // Allow shrinking in flex/grid contexts
   background-color: var(--sidebar-bg, #252526);
   overflow: hidden;
+  position: relative; // For ::before pseudo-element positioning
 
-  // macOS: add padding at top below the header
+  // macOS: add padding at top for traffic lights area
   &--macos {
     padding-top: 38px;
+
+    // Make the top padding area draggable for window movement
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 38px;
+      -webkit-app-region: drag;
+      z-index: 10;
+    }
   }
 
   &__header {

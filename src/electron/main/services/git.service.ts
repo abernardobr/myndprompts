@@ -84,15 +84,31 @@ export class GitService {
 
   /**
    * Check if a path is a Git repository
+   * Only returns true if the path IS the git root, not just inside a git repo
    */
   async isGitRepo(path: string): Promise<IGitRepoCheckResult> {
     try {
       const git = simpleGit(path);
-      const isRepo = await git.checkIsRepo();
-      const rootPath = isRepo ? await git.revparse(['--show-toplevel']) : undefined;
+      const isWithinRepo = await git.checkIsRepo();
+
+      if (!isWithinRepo) {
+        return {
+          isRepo: false,
+        };
+      }
+
+      // Get the actual git root path
+      const rootPath = await git.revparse(['--show-toplevel']);
+      const normalizedRoot = rootPath.trim();
+      const normalizedPath = path.replace(/\/$/, ''); // Remove trailing slash
+
+      // Only consider it a repo if the requested path IS the git root
+      // This prevents inheriting parent repo's git info
+      const isExactRepo = normalizedRoot === normalizedPath;
+
       return {
-        isRepo,
-        path: rootPath?.trim(),
+        isRepo: isExactRepo,
+        path: isExactRepo ? normalizedRoot : undefined,
       };
     } catch (error) {
       return {
@@ -831,6 +847,49 @@ export class GitService {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to set config',
+      };
+    }
+  }
+
+  /**
+   * Remove Git repository (delete .git folder)
+   * This removes all version control from the directory
+   */
+  async removeGit(path: string): Promise<IGitOperationResult> {
+    try {
+      const git = simpleGit(path);
+      const isRepo = await git.checkIsRepo();
+
+      if (!isRepo) {
+        return { success: false, error: 'Not a Git repository' };
+      }
+
+      // Get the git root to make sure we delete from the right place
+      const rootPath = await git.revparse(['--show-toplevel']);
+      const normalizedRoot = rootPath.trim();
+      const normalizedPath = path.replace(/\/$/, '');
+
+      // Only allow removing git if the path IS the git root
+      if (normalizedRoot !== normalizedPath) {
+        return { success: false, error: 'Can only remove Git from repository root' };
+      }
+
+      // Delete the .git folder
+      const gitFolderPath = pathModule.join(path, '.git');
+      const fs = await import('fs/promises');
+      await fs.rm(gitFolderPath, { recursive: true, force: true });
+
+      // Reset the service state if this was the current working directory
+      if (this.currentPath === path) {
+        this.git = null;
+        this.currentPath = null;
+      }
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to remove Git repository',
       };
     }
   }

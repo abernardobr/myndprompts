@@ -379,9 +379,18 @@ export default {
       userName: 'Benutzername',
       userNamePlaceholder: 'Ihr Name',
       userEmail: 'E-Mail',
-      userEmailPlaceholder: 'ihre.email@beispiel.com',
+      userEmailPlaceholder: "ihre.email{'@'}beispiel.com",
       initRepository: 'Repository Initialisieren',
       configureGit: 'Git Konfigurieren',
+      dangerZone: 'Gefahrenzone',
+      removeGit: 'Git Entfernen',
+      removeGitDescription:
+        'Dadurch wird die Git-Versionskontrolle von diesem Projekt entfernt. Ihre Dateien werden nicht gelöscht, aber die gesamte Commit-Historie geht verloren.',
+      removeGitConfirmTitle: 'Git-Repository Entfernen?',
+      removeGitConfirmMessage:
+        'Sind Sie sicher, dass Sie Git aus diesem Projekt entfernen möchten? Dadurch wird der .git-Ordner und die gesamte Commit-Historie gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.',
+      gitRemoved: 'Git-Repository erfolgreich entfernt',
+      gitRemoveFailed: 'Fehler beim Entfernen des Git-Repositories',
     },
     branch: {
       title: 'Branches',

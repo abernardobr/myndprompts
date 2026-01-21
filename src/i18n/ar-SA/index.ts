@@ -377,9 +377,18 @@ export default {
       userName: 'اسم المستخدم',
       userNamePlaceholder: 'اسمك',
       userEmail: 'البريد الإلكتروني',
-      userEmailPlaceholder: 'your.email@example.com',
+      userEmailPlaceholder: "your.email{'@'}example.com",
       initRepository: 'تهيئة المستودع',
       configureGit: 'تكوين Git',
+      dangerZone: 'منطقة الخطر',
+      removeGit: 'إزالة Git',
+      removeGitDescription:
+        'سيؤدي هذا إلى إزالة التحكم في إصدار Git من هذا المشروع. لن يتم حذف ملفاتك، ولكن سيتم فقدان سجل جميع الالتزامات.',
+      removeGitConfirmTitle: 'إزالة مستودع Git؟',
+      removeGitConfirmMessage:
+        'هل أنت متأكد من أنك تريد إزالة Git من هذا المشروع؟ سيؤدي هذا إلى حذف مجلد .git وسجل جميع الالتزامات. لا يمكن التراجع عن هذا الإجراء.',
+      gitRemoved: 'تمت إزالة مستودع Git بنجاح',
+      gitRemoveFailed: 'فشل في إزالة مستودع Git',
     },
     branch: {
       title: 'الفروع',

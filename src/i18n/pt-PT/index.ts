@@ -379,9 +379,18 @@ export default {
       userName: 'Nome do Utilizador',
       userNamePlaceholder: 'O seu nome',
       userEmail: 'Email',
-      userEmailPlaceholder: 'o.seu.email@exemplo.com',
+      userEmailPlaceholder: "o.seu.email{'@'}exemplo.com",
       initRepository: 'Inicializar Repositório',
       configureGit: 'Configurar Git',
+      dangerZone: 'Zona de Perigo',
+      removeGit: 'Remover Git',
+      removeGitDescription:
+        'Isto irá remover o controlo de versão Git deste projeto. Os seus ficheiros não serão eliminados, mas todo o histórico de commits será perdido.',
+      removeGitConfirmTitle: 'Remover Repositório Git?',
+      removeGitConfirmMessage:
+        'Tem a certeza de que deseja remover o Git deste projeto? Isto irá eliminar a pasta .git e todo o histórico de commits. Esta ação não pode ser desfeita.',
+      gitRemoved: 'Repositório Git removido com sucesso',
+      gitRemoveFailed: 'Falha ao remover repositório Git',
     },
     branch: {
       title: 'Branches',

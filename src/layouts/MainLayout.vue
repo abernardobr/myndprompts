@@ -291,6 +291,7 @@ onUnmounted(() => {
     grid-area: traffic;
     background-color: transparent;
     -webkit-app-region: drag;
+    z-index: 100; // Above sidebar content to ensure drag works
   }
 
   &__activity-bar {

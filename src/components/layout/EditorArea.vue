@@ -231,85 +231,90 @@ watch(
     </template>
 
     <!-- Welcome screen when no files are open -->
-    <div
-      v-else
-      class="editor-area__welcome"
-      data-testid="welcome-screen"
-    >
-      <div class="editor-area__welcome-content">
-        <div class="editor-area__logo">
-          <img
-            src="@/assets/images/logo-icon.png"
-            alt="MyndPrompts Logo"
-            class="editor-area__logo-img"
-          />
-        </div>
-
-        <h4 class="editor-area__title">MyndPrompts</h4>
-        <p class="editor-area__subtitle">Your AI Prompt Management Studio</p>
-
-        <!-- Start section - centered on top -->
-        <div class="editor-area__start">
-          <div class="editor-area__links editor-area__links--horizontal">
-            <a
-              href="#"
-              class="editor-area__link"
-              @click.prevent="handleNewPromptClick"
-            >
-              <q-icon
-                name="add"
-                size="18px"
-              />
-              <span>New Prompt</span>
-            </a>
-            <a
-              href="#"
-              class="editor-area__link"
-              @click.prevent="handleOpenPromptClick"
-            >
-              <q-icon
-                name="folder_open"
-                size="18px"
-              />
-              <span>Open Prompt</span>
-            </a>
+    <template v-else>
+      <!-- Drag handle for window dragging on welcome screen -->
+      <div class="editor-area__drag-handle" />
+      <div
+        class="editor-area__welcome"
+        data-testid="welcome-screen"
+      >
+        <div class="editor-area__welcome-content">
+          <div class="editor-area__logo">
+            <img
+              src="@/assets/images/logo-icon.png"
+              alt="MyndPrompts Logo"
+              class="editor-area__logo-img"
+            />
           </div>
-        </div>
 
-        <!-- Help sections - side by side below -->
-        <div class="editor-area__sections">
-          <!-- Keyboard Shortcuts section -->
-          <div class="editor-area__section">
-            <h6 class="editor-area__section-title">{{ t('welcome.keyboardShortcuts') }}</h6>
-            <div class="editor-area__shortcuts">
-              <div
-                v-for="shortcut in shortcuts"
-                :key="shortcut.keys"
-                class="editor-area__shortcut"
+          <h4 class="editor-area__title">MyndPrompts</h4>
+          <p class="editor-area__subtitle">Your AI Prompt Management Studio</p>
+
+          <!-- Start section - centered on top -->
+          <div class="editor-area__start">
+            <div class="editor-area__links editor-area__links--horizontal">
+              <a
+                href="#"
+                class="editor-area__link"
+                @click.prevent="handleNewPromptClick"
               >
-                <kbd class="editor-area__kbd">{{ shortcut.keys }}</kbd>
-                <span class="editor-area__shortcut-desc">{{ shortcut.description }}</span>
-              </div>
+                <q-icon
+                  name="add"
+                  size="18px"
+                />
+                <span>New Prompt</span>
+              </a>
+              <a
+                href="#"
+                class="editor-area__link"
+                @click.prevent="handleOpenPromptClick"
+              >
+                <q-icon
+                  name="folder_open"
+                  size="18px"
+                />
+                <span>Open Prompt</span>
+              </a>
             </div>
           </div>
 
-          <!-- Snippet Triggers section -->
-          <div class="editor-area__section">
-            <h6 class="editor-area__section-title">{{ t('welcome.snippetTriggers') }}</h6>
-            <div class="editor-area__shortcuts">
-              <div
-                v-for="trigger in snippetTriggers"
-                :key="trigger.trigger"
-                class="editor-area__shortcut"
-              >
-                <kbd class="editor-area__kbd editor-area__kbd--trigger">{{ trigger.trigger }}</kbd>
-                <span class="editor-area__shortcut-desc">{{ trigger.description }}</span>
+          <!-- Help sections - side by side below -->
+          <div class="editor-area__sections">
+            <!-- Keyboard Shortcuts section -->
+            <div class="editor-area__section">
+              <h6 class="editor-area__section-title">{{ t('welcome.keyboardShortcuts') }}</h6>
+              <div class="editor-area__shortcuts">
+                <div
+                  v-for="shortcut in shortcuts"
+                  :key="shortcut.keys"
+                  class="editor-area__shortcut"
+                >
+                  <kbd class="editor-area__kbd">{{ shortcut.keys }}</kbd>
+                  <span class="editor-area__shortcut-desc">{{ shortcut.description }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Snippet Triggers section -->
+            <div class="editor-area__section">
+              <h6 class="editor-area__section-title">{{ t('welcome.snippetTriggers') }}</h6>
+              <div class="editor-area__shortcuts">
+                <div
+                  v-for="trigger in snippetTriggers"
+                  :key="trigger.trigger"
+                  class="editor-area__shortcut"
+                >
+                  <kbd class="editor-area__kbd editor-area__kbd--trigger">{{
+                    trigger.trigger
+                  }}</kbd>
+                  <span class="editor-area__shortcut-desc">{{ trigger.description }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </template>
 
     <!-- Dialogs -->
     <NewPromptDialog
@@ -436,6 +441,7 @@ watch(
     max-width: 600px;
     padding: 40px;
     text-align: center;
+    -webkit-app-region: no-drag; // Allow clicking links
   }
 
   &__logo {

@@ -227,9 +227,6 @@ void app.whenReady().then(async () => {
   // Set app name (important for macOS menu bar in dev mode)
   app.setName('MyndPrompts');
 
-  // Create application menu
-  createApplicationMenu();
-
   // Initialize storage directories
   await fileSystemService.initializeDirectories();
 
@@ -244,11 +241,17 @@ void app.whenReady().then(async () => {
     app.dock.setIcon(dockIconPath);
   }
 
+  // Create window first, then menu (menu handlers need mainWindow reference)
   createWindow();
+
+  // Create application menu after window is created
+  createApplicationMenu();
 
   app.on('activate', () => {
     if (mainWindow === null) {
       createWindow();
+      // Recreate menu when window is recreated
+      createApplicationMenu();
     }
   });
 });
@@ -703,6 +706,16 @@ ipcMain.handle(
     return gitService.setConfig(name, email, global, repoPath);
   }
 );
+
+// Tracked files
+ipcMain.handle('git:tracked-files', async (_event, repoPath?: string) => {
+  return gitService.getTrackedFiles(repoPath);
+});
+
+// Remove Git (delete .git folder)
+ipcMain.handle('git:remove', async (_event, repoPath: string) => {
+  return gitService.removeGit(repoPath);
+});
 
 // Security: Prevent new window creation
 app.on('web-contents-created', (_, contents) => {

@@ -350,6 +350,16 @@ class GitService {
     }
     return window.gitAPI.getTrackedFiles(path);
   }
+
+  /**
+   * Remove Git repository (delete .git folder)
+   */
+  async removeGit(path: string): Promise<IGitOperationResult> {
+    if (!isElectron()) {
+      return { success: false, error: 'Not running in Electron' };
+    }
+    return window.gitAPI.removeGit(path);
+  }
 }
 
 // Export singleton getter

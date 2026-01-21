@@ -228,6 +228,9 @@ export interface GitAPI {
 
   // Tracked files (files that have been committed)
   getTrackedFiles: (path?: string) => Promise<string[]>;
+
+  // Remove Git (delete .git folder)
+  removeGit: (path: string) => Promise<IGitOperationResult>;
 }
 
 // Expose protected methods that allow the renderer process to use
@@ -444,6 +447,9 @@ const gitApi: GitAPI = {
 
   // Tracked files (files that have been committed)
   getTrackedFiles: (path) => ipcRenderer.invoke('git:tracked-files', path) as Promise<string[]>,
+
+  // Remove Git (delete .git folder)
+  removeGit: (path) => ipcRenderer.invoke('git:remove', path) as Promise<IGitOperationResult>,
 };
 
 const menuApi: MenuAPI = {

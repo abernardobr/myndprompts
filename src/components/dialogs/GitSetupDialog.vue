@@ -51,6 +51,8 @@ const isPushing = ref(false);
 const isPulling = ref(false);
 const isFetching = ref(false);
 const isConfiguringUser = ref(false);
+const isRemovingGit = ref(false);
+const showRemoveConfirm = ref(false);
 
 // Git status
 const isGitRepo = ref(false);
@@ -407,6 +409,44 @@ async function fetchFromRemote(): Promise<void> {
     });
   } finally {
     isFetching.value = false;
+  }
+}
+
+// Remove Git repository
+async function removeGitRepository(): Promise<void> {
+  showRemoveConfirm.value = false;
+  isRemovingGit.value = true;
+
+  try {
+    const success = await gitStore.removeGit(props.projectPath);
+
+    if (success) {
+      $q.notify({
+        type: 'positive',
+        message: t('dialogs.gitSetup.gitRemoved'),
+        position: 'top',
+        timeout: 3000,
+      });
+      // Refresh status to show the "not a repo" state
+      await checkGitStatus();
+    } else {
+      $q.notify({
+        type: 'negative',
+        message: gitStore.error ?? t('dialogs.gitSetup.gitRemoveFailed'),
+        position: 'top',
+        timeout: 4000,
+      });
+    }
+  } catch (err) {
+    console.error('Failed to remove Git:', err);
+    $q.notify({
+      type: 'negative',
+      message: t('dialogs.gitSetup.gitRemoveFailed'),
+      position: 'top',
+      timeout: 4000,
+    });
+  } finally {
+    isRemovingGit.value = false;
   }
 }
 
@@ -883,6 +923,52 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                   :disable="!gitUserName.trim() || !gitUserEmail.trim()"
                   @click="configureUser"
                 />
+
+                <!-- Remove Git section -->
+                <q-separator class="q-my-lg" />
+
+                <h6 class="q-ma-none q-mb-sm text-negative">
+                  {{ t('dialogs.gitSetup.dangerZone') }}
+                </h6>
+                <p class="text-caption text-grey q-mb-md">
+                  {{ t('dialogs.gitSetup.removeGitDescription') }}
+                </p>
+
+                <q-btn
+                  outline
+                  color="negative"
+                  icon="mdi-delete"
+                  :label="t('dialogs.gitSetup.removeGit')"
+                  :loading="isRemovingGit"
+                  @click="showRemoveConfirm = true"
+                />
+
+                <!-- Remove confirmation dialog -->
+                <q-dialog v-model="showRemoveConfirm">
+                  <q-card style="min-width: 350px">
+                    <q-card-section>
+                      <div class="text-h6">{{ t('dialogs.gitSetup.removeGitConfirmTitle') }}</div>
+                    </q-card-section>
+
+                    <q-card-section class="q-pt-none">
+                      {{ t('dialogs.gitSetup.removeGitConfirmMessage') }}
+                    </q-card-section>
+
+                    <q-card-actions align="right">
+                      <q-btn
+                        v-close-popup
+                        flat
+                        :label="t('common.cancel')"
+                      />
+                      <q-btn
+                        flat
+                        color="negative"
+                        :label="t('dialogs.gitSetup.removeGit')"
+                        @click="removeGitRepository"
+                      />
+                    </q-card-actions>
+                  </q-card>
+                </q-dialog>
               </div>
             </q-tab-panel>
           </q-tab-panels>

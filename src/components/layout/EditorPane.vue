@@ -694,6 +694,7 @@ onMounted(() => {
     border-bottom: 1px solid var(--border-color, #1e1e1e);
     overflow: hidden;
     flex-shrink: 0;
+    -webkit-app-region: drag; // Allow window dragging from header
   }
 
   &__tabs {
@@ -702,6 +703,8 @@ onMounted(() => {
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
+    // Note: no-drag is on individual tabs, not the container
+    // This allows dragging from empty space after tabs
     &::-webkit-scrollbar {
       display: none;
     }
@@ -710,6 +713,7 @@ onMounted(() => {
   &__tab {
     display: flex;
     align-items: center;
+    -webkit-app-region: no-drag; // Individual tabs should be clickable
     gap: 4px;
     height: 35px;
     padding: 0 10px;
@@ -803,12 +807,14 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
+    -webkit-app-region: no-drag; // Allow interaction
   }
 
   &__actions {
     display: flex;
     padding: 0 4px;
     gap: 2px;
+    -webkit-app-region: no-drag; // Buttons should be clickable
   }
 
   &__content {

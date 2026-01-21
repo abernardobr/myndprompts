@@ -53,6 +53,14 @@ function createApplicationMenu(): void {
             submenu: [
               { role: 'about' as const, label: 'About MyndPrompts' },
               { type: 'separator' as const },
+              {
+                label: 'Settings',
+                accelerator: 'Cmd+,',
+                click: () => {
+                  mainWindow?.webContents.send('menu:settings');
+                },
+              },
+              { type: 'separator' as const },
               { role: 'services' as const },
               { type: 'separator' as const },
               { role: 'hide' as const, label: 'Hide MyndPrompts' },
@@ -605,6 +613,11 @@ ipcMain.handle(
 // Tracked files (files that have been committed)
 ipcMain.handle('git:tracked-files', async (_event, repoPath?: string) => {
   return gitService.getTrackedFiles(repoPath);
+});
+
+// Remove Git (delete .git folder)
+ipcMain.handle('git:remove', async (_event, repoPath: string) => {
+  return gitService.removeGit(repoPath);
 });
 
 // ================================

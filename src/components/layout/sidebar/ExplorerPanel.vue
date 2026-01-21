@@ -486,9 +486,16 @@ async function loadProjectBranch(projectPath: string): Promise<void> {
     if (gitStore.isRepo) {
       await gitStore.refreshStatus();
       projectBranches.value.set(projectPath, gitStore.currentBranch);
+    } else {
+      // Clear branch if not a repo (removes stale data)
+      projectBranches.value.delete(projectPath);
+      projectFileStatuses.value.delete(projectPath);
     }
   } catch (err) {
     console.warn('Failed to load branch for project:', err);
+    // Clear branch on error to avoid showing stale data
+    projectBranches.value.delete(projectPath);
+    projectFileStatuses.value.delete(projectPath);
   }
 }
 
@@ -528,9 +535,14 @@ async function loadProjectFileStatuses(projectPath: string): Promise<void> {
       }
 
       projectFileStatuses.value.set(projectPath, { staged, modified, untracked, tracked });
+    } else {
+      // Clear file statuses if not a repo
+      projectFileStatuses.value.delete(projectPath);
     }
   } catch (err) {
     console.warn('Failed to load file statuses for project:', err);
+    // Clear file statuses on error
+    projectFileStatuses.value.delete(projectPath);
   }
 }
 

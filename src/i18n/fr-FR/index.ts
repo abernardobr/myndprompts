@@ -379,9 +379,18 @@ export default {
       userName: "Nom d'Utilisateur",
       userNamePlaceholder: 'Votre nom',
       userEmail: 'Email',
-      userEmailPlaceholder: 'votre.email@exemple.com',
+      userEmailPlaceholder: "votre.email{'@'}exemple.com",
       initRepository: 'Initialiser le Dépôt',
       configureGit: 'Configurer Git',
+      dangerZone: 'Zone de Danger',
+      removeGit: 'Supprimer Git',
+      removeGitDescription:
+        "Cela supprimera le contrôle de version Git de ce projet. Vos fichiers ne seront pas supprimés, mais tout l'historique des commits sera perdu.",
+      removeGitConfirmTitle: 'Supprimer le Dépôt Git ?',
+      removeGitConfirmMessage:
+        "Êtes-vous sûr de vouloir supprimer Git de ce projet ? Cela supprimera le dossier .git et tout l'historique des commits. Cette action est irréversible.",
+      gitRemoved: 'Dépôt Git supprimé avec succès',
+      gitRemoveFailed: 'Échec de la suppression du dépôt Git',
     },
     branch: {
       title: 'Branches',

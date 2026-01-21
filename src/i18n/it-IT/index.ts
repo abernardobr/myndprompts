@@ -379,9 +379,18 @@ export default {
       userName: 'Nome Utente',
       userNamePlaceholder: 'Il tuo nome',
       userEmail: 'Email',
-      userEmailPlaceholder: 'tua.email@esempio.com',
+      userEmailPlaceholder: "tua.email{'@'}esempio.com",
       initRepository: 'Inizializza Repository',
       configureGit: 'Configura Git',
+      dangerZone: 'Zona Pericolosa',
+      removeGit: 'Rimuovi Git',
+      removeGitDescription:
+        'Questo rimuoverà il controllo di versione Git da questo progetto. I tuoi file non verranno eliminati, ma tutta la cronologia dei commit andrà persa.',
+      removeGitConfirmTitle: 'Rimuovere Repository Git?',
+      removeGitConfirmMessage:
+        'Sei sicuro di voler rimuovere Git da questo progetto? Questo eliminerà la cartella .git e tutta la cronologia dei commit. Questa azione non può essere annullata.',
+      gitRemoved: 'Repository Git rimosso con successo',
+      gitRemoveFailed: 'Impossibile rimuovere il repository Git',
     },
     branch: {
       title: 'Branch',

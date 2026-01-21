@@ -394,9 +394,18 @@ export default {
       userName: 'User Name',
       userNamePlaceholder: 'Your name',
       userEmail: 'Email',
-      userEmailPlaceholder: 'your.email@example.com',
+      userEmailPlaceholder: "your.email{'@'}example.com",
       initRepository: 'Initialize Repository',
       configureGit: 'Configure Git',
+      dangerZone: 'Danger Zone',
+      removeGit: 'Remove Git',
+      removeGitDescription:
+        'This will remove Git version control from this project. Your files will not be deleted, but all commit history will be lost.',
+      removeGitConfirmTitle: 'Remove Git Repository?',
+      removeGitConfirmMessage:
+        'Are you sure you want to remove Git from this project? This will delete the .git folder and all commit history. This action cannot be undone.',
+      gitRemoved: 'Git repository removed successfully',
+      gitRemoveFailed: 'Failed to remove Git repository',
     },
     branch: {
       title: 'Branches',
