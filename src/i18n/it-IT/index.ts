@@ -61,6 +61,7 @@ export default {
     warning: 'Avviso',
     info: 'Informazione',
     success: 'Successo',
+    retry: 'Riprova',
   },
 
   // Activity bar
@@ -165,6 +166,8 @@ export default {
     },
     browserMode: "Il pannello snippet è disponibile nell'app desktop.",
     browserModeHint: 'In esecuzione in modalità anteprima browser.',
+    filterByTags: 'Filtra per tag...',
+    noTagsFound: 'Nessun tag trovato',
   },
 
   // Favorites panel
@@ -340,6 +343,10 @@ export default {
       codeSnippetDesc: 'Modelli ed esempi di codice',
       template: 'Modello',
       templateDesc: 'Modelli completi di prompt',
+      tags: 'Tag',
+      tagsPlaceholder: 'Aggiungi tag...',
+      tagsHint: 'Seleziona tag esistenti o digita per crearne di nuovi',
+      tagsEmpty: 'Nessun tag ancora',
     },
     newProject: {
       title: 'Nuovo Progetto',
@@ -572,5 +579,98 @@ export default {
       indexed: 'Indicizzato',
       error: 'Errore',
     },
+  },
+
+  // Plugins
+  plugins: {
+    // Section title
+    title: 'Plugin',
+
+    // Tabs
+    marketplace: 'Marketplace',
+    installed: 'Installati',
+
+    // Search and filters
+    searchPlaceholder: 'Cerca plugin...',
+    filterByType: 'Tipo',
+    filterByTags: 'Tag',
+    allTypes: 'Tutti',
+    allTags: 'Tutti i tag',
+    clearFilters: 'Cancella filtri',
+
+    // Plugin types
+    types: {
+      persona: 'Persona',
+      templates: 'Modelli',
+      code_snippets: 'Snippet di Codice',
+      text_snippets: 'Snippet di Testo',
+    },
+
+    // Plugin card
+    version: 'Versione',
+    items: 'elementi',
+    installedOn: 'Installato il',
+    updatedOn: 'Aggiornato il',
+
+    // Actions
+    install: 'Installa',
+    installing: 'Installazione...',
+    update: 'Aggiorna',
+    updateTo: 'Aggiorna a v{version}',
+    updateAll: 'Aggiorna Tutti',
+    updating: 'Aggiornamento...',
+    uninstall: 'Disinstalla',
+    uninstalling: 'Disinstallazione...',
+    view: 'Visualizza',
+
+    // Confirmation dialog
+    uninstallTitle: 'Disinstalla Plugin',
+    uninstallMessage: 'Sei sicuro di voler disinstallare "{name}"?',
+    uninstallWarning: 'Questo rimuoverà tutti gli elementi forniti da questo plugin.',
+
+    // Empty states
+    noPluginsFound: 'Nessun plugin trovato',
+    noPluginsFoundHint: 'Prova a modificare i filtri',
+    noPluginsInstalled: 'Nessun plugin installato',
+    noPluginsInstalledHint: 'Visita il Marketplace per scoprire e installare plugin',
+    noPluginsOfType: 'Nessun plugin installato di questo tipo',
+    installFromMarketplace: 'Installa prima i plugin dal Marketplace',
+    noContent: 'Questo plugin non ha contenuto',
+
+    // Content selector dialog
+    addFromLibrary: 'Aggiungi dalla Libreria',
+    selectAll: 'Seleziona Tutto',
+    of: 'di',
+    selected: 'selezionati',
+    addSelected: 'Aggiungi Selezionati',
+
+    // Notifications
+    installSuccess: 'Plugin installato con successo',
+    installError: 'Installazione plugin fallita',
+    updateSuccess: 'Plugin aggiornato con successo',
+    updateError: 'Aggiornamento plugin fallito',
+    uninstallSuccess: 'Plugin disinstallato con successo',
+    uninstallError: 'Disinstallazione plugin fallita',
+    contentAddedSuccess: '{count} elemento/i aggiunto/i dalla libreria',
+    contentAddedError: "Errore nell'aggiunta degli elementi dalla libreria",
+    clearAllSuccess: 'Tutti i plugin rimossi con successo',
+    clearAllError: 'Errore durante la rimozione dei plugin',
+
+    // Clear all (troubleshooting)
+    clearAll: 'Cancella Tutto',
+    clearAllTitle: 'Cancella Tutti i Plugin',
+    clearAllMessage: 'Sei sicuro di voler rimuovere tutti i plugin installati?',
+    clearAllWarning:
+      'Questo rimuoverà tutti i metadati dei plugin dalla memoria. Usalo per correggere dati corrotti.',
+    clearAllTooltip: 'Rimuovi tutti i plugin installati (risoluzione problemi)',
+
+    // Loading states
+    loadingPlugins: 'Caricamento plugin...',
+    updatesAvailable: 'aggiornamenti disponibili',
+
+    // Network/Error states
+    offline: 'Sembra che tu sia offline. Controlla la tua connessione.',
+    networkError: 'Connessione al marketplace dei plugin fallita.',
+    fetchError: 'Caricamento plugin fallito. Riprova.',
   },
 };

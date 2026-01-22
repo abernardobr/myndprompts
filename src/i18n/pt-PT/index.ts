@@ -61,6 +61,7 @@ export default {
     warning: 'Aviso',
     info: 'Informação',
     success: 'Sucesso',
+    retry: 'Tentar novamente',
   },
 
   // Activity bar
@@ -165,6 +166,8 @@ export default {
     },
     browserMode: 'O painel de snippets está disponível na aplicação desktop.',
     browserModeHint: 'A executar em modo de pré-visualização no navegador.',
+    filterByTags: 'Filtrar por etiquetas...',
+    noTagsFound: 'Nenhuma etiqueta encontrada',
   },
 
   // Favorites panel
@@ -340,6 +343,10 @@ export default {
       codeSnippetDesc: 'Modelos e exemplos de código',
       template: 'Modelo',
       templateDesc: 'Modelos completos de prompts',
+      tags: 'Etiquetas',
+      tagsPlaceholder: 'Adicionar etiqueta...',
+      tagsHint: 'Seleccione etiquetas existentes ou escreva para criar novas',
+      tagsEmpty: 'Sem etiquetas ainda',
     },
     newProject: {
       title: 'Novo Projeto',
@@ -572,5 +579,98 @@ export default {
       indexed: 'Indexado',
       error: 'Erro',
     },
+  },
+
+  // Plugins
+  plugins: {
+    // Section title
+    title: 'Plugins',
+
+    // Tabs
+    marketplace: 'Marketplace',
+    installed: 'Instalados',
+
+    // Search and filters
+    searchPlaceholder: 'Pesquisar plugins...',
+    filterByType: 'Tipo',
+    filterByTags: 'Etiquetas',
+    allTypes: 'Todos',
+    allTags: 'Todas as etiquetas',
+    clearFilters: 'Limpar filtros',
+
+    // Plugin types
+    types: {
+      persona: 'Persona',
+      templates: 'Modelos',
+      code_snippets: 'Snippets de Código',
+      text_snippets: 'Snippets de Texto',
+    },
+
+    // Plugin card
+    version: 'Versão',
+    items: 'itens',
+    installedOn: 'Instalado em',
+    updatedOn: 'Atualizado em',
+
+    // Actions
+    install: 'Instalar',
+    installing: 'A instalar...',
+    update: 'Atualizar',
+    updateTo: 'Atualizar para v{version}',
+    updateAll: 'Atualizar Todos',
+    updating: 'A atualizar...',
+    uninstall: 'Desinstalar',
+    uninstalling: 'A desinstalar...',
+    view: 'Ver',
+
+    // Confirmation dialog
+    uninstallTitle: 'Desinstalar Plugin',
+    uninstallMessage: 'Tem a certeza que pretende desinstalar "{name}"?',
+    uninstallWarning: 'Isto irá remover todos os itens fornecidos por este plugin.',
+
+    // Empty states
+    noPluginsFound: 'Nenhum plugin encontrado',
+    noPluginsFoundHint: 'Tente ajustar os seus filtros',
+    noPluginsInstalled: 'Nenhum plugin instalado',
+    noPluginsInstalledHint: 'Visite o Marketplace para descobrir e instalar plugins',
+    noPluginsOfType: 'Nenhum plugin instalado deste tipo',
+    installFromMarketplace: 'Instale plugins do Marketplace primeiro',
+    noContent: 'Este plugin não tem conteúdo',
+
+    // Content selector dialog
+    addFromLibrary: 'Adicionar da Biblioteca',
+    selectAll: 'Selecionar Todos',
+    of: 'de',
+    selected: 'selecionados',
+    addSelected: 'Adicionar Selecionados',
+
+    // Notifications
+    installSuccess: 'Plugin instalado com sucesso',
+    installError: 'Falha ao instalar plugin',
+    updateSuccess: 'Plugin atualizado com sucesso',
+    updateError: 'Falha ao atualizar plugin',
+    uninstallSuccess: 'Plugin desinstalado com sucesso',
+    uninstallError: 'Falha ao desinstalar plugin',
+    contentAddedSuccess: '{count} item(ns) adicionado(s) da biblioteca',
+    contentAddedError: 'Falha ao adicionar itens da biblioteca',
+    clearAllSuccess: 'Todos os plugins foram removidos com sucesso',
+    clearAllError: 'Falha ao limpar plugins',
+
+    // Clear all (troubleshooting)
+    clearAll: 'Limpar Tudo',
+    clearAllTitle: 'Limpar Todos os Plugins',
+    clearAllMessage: 'Tem a certeza que pretende remover todos os plugins instalados?',
+    clearAllWarning:
+      'Isto irá remover todos os metadados de plugins do armazenamento. Use isto para corrigir dados corrompidos.',
+    clearAllTooltip: 'Remover todos os plugins instalados (para resolução de problemas)',
+
+    // Loading states
+    loadingPlugins: 'A carregar plugins...',
+    updatesAvailable: 'atualizações disponíveis',
+
+    // Network/Error states
+    offline: 'Parece estar offline. Verifique a sua ligação.',
+    networkError: 'Falha ao ligar ao marketplace de plugins.',
+    fetchError: 'Falha ao carregar plugins. Tente novamente.',
   },
 };

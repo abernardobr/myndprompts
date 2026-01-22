@@ -61,6 +61,7 @@ export default {
     warning: 'تحذير',
     info: 'معلومات',
     success: 'نجاح',
+    retry: 'إعادة المحاولة',
   },
 
   // Activity bar
@@ -165,6 +166,8 @@ export default {
     },
     browserMode: 'لوحة المقتطفات متاحة في تطبيق سطح المكتب.',
     browserModeHint: 'يعمل في وضع معاينة المتصفح.',
+    filterByTags: 'تصفية حسب الوسوم...',
+    noTagsFound: 'لم يتم العثور على وسوم',
   },
 
   // Favorites panel
@@ -339,6 +342,10 @@ export default {
       codeSnippetDesc: 'قوالب وأمثلة برمجية',
       template: 'قالب',
       templateDesc: 'قوالب أوامر كاملة',
+      tags: 'الوسوم',
+      tagsPlaceholder: 'إضافة وسم...',
+      tagsHint: 'اختر من الوسوم الموجودة أو اكتب لإنشاء وسوم جديدة',
+      tagsEmpty: 'لا توجد وسوم بعد',
     },
     newProject: {
       title: 'مشروع جديد',
@@ -568,5 +575,98 @@ export default {
       indexed: 'مفهرس',
       error: 'خطأ',
     },
+  },
+
+  // Plugins
+  plugins: {
+    // Section title
+    title: 'الإضافات',
+
+    // Tabs
+    marketplace: 'المتجر',
+    installed: 'المثبتة',
+
+    // Search and filters
+    searchPlaceholder: 'البحث عن إضافات...',
+    filterByType: 'النوع',
+    filterByTags: 'الوسوم',
+    allTypes: 'الكل',
+    allTags: 'جميع الوسوم',
+    clearFilters: 'مسح الفلاتر',
+
+    // Plugin types
+    types: {
+      persona: 'شخصية',
+      templates: 'قوالب',
+      code_snippets: 'مقتطفات برمجية',
+      text_snippets: 'مقتطفات نصية',
+    },
+
+    // Plugin card
+    version: 'الإصدار',
+    items: 'عناصر',
+    installedOn: 'تاريخ التثبيت',
+    updatedOn: 'تاريخ التحديث',
+
+    // Actions
+    install: 'تثبيت',
+    installing: 'جارٍ التثبيت...',
+    update: 'تحديث',
+    updateTo: 'التحديث إلى الإصدار {version}',
+    updateAll: 'تحديث الكل',
+    updating: 'جارٍ التحديث...',
+    uninstall: 'إلغاء التثبيت',
+    uninstalling: 'جارٍ إلغاء التثبيت...',
+    view: 'عرض',
+
+    // Confirmation dialog
+    uninstallTitle: 'إلغاء تثبيت الإضافة',
+    uninstallMessage: 'هل أنت متأكد من رغبتك في إلغاء تثبيت "{name}"؟',
+    uninstallWarning: 'سيؤدي هذا إلى إزالة جميع العناصر المقدمة من هذه الإضافة.',
+
+    // Empty states
+    noPluginsFound: 'لم يتم العثور على إضافات',
+    noPluginsFoundHint: 'حاول تعديل الفلاتر',
+    noPluginsInstalled: 'لا توجد إضافات مثبتة',
+    noPluginsInstalledHint: 'قم بزيارة المتجر لاكتشاف وتثبيت الإضافات',
+    noPluginsOfType: 'لا توجد إضافات مثبتة من هذا النوع',
+    installFromMarketplace: 'قم بتثبيت الإضافات من المتجر أولاً',
+    noContent: 'لا يوجد محتوى لهذه الإضافة',
+
+    // Content selector dialog
+    addFromLibrary: 'إضافة من المكتبة',
+    selectAll: 'تحديد الكل',
+    of: 'من',
+    selected: 'محدد',
+    addSelected: 'إضافة المحدد',
+
+    // Notifications
+    installSuccess: 'تم تثبيت الإضافة بنجاح',
+    installError: 'فشل تثبيت الإضافة',
+    updateSuccess: 'تم تحديث الإضافة بنجاح',
+    updateError: 'فشل تحديث الإضافة',
+    uninstallSuccess: 'تم إلغاء تثبيت الإضافة بنجاح',
+    uninstallError: 'فشل إلغاء تثبيت الإضافة',
+    contentAddedSuccess: 'تمت إضافة {count} عنصر(عناصر) من المكتبة',
+    contentAddedError: 'فشل إضافة العناصر من المكتبة',
+    clearAllSuccess: 'تم مسح جميع الإضافات بنجاح',
+    clearAllError: 'فشل مسح الإضافات',
+
+    // Clear all (troubleshooting)
+    clearAll: 'مسح الكل',
+    clearAllTitle: 'مسح جميع الإضافات',
+    clearAllMessage: 'هل أنت متأكد من رغبتك في إزالة جميع الإضافات المثبتة؟',
+    clearAllWarning:
+      'سيؤدي هذا إلى إزالة جميع بيانات الإضافات من التخزين. استخدم هذا لإصلاح البيانات التالفة.',
+    clearAllTooltip: 'إزالة جميع الإضافات المثبتة (لاستكشاف الأخطاء)',
+
+    // Loading states
+    loadingPlugins: 'جارٍ تحميل الإضافات...',
+    updatesAvailable: 'تحديثات متاحة',
+
+    // Network/Error states
+    offline: 'يبدو أنك غير متصل بالإنترنت. تحقق من اتصالك.',
+    networkError: 'فشل الاتصال بمتجر الإضافات.',
+    fetchError: 'فشل تحميل الإضافات. حاول مرة أخرى.',
   },
 };

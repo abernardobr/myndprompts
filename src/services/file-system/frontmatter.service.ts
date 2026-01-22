@@ -164,7 +164,9 @@ export class FrontmatterService {
   createNewSnippet(
     name: string,
     type: ISnippetMetadata['type'] = 'text',
-    content: string = ''
+    content: string = '',
+    tags: string[] = [],
+    description?: string
   ): { metadata: ISnippetMetadata; content: string } {
     const now = new Date().toISOString();
     const shortcut = `@${name.toLowerCase().replace(/\s+/g, '-')}`;
@@ -174,7 +176,8 @@ export class FrontmatterService {
         name,
         type,
         shortcut,
-        tags: [],
+        description,
+        tags,
         createdAt: now,
         updatedAt: now,
       },

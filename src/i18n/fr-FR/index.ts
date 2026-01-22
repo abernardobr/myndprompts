@@ -61,6 +61,7 @@ export default {
     warning: 'Avertissement',
     info: 'Information',
     success: 'Succès',
+    retry: 'Réessayer',
   },
 
   // Activity bar
@@ -165,6 +166,8 @@ export default {
     },
     browserMode: "Le panneau des snippets est disponible dans l'application de bureau.",
     browserModeHint: 'Exécution en mode aperçu navigateur.',
+    filterByTags: 'Filtrer par étiquettes...',
+    noTagsFound: 'Aucune étiquette trouvée',
   },
 
   // Favorites panel
@@ -340,6 +343,10 @@ export default {
       codeSnippetDesc: 'Modèles et exemples de code',
       template: 'Modèle',
       templateDesc: 'Modèles complets de prompts',
+      tags: 'Étiquettes',
+      tagsPlaceholder: 'Ajouter une étiquette...',
+      tagsHint: 'Sélectionnez des étiquettes existantes ou tapez pour en créer de nouvelles',
+      tagsEmpty: "Pas encore d'étiquettes",
     },
     newProject: {
       title: 'Nouveau Projet',
@@ -571,5 +578,98 @@ export default {
       indexed: 'Indexé',
       error: 'Erreur',
     },
+  },
+
+  // Plugins
+  plugins: {
+    // Section title
+    title: 'Plugins',
+
+    // Tabs
+    marketplace: 'Marketplace',
+    installed: 'Installés',
+
+    // Search and filters
+    searchPlaceholder: 'Rechercher des plugins...',
+    filterByType: 'Type',
+    filterByTags: 'Étiquettes',
+    allTypes: 'Tous',
+    allTags: 'Toutes les étiquettes',
+    clearFilters: 'Effacer les filtres',
+
+    // Plugin types
+    types: {
+      persona: 'Persona',
+      templates: 'Modèles',
+      code_snippets: 'Extraits de Code',
+      text_snippets: 'Extraits de Texte',
+    },
+
+    // Plugin card
+    version: 'Version',
+    items: 'éléments',
+    installedOn: 'Installé le',
+    updatedOn: 'Mis à jour le',
+
+    // Actions
+    view: 'Voir',
+    install: 'Installer',
+    installing: 'Installation...',
+    update: 'Mettre à jour',
+    updateTo: 'Mettre à jour vers v{version}',
+    updateAll: 'Tout mettre à jour',
+    updating: 'Mise à jour...',
+    uninstall: 'Désinstaller',
+    uninstalling: 'Désinstallation...',
+
+    // Confirmation dialog
+    uninstallTitle: 'Désinstaller le Plugin',
+    uninstallMessage: 'Êtes-vous sûr de vouloir désinstaller "{name}" ?',
+    uninstallWarning: 'Cela supprimera tous les éléments fournis par ce plugin.',
+
+    // Empty states
+    noPluginsFound: 'Aucun plugin trouvé',
+    noPluginsFoundHint: "Essayez d'ajuster vos filtres",
+    noPluginsInstalled: 'Aucun plugin installé',
+    noPluginsInstalledHint: 'Visitez le Marketplace pour découvrir et installer des plugins',
+    noPluginsOfType: 'Aucun plugin installé de ce type',
+    installFromMarketplace: "Installez d'abord des plugins depuis le Marketplace",
+    noContent: 'Aucun contenu disponible',
+
+    // Content selector dialog
+    addFromLibrary: 'Ajouter depuis la Bibliothèque',
+    selectAll: 'Tout sélectionner',
+    of: 'sur',
+    selected: 'sélectionnés',
+    addSelected: 'Ajouter la sélection',
+
+    // Notifications
+    installSuccess: 'Plugin installé avec succès',
+    installError: "Échec de l'installation du plugin",
+    updateSuccess: 'Plugin mis à jour avec succès',
+    updateError: 'Échec de la mise à jour du plugin',
+    uninstallSuccess: 'Plugin désinstallé avec succès',
+    uninstallError: 'Échec de la désinstallation du plugin',
+    contentAddedSuccess: '{count} élément(s) ajouté(s) depuis la bibliothèque',
+    contentAddedError: "Échec de l'ajout des éléments depuis la bibliothèque",
+    clearAllSuccess: 'Tous les plugins supprimés avec succès',
+    clearAllError: 'Échec de la suppression des plugins',
+
+    // Clear all (troubleshooting)
+    clearAll: 'Tout Supprimer',
+    clearAllTitle: 'Supprimer Tous les Plugins',
+    clearAllMessage: 'Êtes-vous sûr de vouloir supprimer tous les plugins installés ?',
+    clearAllWarning:
+      'Cela supprimera toutes les métadonnées des plugins du stockage. Utilisez ceci pour corriger des données corrompues.',
+    clearAllTooltip: 'Supprimer tous les plugins installés (dépannage)',
+
+    // Loading states
+    loadingPlugins: 'Chargement des plugins...',
+    updatesAvailable: 'mises à jour disponibles',
+
+    // Network/Error states
+    offline: 'Vous semblez être hors ligne. Vérifiez votre connexion.',
+    networkError: 'Échec de la connexion au marketplace de plugins.',
+    fetchError: 'Échec du chargement des plugins. Veuillez réessayer.',
   },
 };

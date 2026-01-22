@@ -245,7 +245,9 @@ export const useSnippetStore = defineStore('snippets', () => {
   async function createSnippet(
     name: string,
     type: ISnippetMetadata['type'] = 'text',
-    content: string = ''
+    content: string = '',
+    tags: string[] = [],
+    description?: string
   ): Promise<ISnippetFile> {
     if (!isElectron()) {
       throw new Error('Creating snippets is only available in the desktop app');
@@ -253,7 +255,7 @@ export const useSnippetStore = defineStore('snippets', () => {
 
     try {
       isLoading.value = true;
-      const snippet = await snippetService.createSnippet(name, type, content);
+      const snippet = await snippetService.createSnippet(name, type, content, tags, description);
 
       // Add to cache
       const newCache = new Map(snippetCache.value);

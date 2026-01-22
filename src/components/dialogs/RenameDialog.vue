@@ -3,31 +3,105 @@
  * RenameDialog Component
  *
  * Dialog for renaming items (prompts, snippets, projects, or directories).
+ * For snippet types, also allows editing description and tags.
  * Used by ExplorerPanel and SnippetsPanel.
  */
 
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useSnippetStore } from '@/stores/snippetStore';
 
 interface Props {
   modelValue: boolean;
   currentName: string;
+  currentDescription?: string;
+  currentTags?: string[];
   itemType: 'prompt' | 'snippet' | 'persona' | 'template' | 'text' | 'project' | 'directory';
+}
+
+interface RenameResult {
+  name: string;
+  description?: string;
+  tags?: string[];
 }
 
 interface Emits {
   (e: 'update:modelValue', value: boolean): void;
   (e: 'rename', newName: string): void;
+  (e: 'save', result: RenameResult): void;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  currentDescription: '',
+  currentTags: () => [],
+});
 const emit = defineEmits<Emits>();
 
 const { t } = useI18n({ useScope: 'global' });
+const snippetStore = useSnippetStore();
+
+// Check if this is a snippet type (supports extended editing)
+const isSnippetType = computed(() =>
+  ['snippet', 'persona', 'template', 'text'].includes(props.itemType)
+);
 
 // Form state
 const newName = ref('');
+const description = ref('');
+const tags = ref<string[]>([]);
+const filteredTagOptions = ref<string[]>([]);
 const nameInput = ref<HTMLInputElement | null>(null);
+
+// Get all unique tags from all snippets
+const allExistingTags = computed(() => {
+  const tagSet = new Set<string>();
+  for (const snippet of snippetStore.allSnippets) {
+    for (const tag of snippet.metadata.tags) {
+      tagSet.add(tag);
+    }
+  }
+  return Array.from(tagSet).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+});
+
+/**
+ * Normalize a string for diacritics-insensitive comparison.
+ * Example: "Café" -> "cafe"
+ */
+function normalizeForSearch(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Filter tag options based on user input with diacritics support
+ */
+function filterTags(val: string, update: (callback: () => void) => void): void {
+  update(() => {
+    if (!val) {
+      filteredTagOptions.value = allExistingTags.value;
+    } else {
+      const normalizedSearch = normalizeForSearch(val);
+      filteredTagOptions.value = allExistingTags.value.filter((tag) =>
+        normalizeForSearch(tag).includes(normalizedSearch)
+      );
+    }
+  });
+}
+
+/**
+ * Handle creating a new tag from user input
+ */
+function createTag(
+  inputValue: string,
+  doneFn: (item: string, mode: 'add' | 'add-unique' | 'toggle') => void
+): void {
+  const trimmed = inputValue.trim();
+  if (trimmed) {
+    doneFn(trimmed, 'add-unique');
+  }
+}
 
 // Validation
 const nameError = computed(() => {
@@ -47,7 +121,19 @@ const nameError = computed(() => {
   return '';
 });
 
-const isValid = computed(() => !nameError.value && newName.value.trim() !== props.currentName);
+// Check if anything has changed
+const hasChanges = computed(() => {
+  if (newName.value.trim() !== props.currentName) return true;
+  if (isSnippetType.value) {
+    if (description.value !== (props.currentDescription ?? '')) return true;
+    const currentTagsStr = JSON.stringify([...(props.currentTags ?? [])].sort());
+    const newTagsStr = JSON.stringify([...tags.value].sort());
+    if (currentTagsStr !== newTagsStr) return true;
+  }
+  return false;
+});
+
+const isValid = computed(() => !nameError.value && hasChanges.value);
 
 // Get display label for item type
 const itemTypeLabel = computed(() => {
@@ -71,12 +157,18 @@ const itemTypeLabel = computed(() => {
   }
 });
 
+// Button label - "Save" for snippets (since we edit more than name), "Rename" for others
+const buttonLabel = computed(() => (isSnippetType.value ? t('common.save') : t('common.rename')));
+
 // Reset form when dialog opens
 watch(
   () => props.modelValue,
   (isOpen) => {
     if (isOpen) {
       newName.value = props.currentName;
+      description.value = props.currentDescription ?? '';
+      tags.value = [...(props.currentTags ?? [])];
+      filteredTagOptions.value = allExistingTags.value;
       // Focus and select input after dialog opens
       setTimeout(() => {
         nameInput.value?.focus();
@@ -90,16 +182,27 @@ function handleClose(): void {
   emit('update:modelValue', false);
 }
 
-function handleRename(): void {
+function handleSave(): void {
   if (!isValid.value) return;
 
-  emit('rename', newName.value.trim());
+  if (isSnippetType.value) {
+    // Emit full save with all fields for snippets
+    emit('save', {
+      name: newName.value.trim(),
+      description: description.value,
+      tags: tags.value,
+    });
+  } else {
+    // Emit just rename for non-snippets (backwards compatibility)
+    emit('rename', newName.value.trim());
+  }
   emit('update:modelValue', false);
 }
 
 function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Enter' && isValid.value) {
-    handleRename();
+  // Only handle Enter on the name input, not the tag input
+  if (event.key === 'Enter' && isValid.value && event.target === nameInput.value) {
+    handleSave();
   }
 }
 </script>
@@ -129,6 +232,7 @@ function handleKeydown(event: KeyboardEvent): void {
       </q-card-section>
 
       <q-card-section class="q-pt-lg">
+        <!-- Name input -->
         <q-input
           ref="nameInput"
           v-model="newName"
@@ -138,7 +242,63 @@ function handleKeydown(event: KeyboardEvent): void {
           :error="!!nameError && newName.length > 0"
           :error-message="nameError"
           data-testid="rename-input"
+          :class="{ 'q-mb-md': isSnippetType }"
         />
+
+        <!-- Extended fields for snippets -->
+        <template v-if="isSnippetType">
+          <!-- Description -->
+          <q-input
+            v-model="description"
+            :label="t('dialogs.newSnippet.description')"
+            :placeholder="t('dialogs.newSnippet.descriptionPlaceholder')"
+            outlined
+            type="textarea"
+            rows="2"
+            maxlength="200"
+            class="q-mb-md"
+          />
+
+          <!-- Tags -->
+          <div class="tags-section">
+            <q-select
+              v-model="tags"
+              :options="filteredTagOptions"
+              :label="t('dialogs.newSnippet.tags') || 'Tags'"
+              outlined
+              multiple
+              use-chips
+              use-input
+              input-debounce="0"
+              new-value-mode="add-unique"
+              :hint="
+                t('dialogs.newSnippet.tagsHint') ||
+                'Select existing tags or type to create new ones'
+              "
+              @filter="filterTags"
+              @new-value="createTag"
+            >
+              <template #no-option>
+                <q-item>
+                  <q-item-section class="text-grey">
+                    {{ t('dialogs.newSnippet.tagsEmpty') || 'No tags yet' }}
+                  </q-item-section>
+                </q-item>
+              </template>
+              <template #selected-item="scope">
+                <q-chip
+                  removable
+                  dense
+                  color="primary"
+                  text-color="white"
+                  @remove="scope.removeAtIndex(scope.index)"
+                >
+                  {{ scope.opt }}
+                </q-chip>
+              </template>
+            </q-select>
+          </div>
+        </template>
       </q-card-section>
 
       <q-card-actions
@@ -154,11 +314,11 @@ function handleKeydown(event: KeyboardEvent): void {
         />
         <q-btn
           unelevated
-          :label="t('common.rename')"
+          :label="buttonLabel"
           color="primary"
           :disable="!isValid"
           data-testid="rename-btn"
-          @click="handleRename"
+          @click="handleSave"
         />
       </q-card-actions>
     </q-card>
@@ -169,5 +329,9 @@ function handleKeydown(event: KeyboardEvent): void {
 .rename-dialog {
   min-width: 400px;
   max-width: 500px;
+}
+
+.tags-section {
+  margin-top: 8px;
 }
 </style>

@@ -11,6 +11,7 @@ import type {
   IProject,
   IProjectFolder,
   IFileIndexEntry,
+  IPlugin,
 } from './entities';
 
 /**
@@ -31,6 +32,7 @@ export class MyndPromptDB extends Dexie {
   projects!: Table<IProject, string>;
   projectFolders!: Table<IProjectFolder, string>;
   fileIndex!: Table<IFileIndexEntry, string>;
+  plugins!: Table<IPlugin, string>;
 
   constructor() {
     super('MyndPromptDB');
@@ -74,6 +76,23 @@ export class MyndPromptDB extends Dexie {
       projectFolders: '&id, projectPath, folderPath, [projectPath+folderPath], status',
       fileIndex:
         '&id, projectFolderId, normalizedName, fullPath, [projectFolderId+fullPath], extension',
+    });
+
+    // Version 4: Add plugins table for marketplace plugin management
+    this.version(4).stores({
+      userAuth: 'id, email',
+      appConfig: 'key',
+      uiState: 'id',
+      recentFiles: 'id, filePath, fileType, lastOpenedAt, isPinned',
+      projectIndexCache: 'id, projectPath, lastIndexed',
+      syncStatus: 'id, filePath, status',
+      gitStatus: 'id, filePath, status',
+      aiProviders: 'id, provider, isEnabled',
+      projects: '&folderPath, id, name, createdAt',
+      projectFolders: '&id, projectPath, folderPath, [projectPath+folderPath], status',
+      fileIndex:
+        '&id, projectFolderId, normalizedName, fullPath, [projectFolderId+fullPath], extension',
+      plugins: '&id, version, type, *tags, installedAt, updatedAt',
     });
 
     // Add hooks for automatic date handling
@@ -125,6 +144,21 @@ export class MyndPromptDB extends Dexie {
       if (!obj.indexedAt) {
         obj.indexedAt = new Date();
       }
+    });
+
+    // Plugins hooks
+    this.plugins.hook('creating', (_primKey, obj) => {
+      const now = new Date();
+      if (!obj.installedAt) {
+        obj.installedAt = now;
+      }
+      if (!obj.updatedAt) {
+        obj.updatedAt = now;
+      }
+    });
+
+    this.plugins.hook('updating', (modifications) => {
+      return { ...modifications, updatedAt: new Date() };
     });
   }
 }

@@ -16,6 +16,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useGitStore } from '@/stores/gitStore';
+import { usePluginStore } from '@/stores/pluginStore';
 import type { IPromptFile, ISnippetMetadata } from '@/services/file-system/types';
 import {
   getFileCategory,
@@ -34,6 +35,8 @@ import GitSetupDialog from '@/components/dialogs/GitSetupDialog.vue';
 import GitHistoryDialog from '@/components/dialogs/GitHistoryDialog.vue';
 import BranchDialog from '@/components/dialogs/BranchDialog.vue';
 import FileSyncDialog from '@/components/dialogs/FileSyncDialog.vue';
+import PluginContentSelectorDialog from '@/components/dialogs/PluginContentSelectorDialog.vue';
+import type { PluginType } from '@/services/storage/entities';
 import ExplorerTreeNode from '@/components/layout/sidebar/ExplorerTreeNode.vue';
 
 const $q = useQuasar();
@@ -46,10 +49,10 @@ const projectStore = useProjectStore();
 const settingsStore = useSettingsStore();
 const uiStore = useUIStore();
 const gitStore = useGitStore();
+const pluginStore = usePluginStore();
 
 // Extract reactive refs from stores for proper reactivity in computed
 const { allPrompts } = storeToRefs(promptStore);
-const { allSnippets } = storeToRefs(snippetStore);
 const { allProjects } = storeToRefs(projectStore);
 
 // Check if running in Electron
@@ -68,6 +71,11 @@ const showGitHistoryDialog = ref(false);
 const showBranchDialog = ref(false);
 const showFileSyncDialog = ref(false);
 const fileSyncProjectPath = ref('');
+
+// Plugin content selector dialog state
+const showPluginContentDialog = ref(false);
+const pluginContentDialogType = ref<PluginType | null>(null);
+const pluginContentDialogTarget = ref<string>('');
 
 // Git context for dialogs
 const gitProjectPath = ref('');
@@ -190,93 +198,9 @@ const fileTree = computed<ITreeNode[]>(() => {
     filteredPrompts = filteredPrompts.filter((p) => p.metadata.category === selectedCategory);
   }
 
-  // Filter snippets based on search (use reactive ref)
-  const snippetsList = [...allSnippets.value];
-  const filteredSnippets = searchLower
-    ? snippetsList.filter(
-        (s) =>
-          s.metadata.name.toLowerCase().includes(searchLower) ||
-          s.metadata.shortcut.toLowerCase().includes(searchLower)
-      )
-    : snippetsList;
-
   // Build prompts folder with projects and standalone prompts
   const promptsFolder = buildPromptsFolder(filteredPrompts);
   tree.push(promptsFolder);
-
-  // Snippets section with sub-folders
-  const personas = filteredSnippets.filter((s) => s.metadata.type === 'persona');
-  const textSnippets = filteredSnippets.filter((s) => s.metadata.type === 'text');
-  const codeSnippets = filteredSnippets.filter((s) => s.metadata.type === 'code');
-  const templates = filteredSnippets.filter((s) => s.metadata.type === 'template');
-
-  // Personas folder
-  tree.push({
-    id: 'personas',
-    label: 'Personas',
-    icon: 'folder',
-    type: 'folder',
-    count: personas.length,
-    children: personas.map((snippet) => ({
-      id: snippet.filePath,
-      label: snippet.metadata.name,
-      icon: 'person',
-      type: 'snippet' as const,
-      filePath: snippet.filePath,
-      snippetType: snippet.metadata.type,
-    })),
-  });
-
-  // Text Snippets folder
-  tree.push({
-    id: 'text-snippets',
-    label: 'Text Snippets',
-    icon: 'folder',
-    type: 'folder',
-    count: textSnippets.length,
-    children: textSnippets.map((snippet) => ({
-      id: snippet.filePath,
-      label: snippet.metadata.name,
-      icon: 'text_snippet',
-      type: 'snippet' as const,
-      filePath: snippet.filePath,
-      snippetType: snippet.metadata.type,
-    })),
-  });
-
-  // Code Snippets folder
-  tree.push({
-    id: 'code-snippets',
-    label: 'Code Snippets',
-    icon: 'folder',
-    type: 'folder',
-    count: codeSnippets.length,
-    children: codeSnippets.map((snippet) => ({
-      id: snippet.filePath,
-      label: snippet.metadata.name,
-      icon: 'code',
-      type: 'snippet' as const,
-      filePath: snippet.filePath,
-      snippetType: snippet.metadata.type,
-    })),
-  });
-
-  // Templates folder
-  tree.push({
-    id: 'templates',
-    label: 'Templates',
-    icon: 'folder',
-    type: 'folder',
-    count: templates.length,
-    children: templates.map((snippet) => ({
-      id: snippet.filePath,
-      label: snippet.metadata.name,
-      icon: 'article',
-      type: 'snippet' as const,
-      filePath: snippet.filePath,
-      snippetType: snippet.metadata.type,
-    })),
-  });
 
   return tree;
 });
@@ -1269,6 +1193,68 @@ async function handleInitializePersonas(): Promise<void> {
 }
 
 // ================================
+// Plugin Library Integration
+// ================================
+
+/**
+ * Map folder ID to plugin type for "Add from Library" feature
+ */
+function getPluginTypeForFolder(folderId: string): PluginType | null {
+  const mapping: Record<string, PluginType> = {
+    personas: 'persona',
+    templates: 'templates',
+    'text-snippets': 'text_snippets',
+    'code-snippets': 'code_snippets',
+  };
+  return mapping[folderId] ?? null;
+}
+
+/**
+ * Check if "Add from Library" should be shown for a folder
+ * Only show if there are installed plugins of that type
+ */
+function canAddFromLibrary(folderId: string): boolean {
+  const pluginType = getPluginTypeForFolder(folderId);
+  if (!pluginType) return false;
+
+  // Check if there are any installed plugins of this type
+  return pluginStore.getInstalledByType(pluginType).length > 0;
+}
+
+/**
+ * Open the plugin content selector dialog for a folder
+ */
+function openPluginContentSelector(folderId: string): void {
+  const pluginType = getPluginTypeForFolder(folderId);
+  if (!pluginType) return;
+
+  pluginContentDialogType.value = pluginType;
+
+  // For snippets, the target directory is not used as snippets are created by type
+  // The dialog handles this internally based on the plugin type
+  pluginContentDialogTarget.value = '';
+
+  showPluginContentDialog.value = true;
+}
+
+/**
+ * Handle when content is added from the plugin library
+ */
+function onPluginContentAdded(count: number): void {
+  $q.notify({
+    type: 'positive',
+    message: `Added ${count} item${count > 1 ? 's' : ''} from library`,
+    icon: 'mdi-check-circle',
+    position: 'top',
+    timeout: 3000,
+  });
+
+  // Refresh the snippets list (snippets are already refreshed by the store after creation)
+  // but we can force a refresh to be safe
+  void snippetStore.refreshAllSnippets();
+}
+
+// ================================
 // Git Operations
 // ================================
 
@@ -2059,14 +2045,11 @@ onMounted(async () => {
 });
 
 // Watch for changes to refresh the tree (using reactive refs for proper tracking)
-watch(
-  [() => allPrompts.value.length, () => allSnippets.value.length, () => allProjects.value.length],
-  () => {
-    // Tree will automatically update via computed
-    // Force reactivity update
-    directoryStructureVersion.value++;
-  }
-);
+watch([() => allPrompts.value.length, () => allProjects.value.length], () => {
+  // Tree will automatically update via computed
+  // Force reactivity update
+  directoryStructureVersion.value++;
+});
 </script>
 
 <template>
@@ -2360,6 +2343,23 @@ watch(
                       />
                     </q-item-section>
                     <q-item-section>{{ t('explorer.initializePersonas') }}</q-item-section>
+                  </q-item>
+                  <q-item
+                    v-if="canAddFromLibrary(folder.id)"
+                    v-close-popup
+                    clickable
+                    @click="openPluginContentSelector(folder.id)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon
+                        name="mdi-puzzle-plus"
+                        size="20px"
+                        color="primary"
+                      />
+                    </q-item-section>
+                    <q-item-section>{{
+                      t('plugins.addFromLibrary') || 'Add from Library'
+                    }}</q-item-section>
                   </q-item>
                   <q-separator />
                   <q-item
@@ -3409,6 +3409,15 @@ watch(
     <FileSyncDialog
       v-model="showFileSyncDialog"
       :project-path="fileSyncProjectPath"
+    />
+
+    <!-- Plugin Content Selector Dialog -->
+    <PluginContentSelectorDialog
+      v-if="pluginContentDialogType"
+      v-model="showPluginContentDialog"
+      :plugin-type="pluginContentDialogType"
+      :target-directory="pluginContentDialogTarget"
+      @added="onPluginContentAdded"
     />
   </div>
 </template>

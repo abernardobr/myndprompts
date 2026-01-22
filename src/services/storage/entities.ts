@@ -157,6 +157,36 @@ export interface IAIProviderConfig {
 export type AIProviderType = 'anthropic' | 'openai' | 'google' | 'xai' | 'ollama';
 
 /**
+ * Plugin types
+ */
+export type PluginType = 'persona' | 'text_snippets' | 'code_snippets' | 'templates';
+
+/**
+ * Plugin item content
+ */
+export interface IPluginItem {
+  title: string;
+  description?: string;
+  content: string;
+  language?: string;
+}
+
+/**
+ * Installed plugin stored in IndexedDB
+ */
+export interface IPlugin {
+  id: string;
+  name: string;
+  description?: string;
+  version: string;
+  type: PluginType;
+  tags: string[];
+  items: IPluginItem[];
+  installedAt: Date;
+  updatedAt: Date;
+}
+
+/**
  * File Sync - Project folder status
  */
 export type ProjectFolderStatus = 'pending' | 'indexing' | 'indexed' | 'error';

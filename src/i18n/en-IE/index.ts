@@ -61,6 +61,7 @@ export default {
     warning: 'Warning',
     info: 'Info',
     success: 'Success',
+    retry: 'Retry',
   },
 
   // Activity bar
@@ -165,6 +166,8 @@ export default {
     },
     browserMode: 'Snippets panel is available in the desktop app.',
     browserModeHint: 'Running in browser preview mode.',
+    filterByTags: 'Filter by tags...',
+    noTagsFound: 'No tags found',
   },
 
   // Favourites panel
@@ -339,6 +342,10 @@ export default {
       codeSnippetDesc: 'Code templates and examples',
       template: 'Template',
       templateDesc: 'Full prompt templates',
+      tags: 'Tags',
+      tagsPlaceholder: 'Add tag...',
+      tagsHint: 'Select existing tags or type to create new ones',
+      tagsEmpty: 'No tags yet',
     },
     newProject: {
       title: 'New Project',
@@ -569,5 +576,98 @@ export default {
       indexed: 'Indexed',
       error: 'Error',
     },
+  },
+
+  // Plugins
+  plugins: {
+    // Section title
+    title: 'Plugins',
+
+    // Tabs
+    marketplace: 'Marketplace',
+    installed: 'Installed',
+
+    // Search and filters
+    searchPlaceholder: 'Search plugins...',
+    filterByType: 'Type',
+    filterByTags: 'Tags',
+    allTypes: 'All',
+    allTags: 'All tags',
+    clearFilters: 'Clear filters',
+
+    // Plugin types
+    types: {
+      persona: 'Persona',
+      templates: 'Templates',
+      code_snippets: 'Code Snippets',
+      text_snippets: 'Text Snippets',
+    },
+
+    // Plugin card
+    version: 'Version',
+    items: 'items',
+    installedOn: 'Installed',
+    updatedOn: 'Updated',
+
+    // Actions
+    install: 'Install',
+    installing: 'Installing...',
+    update: 'Update',
+    updateTo: 'Update to v{version}',
+    updateAll: 'Update All',
+    updating: 'Updating...',
+    uninstall: 'Uninstall',
+    uninstalling: 'Uninstalling...',
+    view: 'View',
+
+    // Confirmation dialog
+    uninstallTitle: 'Uninstall Plugin',
+    uninstallMessage: 'Are you sure you want to uninstall "{name}"?',
+    uninstallWarning: 'This will remove all items provided by this plugin.',
+
+    // Empty states
+    noPluginsFound: 'No plugins found',
+    noPluginsFoundHint: 'Try adjusting your filters',
+    noPluginsInstalled: 'No plugins installed',
+    noPluginsInstalledHint: 'Visit the Marketplace to discover and install plugins',
+    noPluginsOfType: 'No installed plugins of this type',
+    installFromMarketplace: 'Install plugins from the Marketplace first',
+    noContent: 'This plugin has no content',
+
+    // Content selector dialog
+    addFromLibrary: 'Add from Library',
+    selectAll: 'Select All',
+    of: 'of',
+    selected: 'selected',
+    addSelected: 'Add Selected',
+
+    // Notifications
+    installSuccess: 'Plugin installed successfully',
+    installError: 'Failed to install plugin',
+    updateSuccess: 'Plugin updated successfully',
+    updateError: 'Failed to update plugin',
+    uninstallSuccess: 'Plugin uninstalled successfully',
+    uninstallError: 'Failed to uninstall plugin',
+    contentAddedSuccess: 'Added {count} item(s) from library',
+    contentAddedError: 'Failed to add items from library',
+    clearAllSuccess: 'All plugins cleared successfully',
+    clearAllError: 'Failed to clear plugins',
+
+    // Clear all (troubleshooting)
+    clearAll: 'Clear All',
+    clearAllTitle: 'Clear All Plugins',
+    clearAllMessage: 'Are you sure you want to remove all installed plugins?',
+    clearAllWarning:
+      'This will remove all plugin metadata from storage. Use this to fix corrupt data.',
+    clearAllTooltip: 'Remove all installed plugins (for troubleshooting)',
+
+    // Loading states
+    loadingPlugins: 'Loading plugins...',
+    updatesAvailable: 'updates available',
+
+    // Network/Error states
+    offline: 'You appear to be offline. Please check your connection.',
+    networkError: 'Failed to connect to the plugin marketplace.',
+    fetchError: 'Failed to load plugins. Please try again.',
   },
 };

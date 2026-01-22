@@ -332,14 +332,18 @@ export class PromptFileService {
   async createSnippet(
     name: string,
     type: ISnippetMetadata['type'] = 'text',
-    content: string = ''
+    content: string = '',
+    tags: string[] = [],
+    description?: string
   ): Promise<ISnippetFile> {
     const api = this.getAPI();
     const config = await this.getConfig();
     const { metadata, content: snippetContent } = this.frontmatterService.createNewSnippet(
       name,
       type,
-      content
+      content,
+      tags,
+      description
     );
 
     // Determine directory based on type

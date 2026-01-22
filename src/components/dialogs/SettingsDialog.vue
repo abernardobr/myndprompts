@@ -11,11 +11,14 @@
  */
 
 import { ref, computed, onMounted, watch } from 'vue';
-import { useUIStore, type Theme } from '@/stores/uiStore';
+import { useUIStore, type Theme, FileCategory } from '@/stores/uiStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { usePluginStore } from '@/stores/pluginStore';
+import { useSnippetStore } from '@/stores/snippetStore';
 import { useI18n } from 'vue-i18n';
 import CategoryListEditor from '@/components/settings/CategoryListEditor.vue';
 import FileSyncSection from '@/components/settings/FileSyncSection.vue';
+import PluginsSection from '@/components/settings/PluginsSection.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -28,6 +31,8 @@ const emit = defineEmits<{
 const { t, locale: i18nLocale } = useI18n({ useScope: 'global' });
 const uiStore = useUIStore();
 const settingsStore = useSettingsStore();
+const pluginStore = usePluginStore();
+const snippetStore = useSnippetStore();
 
 // Dialog visibility
 const isOpen = computed({
@@ -103,6 +108,11 @@ const categories = computed<ICategory[]>(() => [
     icon: 'sync',
   },
   {
+    id: 'plugins',
+    label: t('plugins.title') || 'Plugins',
+    icon: 'mdi-puzzle-outline',
+  },
+  {
     id: 'storage',
     label: t('settingsPanel.storage'),
     icon: 'folder',
@@ -148,6 +158,40 @@ function handleApply(): void {
 function handleOk(): void {
   handleApply();
   isOpen.value = false;
+}
+
+/**
+ * Handle opening a snippet from the plugins section.
+ * Finds the snippet by title, closes the dialog, and opens it in the editor.
+ */
+async function handleOpenSnippet(itemTitle: string): Promise<void> {
+  try {
+    // Find the snippet by its name/title
+    const allSnippets = snippetStore.allSnippets;
+    const matchingSnippet = allSnippets.find((snippet) => snippet.metadata.name === itemTitle);
+
+    if (matchingSnippet) {
+      // Load the snippet to get full data
+      const loadedSnippet = await snippetStore.loadSnippet(matchingSnippet.filePath);
+
+      // Open a tab for the snippet
+      uiStore.openTab({
+        filePath: loadedSnippet.filePath,
+        fileName: loadedSnippet.fileName,
+        title: loadedSnippet.metadata.name,
+        isDirty: false,
+        isPinned: false,
+        fileCategory: FileCategory.MARKDOWN,
+      });
+
+      // Close the settings dialog
+      isOpen.value = false;
+    } else {
+      console.warn(`[SettingsDialog] Snippet "${itemTitle}" not found`);
+    }
+  } catch (error) {
+    console.error('[SettingsDialog] Failed to open snippet:', error);
+  }
 }
 
 // Get breadcrumb path for selected category
@@ -293,18 +337,34 @@ watch(isOpen, (open) => {
           <div class="settings-dialog__content">
             <!-- Breadcrumb -->
             <div class="settings-dialog__breadcrumb">
-              <span
-                v-for="(crumb, index) in breadcrumb"
-                :key="index"
+              <div class="settings-dialog__breadcrumb-path">
+                <span
+                  v-for="(crumb, index) in breadcrumb"
+                  :key="index"
+                >
+                  <span>{{ crumb }}</span>
+                  <q-icon
+                    v-if="index < breadcrumb.length - 1"
+                    name="chevron_right"
+                    size="16px"
+                    class="settings-dialog__breadcrumb-separator"
+                  />
+                </span>
+              </div>
+              <!-- Refresh button for Plugins section -->
+              <q-btn
+                v-if="selectedCategory === 'plugins' && pluginStore.isInitialized"
+                flat
+                dense
+                round
+                icon="mdi-refresh"
+                size="sm"
+                color="grey"
+                :loading="pluginStore.isLoading"
+                @click="pluginStore.refreshMarketplace(true)"
               >
-                <span>{{ crumb }}</span>
-                <q-icon
-                  v-if="index < breadcrumb.length - 1"
-                  name="chevron_right"
-                  size="16px"
-                  class="settings-dialog__breadcrumb-separator"
-                />
-              </span>
+                <q-tooltip>{{ t('common.refresh') || 'Refresh' }}</q-tooltip>
+              </q-btn>
             </div>
 
             <!-- Settings content -->
@@ -427,6 +487,11 @@ watch(isOpen, (open) => {
                   <div class="settings-dialog__section-title">{{ t('fileSync.title') }}</div>
                   <FileSyncSection />
                 </div>
+              </template>
+
+              <!-- Plugins -->
+              <template v-if="selectedCategory === 'plugins'">
+                <PluginsSection @open-snippet="handleOpenSnippet" />
               </template>
 
               <!-- Storage -->
@@ -591,11 +656,17 @@ watch(isOpen, (open) => {
   &__breadcrumb {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: space-between;
     padding: 12px 16px;
     font-size: 13px;
     color: var(--breadcrumb-color, #858585);
     border-bottom: 1px solid var(--border-color, #3c3c3c);
+  }
+
+  &__breadcrumb-path {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   &__breadcrumb-separator {

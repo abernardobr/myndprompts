@@ -8,6 +8,7 @@
 
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useSnippetStore } from '@/stores/snippetStore';
 import type { ISnippetMetadata } from '@/services/file-system/types';
 
 interface Props {
@@ -16,18 +17,25 @@ interface Props {
 
 interface Emits {
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'create', data: { name: string; type: ISnippetMetadata['type']; description: string }): void;
+  (
+    e: 'create',
+    data: { name: string; type: ISnippetMetadata['type']; description: string; tags: string[] }
+  ): void;
 }
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const { t } = useI18n({ useScope: 'global' });
+const snippetStore = useSnippetStore();
 
 // Form state
 const snippetName = ref('');
 const snippetType = ref<ISnippetMetadata['type']>('text');
 const snippetDescription = ref('');
+const snippetTags = ref<string[]>([]);
+const tagFilterText = ref('');
+const filteredTagOptions = ref<string[]>([]);
 
 // Type options with trigger characters
 const typeOptions = computed(() => [
@@ -63,6 +71,57 @@ const currentTrigger = computed(() => {
   return option?.trigger ?? '@';
 });
 
+// Get all unique tags from all snippets
+const allExistingTags = computed(() => {
+  const tags = new Set<string>();
+  for (const snippet of snippetStore.allSnippets) {
+    for (const tag of snippet.metadata.tags) {
+      tags.add(tag);
+    }
+  }
+  return Array.from(tags).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+});
+
+/**
+ * Normalize a string for diacritics-insensitive comparison.
+ * Example: "Café" -> "cafe"
+ */
+function normalizeForSearch(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Filter tag options based on user input with diacritics support
+ */
+function filterTags(val: string, update: (callback: () => void) => void): void {
+  update(() => {
+    if (!val) {
+      filteredTagOptions.value = allExistingTags.value;
+    } else {
+      const normalizedSearch = normalizeForSearch(val);
+      filteredTagOptions.value = allExistingTags.value.filter((tag) =>
+        normalizeForSearch(tag).includes(normalizedSearch)
+      );
+    }
+  });
+}
+
+/**
+ * Handle creating a new tag from user input
+ */
+function createTag(
+  inputValue: string,
+  doneFn: (item: string, mode: 'add' | 'add-unique' | 'toggle') => void
+): void {
+  const trimmed = inputValue.trim();
+  if (trimmed) {
+    doneFn(trimmed, 'add-unique');
+  }
+}
+
 // Preview shortcut
 const previewShortcut = computed(() => {
   if (!snippetName.value.trim()) return `${currentTrigger.value}...`;
@@ -87,6 +146,9 @@ watch(
       snippetName.value = '';
       snippetType.value = 'text';
       snippetDescription.value = '';
+      snippetTags.value = [];
+      tagFilterText.value = '';
+      filteredTagOptions.value = allExistingTags.value;
     }
   }
 );
@@ -102,6 +164,7 @@ function handleCreate(): void {
     name: snippetName.value.trim(),
     type: snippetType.value,
     description: snippetDescription.value.trim(),
+    tags: snippetTags.value,
   });
 
   emit('update:modelValue', false);
@@ -182,7 +245,51 @@ function handleCreate(): void {
           type="textarea"
           rows="2"
           maxlength="200"
+          class="q-mb-md"
         />
+
+        <!-- Tags (optional) -->
+        <div class="tags-section">
+          <q-select
+            v-model="snippetTags"
+            :options="filteredTagOptions"
+            :label="t('dialogs.newSnippet.tags') || 'Tags'"
+            outlined
+            multiple
+            use-chips
+            use-input
+            input-debounce="0"
+            new-value-mode="add-unique"
+            :hint="
+              t('dialogs.newSnippet.tagsHint') || 'Select existing tags or type to create new ones'
+            "
+            @filter="filterTags"
+            @new-value="createTag"
+          >
+            <template #no-option>
+              <q-item>
+                <q-item-section class="text-grey">
+                  {{
+                    tagFilterText
+                      ? t('common.noResults') || 'No results'
+                      : t('dialogs.newSnippet.tagsEmpty') || 'No tags yet'
+                  }}
+                </q-item-section>
+              </q-item>
+            </template>
+            <template #selected-item="scope">
+              <q-chip
+                removable
+                dense
+                color="primary"
+                text-color="white"
+                @remove="scope.removeAtIndex(scope.index)"
+              >
+                {{ scope.opt }}
+              </q-chip>
+            </template>
+          </q-select>
+        </div>
       </q-card-section>
 
       <q-card-actions
@@ -214,6 +321,10 @@ function handleCreate(): void {
   min-width: 400px;
   max-width: 500px;
   width: 100%;
+}
+
+.tags-section {
+  margin-top: 8px;
 }
 
 code {
