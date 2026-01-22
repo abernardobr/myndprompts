@@ -169,6 +169,28 @@ export interface MenuAPI {
   onNewPrompt: (callback: () => void) => () => void;
   onOpen: (callback: () => void) => () => void;
   onSave: (callback: () => void) => () => void;
+  onCheckForUpdates: (callback: () => void) => () => void;
+}
+
+// Update API
+export interface IUpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+  downloadUrl?: string;
+}
+
+export interface IUpdateCheckResult {
+  success: boolean;
+  updateInfo?: IUpdateInfo;
+  error?: string;
+}
+
+export interface UpdateAPI {
+  checkForUpdates: () => Promise<IUpdateCheckResult>;
+  checkForUpdatesForce: () => Promise<IUpdateCheckResult>;
+  getCurrentVersion: () => Promise<string>;
+  openDownloadPage: (url: string) => Promise<void>;
 }
 
 // Git API
@@ -473,6 +495,19 @@ const menuApi: MenuAPI = {
     ipcRenderer.on('menu:save', handler);
     return () => ipcRenderer.removeListener('menu:save', handler);
   },
+  onCheckForUpdates: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu:check-for-updates', handler);
+    return () => ipcRenderer.removeListener('menu:check-for-updates', handler);
+  },
+};
+
+const updateApi: UpdateAPI = {
+  checkForUpdates: () => ipcRenderer.invoke('update:check') as Promise<IUpdateCheckResult>,
+  checkForUpdatesForce: () =>
+    ipcRenderer.invoke('update:check-force') as Promise<IUpdateCheckResult>,
+  getCurrentVersion: () => ipcRenderer.invoke('update:get-current-version') as Promise<string>,
+  openDownloadPage: (url) => ipcRenderer.invoke('update:open-download-page', url) as Promise<void>,
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronApi);
@@ -480,6 +515,7 @@ contextBridge.exposeInMainWorld('fileSystemAPI', fileSystemApi);
 contextBridge.exposeInMainWorld('externalAppsAPI', externalAppsApi);
 contextBridge.exposeInMainWorld('gitAPI', gitApi);
 contextBridge.exposeInMainWorld('menuAPI', menuApi);
+contextBridge.exposeInMainWorld('updateAPI', updateApi);
 
 // Type augmentation for window object
 declare global {
@@ -489,5 +525,6 @@ declare global {
     externalAppsAPI: ExternalAppsAPI;
     gitAPI: GitAPI;
     menuAPI: MenuAPI;
+    updateAPI: UpdateAPI;
   }
 }

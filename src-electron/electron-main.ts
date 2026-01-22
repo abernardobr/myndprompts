@@ -9,10 +9,12 @@ import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
 import path from 'path';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { readFileSync } from 'fs';
 import { getFileSystemService } from '../src/electron/main/services/file-system.service';
 import { getFileWatcherService } from '../src/electron/main/services/file-watcher.service';
 import { getGitService } from '../src/electron/main/services/git.service';
 import { getFileIndexerService } from '../src/electron/main/services/file-indexer.service';
+import { getUpdateService } from '../src/electron/main/services/update.service';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
@@ -23,13 +25,23 @@ import type { IGitLogOptions } from '../src/services/git/types';
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform();
 
+// Read version from package.json (app.getVersion() returns Electron version in dev mode)
+let appVersion = '0.0.0';
+try {
+  const packageJsonPath = path.join(process.cwd(), 'package.json');
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { version: string };
+  appVersion = packageJson.version;
+} catch {
+  appVersion = app.getVersion();
+}
+
+const currentDir = fileURLToPath(new URL('.', import.meta.url));
+
 // Set the app name as early as possible (before ready event)
 // This affects the macOS menu bar name
 if (platform === 'darwin') {
   app.name = 'MyndPrompts';
 }
-
-const currentDir = fileURLToPath(new URL('.', import.meta.url));
 
 let mainWindow: BrowserWindow | undefined;
 
@@ -58,6 +70,12 @@ function createApplicationMenu(): void {
                 accelerator: 'Cmd+,',
                 click: () => {
                   mainWindow?.webContents.send('menu:settings');
+                },
+              },
+              {
+                label: 'Check for Updates...',
+                click: () => {
+                  mainWindow?.webContents.send('menu:check-for-updates');
                 },
               },
               { type: 'separator' as const },
@@ -160,6 +178,13 @@ function createApplicationMenu(): void {
     {
       label: 'Help',
       submenu: [
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            mainWindow?.webContents.send('menu:check-for-updates');
+          },
+        },
+        { type: 'separator' },
         {
           label: 'MyndPrompts Documentation',
           click: async () => {
@@ -265,7 +290,7 @@ app.on('web-contents-created', (_, contents) => {
 // ================================
 
 ipcMain.handle('app:get-version', () => {
-  return app.getVersion();
+  return appVersion;
 });
 
 ipcMain.handle('app:get-platform', () => {
@@ -712,4 +737,26 @@ ipcMain.handle('external-apps:open-in-app', async (_event, filePath: string, app
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
+});
+
+// ================================
+// Update IPC Handlers
+// ================================
+
+ipcMain.handle('update:check', async () => {
+  const updateService = getUpdateService();
+  return updateService.checkForUpdates();
+});
+
+ipcMain.handle('update:check-force', async () => {
+  const updateService = getUpdateService();
+  return updateService.checkForUpdates(true);
+});
+
+ipcMain.handle('update:get-current-version', () => {
+  return appVersion;
+});
+
+ipcMain.handle('update:open-download-page', async (_event, url: string) => {
+  await shell.openExternal(url);
 });

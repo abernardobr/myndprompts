@@ -1,10 +1,22 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
 import path from 'path';
 import os from 'os';
+import { readFileSync } from 'fs';
+
+// Read version from package.json (app.getVersion() returns Electron version in dev mode)
+let appVersion = '0.0.0';
+try {
+  const packageJsonPath = path.join(process.cwd(), 'package.json');
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { version: string };
+  appVersion = packageJson.version;
+} catch {
+  appVersion = app.getVersion();
+}
 import { getFileSystemService } from './services/file-system.service';
 import { getFileWatcherService } from './services/file-watcher.service';
 import { getGitService } from './services/git.service';
 import { getFileIndexerService } from './services/file-indexer.service';
+import { getUpdateService } from './services/update.service';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
@@ -40,6 +52,12 @@ function createApplicationMenu(): void {
                 accelerator: 'Cmd+,',
                 click: () => {
                   mainWindow?.webContents.send('menu:settings');
+                },
+              },
+              {
+                label: 'Check for Updates...',
+                click: () => {
+                  mainWindow?.webContents.send('menu:check-for-updates');
                 },
               },
               { type: 'separator' as const },
@@ -146,6 +164,13 @@ function createApplicationMenu(): void {
     {
       label: 'Help',
       submenu: [
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            mainWindow?.webContents.send('menu:check-for-updates');
+          },
+        },
+        { type: 'separator' as const },
         {
           label: 'MyndPrompts Documentation',
           click: () => {
@@ -272,7 +297,7 @@ app.on('before-quit', () => {
 // ================================
 
 ipcMain.handle('app:get-version', () => {
-  return app.getVersion();
+  return appVersion;
 });
 
 ipcMain.handle('app:get-platform', () => {
@@ -715,6 +740,28 @@ ipcMain.handle('git:tracked-files', async (_event, repoPath?: string) => {
 // Remove Git (delete .git folder)
 ipcMain.handle('git:remove', async (_event, repoPath: string) => {
   return gitService.removeGit(repoPath);
+});
+
+// ================================
+// Update IPC Handlers
+// ================================
+
+ipcMain.handle('update:check', async () => {
+  const updateService = getUpdateService();
+  return updateService.checkForUpdates();
+});
+
+ipcMain.handle('update:check-force', async () => {
+  const updateService = getUpdateService();
+  return updateService.checkForUpdates(true);
+});
+
+ipcMain.handle('update:get-current-version', () => {
+  return appVersion;
+});
+
+ipcMain.handle('update:open-download-page', async (_event, url: string) => {
+  await shell.openExternal(url);
 });
 
 // Security: Prevent new window creation

@@ -24,6 +24,7 @@ import EditorArea from '@/components/layout/EditorArea.vue';
 import BottomPanel from '@/components/layout/BottomPanel.vue';
 import StatusBar from '@/components/layout/StatusBar.vue';
 import SettingsDialog from '@/components/dialogs/SettingsDialog.vue';
+import UpdateDialog from '@/components/dialogs/UpdateDialog.vue';
 
 const uiStore = useUIStore();
 const appStore = useAppStore();
@@ -83,7 +84,8 @@ function openSettingsDialog(): void {
 provide('openSettingsDialog', openSettingsDialog);
 
 // Menu event listener cleanup
-let cleanupMenuListener: (() => void) | null = null;
+let cleanupSettingsListener: (() => void) | null = null;
+let cleanupUpdateListener: (() => void) | null = null;
 
 // Initialize stores on mount
 onMounted(async () => {
@@ -91,15 +93,26 @@ onMounted(async () => {
 
   // Listen for menu:settings event from Electron menu
   if (window.menuAPI) {
-    cleanupMenuListener = window.menuAPI.onSettings(() => {
+    cleanupSettingsListener = window.menuAPI.onSettings(() => {
       showSettingsDialog.value = true;
     });
+
+    // Listen for menu:check-for-updates event from Electron menu
+    cleanupUpdateListener = window.menuAPI.onCheckForUpdates(() => {
+      void appStore.checkForUpdates(true); // true = show dialog even if up-to-date
+    });
   }
+
+  // Check for updates after a short delay (don't block startup)
+  setTimeout(() => {
+    void appStore.checkForUpdates(false); // false = only show if update available
+  }, 3000);
 });
 
 // Cleanup on unmount
 onUnmounted(() => {
-  cleanupMenuListener?.();
+  cleanupSettingsListener?.();
+  cleanupUpdateListener?.();
 });
 </script>
 
@@ -171,6 +184,18 @@ onUnmounted(() => {
 
     <!-- Settings Dialog -->
     <SettingsDialog v-model="showSettingsDialog" />
+
+    <!-- Update Dialog -->
+    <UpdateDialog
+      v-model="appStore.showUpdateDialog"
+      :update-info="appStore.updateInfo"
+      :is-checking="appStore.isCheckingUpdate"
+      :error="appStore.updateError"
+      @download="appStore.openDownloadPage"
+      @remind-later="appStore.dismissUpdateDialog"
+      @skip-version="appStore.skipVersion(appStore.updateInfo?.latestVersion ?? '')"
+      @retry="appStore.checkForUpdates(true)"
+    />
   </div>
 </template>
 
