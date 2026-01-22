@@ -445,6 +445,8 @@ function clearSearch(): void {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
 
   &__input-container {

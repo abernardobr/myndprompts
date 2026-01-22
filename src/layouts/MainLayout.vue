@@ -182,6 +182,9 @@ onUnmounted(() => {
 
 .splitpanes__pane {
   background-color: transparent;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
 }
 
 // Splitter styles - override library defaults
