@@ -46,6 +46,8 @@ const commitMessage = ref('Initial commit');
 const isCheckingRepo = ref(false);
 const isInitializing = ref(false);
 const isAddingRemote = ref(false);
+const isRemovingRemote = ref(false);
+const removingRemoteName = ref('');
 const isCommitting = ref(false);
 const isPushing = ref(false);
 const isPulling = ref(false);
@@ -53,11 +55,14 @@ const isFetching = ref(false);
 const isConfiguringUser = ref(false);
 const isRemovingGit = ref(false);
 const showRemoveConfirm = ref(false);
+const isSwitchingBranch = ref(false);
+const switchingBranchName = ref('');
 
 // Git status
 const isGitRepo = ref(false);
 const currentBranch = ref('');
 const remotes = ref<{ name: string; url: string }[]>([]);
+const branches = ref<{ name: string; current: boolean }[]>([]);
 const hasUncommittedChanges = ref(false);
 const stagedCount = ref(0);
 const unstagedCount = ref(0);
@@ -108,6 +113,13 @@ async function checkGitStatus(): Promise<void> {
       remotes.value = gitStore.remotes.map((r) => ({
         name: r.name,
         url: r.fetchUrl ?? r.pushUrl ?? '',
+      }));
+
+      // Load branches
+      await gitStore.loadBranches();
+      branches.value = gitStore.branches.map((b) => ({
+        name: b.name,
+        current: b.current,
       }));
 
       // Load user config
@@ -204,6 +216,84 @@ async function addRemote(): Promise<void> {
     });
   } finally {
     isAddingRemote.value = false;
+  }
+}
+
+// Remove a remote
+async function removeRemote(remoteName: string): Promise<void> {
+  isRemovingRemote.value = true;
+  removingRemoteName.value = remoteName;
+
+  try {
+    const success = await gitStore.removeRemote(remoteName);
+
+    if (success) {
+      $q.notify({
+        type: 'positive',
+        message: `Remote '${remoteName}' removed successfully`,
+        position: 'top',
+        timeout: 3000,
+      });
+      await checkGitStatus();
+    } else {
+      $q.notify({
+        type: 'negative',
+        message: gitStore.error ?? 'Failed to remove remote',
+        position: 'top',
+        timeout: 4000,
+      });
+    }
+  } catch (err) {
+    console.error('Failed to remove remote:', err);
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to remove remote',
+      position: 'top',
+      timeout: 4000,
+    });
+  } finally {
+    isRemovingRemote.value = false;
+    removingRemoteName.value = '';
+  }
+}
+
+// Switch to a branch
+async function switchToBranch(branchName: string): Promise<void> {
+  if (branchName === currentBranch.value) return;
+
+  isSwitchingBranch.value = true;
+  switchingBranchName.value = branchName;
+
+  try {
+    const success = await gitStore.switchBranch(branchName);
+
+    if (success) {
+      $q.notify({
+        type: 'positive',
+        message: `Switched to branch '${branchName}'`,
+        position: 'top',
+        timeout: 3000,
+      });
+      await checkGitStatus();
+    } else {
+      $q.notify({
+        type: 'negative',
+        message: gitStore.error ?? 'Failed to switch branch',
+        position: 'top',
+        timeout: 4000,
+      });
+    }
+  } catch (err) {
+    console.error('Failed to switch branch:', err);
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to switch branch',
+      position: 'top',
+      timeout: 4000,
+    });
+  } finally {
+    isSwitchingBranch.value = false;
+    switchingBranchName.value = '';
   }
 }
 
@@ -826,6 +916,59 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
             <!-- Remotes panel -->
             <q-tab-panel name="remotes">
               <div class="git-setup-dialog__panel-content">
+                <!-- Branches section -->
+                <div
+                  v-if="branches.length > 0"
+                  class="q-mb-lg"
+                >
+                  <h6 class="q-ma-none q-mb-sm">{{ t('gitPanel.branches') || 'Branches' }}</h6>
+                  <q-list
+                    bordered
+                    separator
+                    class="rounded-borders"
+                  >
+                    <q-item
+                      v-for="branch in branches"
+                      :key="branch.name"
+                      :class="{ 'bg-primary': branch.current }"
+                      clickable
+                      :disable="isSwitchingBranch"
+                      @click="switchToBranch(branch.name)"
+                    >
+                      <q-item-section avatar>
+                        <q-icon
+                          :name="branch.current ? 'mdi-source-branch-check' : 'mdi-source-branch'"
+                          :color="branch.current ? 'white' : 'grey'"
+                        />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label :class="{ 'text-white': branch.current }">
+                          {{ branch.name }}
+                        </q-item-label>
+                        <q-item-label
+                          v-if="branch.current"
+                          caption
+                          class="text-white-7"
+                        >
+                          {{ t('gitPanel.currentBranch') || 'Current branch' }}
+                        </q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <q-spinner
+                          v-if="isSwitchingBranch && switchingBranchName === branch.name"
+                          color="primary"
+                          size="20px"
+                        />
+                        <q-icon
+                          v-else-if="branch.current"
+                          name="mdi-check"
+                          color="white"
+                        />
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </div>
+
                 <!-- Existing remotes -->
                 <div
                   v-if="remotes.length > 0"
@@ -835,6 +978,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                   <q-list
                     bordered
                     separator
+                    class="rounded-borders"
                   >
                     <q-item
                       v-for="remote in remotes"
@@ -850,6 +994,19 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                         <q-item-label>{{ remote.name }}</q-item-label>
                         <q-item-label caption>{{ remote.url }}</q-item-label>
                       </q-item-section>
+                      <q-item-section side>
+                        <q-btn
+                          flat
+                          dense
+                          round
+                          icon="mdi-delete"
+                          color="negative"
+                          :loading="isRemovingRemote && removingRemoteName === remote.name"
+                          @click.stop="removeRemote(remote.name)"
+                        >
+                          <q-tooltip>{{ t('common.delete') || 'Delete' }}</q-tooltip>
+                        </q-btn>
+                      </q-item-section>
                     </q-item>
                   </q-list>
                 </div>
@@ -864,7 +1021,7 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                   v-model="remoteName"
                   outlined
                   dense
-                  :label="t('dialogs.branch.branchName')"
+                  :label="t('dialogs.gitSetup.remoteName')"
                   placeholder="origin"
                   class="q-mb-sm"
                 />

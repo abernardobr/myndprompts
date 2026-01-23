@@ -65,14 +65,20 @@ rm -rf "$BUILD_OUTPUT"
 build_platform() {
     local platform=$1
     local description=$2
+    local arch=$3  # Optional architecture (x64, arm64)
 
     echo ""
     echo -e "${BLUE}----------------------------------------${NC}"
     echo -e "${BLUE}Building for ${description}...${NC}"
     echo -e "${BLUE}----------------------------------------${NC}"
 
-    # Run the build
-    if npx quasar build -m electron -T "$platform"; then
+    # Run the build with or without arch flag
+    local build_cmd="npx quasar build -m electron -T $platform"
+    if [ -n "$arch" ]; then
+        build_cmd="$build_cmd --arch $arch"
+    fi
+
+    if $build_cmd; then
         echo -e "${GREEN}✓ ${description} build completed${NC}"
         return 0
     else
@@ -171,11 +177,11 @@ if build_platform "mac" "macOS"; then
     MAC_SUCCESS=true
 fi
 
-# Build for Linux
+# Build for Linux (x64 and arm64)
 echo ""
-echo -e "${YELLOW}Starting Linux build...${NC}"
+echo -e "${YELLOW}Starting Linux build (x64 + arm64)...${NC}"
 
-if build_platform "linux" "Linux"; then
+if build_platform "linux" "Linux (x64 + arm64)"; then
     copy_builds "linux" "$LINUX_OUTPUT"
     LINUX_SUCCESS=true
 fi
@@ -203,7 +209,7 @@ else
 fi
 
 if $LINUX_SUCCESS; then
-    echo -e "${GREEN}✓ Linux build successful${NC}"
+    echo -e "${GREEN}✓ Linux build successful (x64 + arm64)${NC}"
 else
     echo -e "${RED}✗ Linux build failed${NC}"
 fi

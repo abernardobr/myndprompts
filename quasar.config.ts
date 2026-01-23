@@ -97,7 +97,7 @@ export default configure(() => {
       bundler: 'builder',
 
       builder: {
-        appId: 'com.myndprompt.app',
+        appId: 'com.myndprompts.app',
         productName: 'MyndPrompts',
         copyright: 'Copyright (c) MyndPrompt Contributors',
 
@@ -116,14 +116,29 @@ export default configure(() => {
         },
 
         win: {
-          target: ['nsis', 'portable'],
+          target: 'nsis',
           icon: 'src-electron/icons/icon.ico',
+          executableName: 'MyndPrompts',
+        },
+
+        nsis: {
+          oneClick: false,
+          allowToChangeInstallationDirectory: true,
+          createDesktopShortcut: true,
+          createStartMenuShortcut: true,
+          shortcutName: 'MyndPrompts',
+          runAfterFinish: false,
         },
 
         linux: {
           category: 'Development',
-          target: ['AppImage', 'deb'],
+          target: [
+            { target: 'AppImage', arch: ['x64', 'arm64'] },
+            { target: 'deb', arch: ['x64', 'arm64'] },
+          ],
           icon: 'src-electron/icons/icon.png',
+          executableName: 'myndprompts',
+          artifactName: '${productName}-${version}-${arch}.${ext}',
         },
       },
 

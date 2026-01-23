@@ -412,6 +412,7 @@ export default {
       userEmailPlaceholder: "your.email{'@'}example.com",
       initRepository: 'تهيئة المستودع',
       configureGit: 'تكوين Git',
+      remoteName: 'اسم المستودع البعيد',
       dangerZone: 'منطقة الخطر',
       removeGit: 'إزالة Git',
       removeGitDescription:

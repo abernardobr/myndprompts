@@ -352,11 +352,7 @@ export class GitService {
    * Push to remote
    * Uses --set-upstream to ensure tracking is configured
    */
-  async push(
-    remote: string = 'origin',
-    branch?: string,
-    path?: string
-  ): Promise<IGitOperationResult> {
+  async push(remote?: string, branch?: string, path?: string): Promise<IGitOperationResult> {
     const workingPath = path ?? this.currentPath;
     if (!workingPath) {
       return { success: false, error: 'No working directory set' };
@@ -364,6 +360,25 @@ export class GitService {
 
     try {
       const git = simpleGit(workingPath);
+
+      // Get the remote to use - either specified, from tracking, or first available
+      let targetRemote = remote;
+      if (!targetRemote) {
+        const status = await git.status();
+        if (status.tracking) {
+          const trackingParts = status.tracking.split('/');
+          if (trackingParts.length >= 1) {
+            targetRemote = trackingParts[0];
+          }
+        }
+        if (!targetRemote) {
+          const remotesList = await git.getRemotes();
+          if (remotesList.length === 0) {
+            return { success: false, error: 'No remote configured' };
+          }
+          targetRemote = remotesList[0].name;
+        }
+      }
 
       // Get current branch if not specified
       let targetBranch = branch;
@@ -373,7 +388,7 @@ export class GitService {
       }
 
       // Use -u flag to set upstream tracking (safe for both first push and subsequent pushes)
-      await git.push(['-u', remote, targetBranch]);
+      await git.push(['-u', targetRemote, targetBranch]);
 
       return { success: true };
     } catch (error) {
@@ -386,14 +401,10 @@ export class GitService {
 
   /**
    * Pull from remote
-   * Automatically determines current branch if not specified
+   * Automatically determines current branch and remote if not specified
    * Sets up tracking if not already configured
    */
-  async pull(
-    remote: string = 'origin',
-    branch?: string,
-    path?: string
-  ): Promise<IGitOperationResult> {
+  async pull(remote?: string, branch?: string, path?: string): Promise<IGitOperationResult> {
     const workingPath = path ?? this.currentPath;
     if (!workingPath) {
       return { success: false, error: 'No working directory set' };
@@ -402,6 +413,36 @@ export class GitService {
     try {
       const git = simpleGit(workingPath);
 
+      // Get the remote to use - either specified, from tracking, or first available
+      let targetRemote = remote;
+      if (!targetRemote) {
+        // Check if there's a tracking branch that specifies the remote
+        const status = await git.status();
+        if (status.tracking) {
+          // tracking is like "origin/main", extract the remote name
+          const trackingParts = status.tracking.split('/');
+          if (trackingParts.length >= 1) {
+            targetRemote = trackingParts[0];
+          }
+        }
+
+        // If still no remote, get the first available remote
+        if (!targetRemote) {
+          const remotesList = await git.getRemotes();
+          if (remotesList.length === 0) {
+            return { success: false, error: 'No remote configured' };
+          }
+          targetRemote = remotesList[0].name;
+        }
+      }
+
+      // First fetch to get latest refs
+      try {
+        await git.fetch(targetRemote);
+      } catch {
+        // Fetch may fail, continue
+      }
+
       // Get current branch if not specified
       let targetBranch = branch;
       if (!targetBranch) {
@@ -409,18 +450,36 @@ export class GitService {
         targetBranch = branchSummary.current;
       }
 
-      // Check if tracking is set up by looking at the status
-      const status = await git.status();
-      if (!status.tracking) {
-        // Set up tracking before pulling
-        try {
-          await git.branch(['--set-upstream-to', `${remote}/${targetBranch}`, targetBranch]);
-        } catch {
-          // Tracking setup may fail if remote branch doesn't exist yet, continue anyway
+      // Get remote branches to find a matching one
+      const remoteBranches = await git.branch(['-r']);
+      const exactMatch = `${targetRemote}/${targetBranch}`;
+
+      let remoteBranchToPull = targetBranch;
+
+      if (!remoteBranches.all.includes(exactMatch)) {
+        // Remote branch with same name doesn't exist, try common defaults
+        const fallbacks = ['main', 'master'];
+        for (const fallback of fallbacks) {
+          if (remoteBranches.all.includes(`${targetRemote}/${fallback}`)) {
+            remoteBranchToPull = fallback;
+            break;
+          }
         }
       }
 
-      await git.pull(remote, targetBranch);
+      // Try to set up tracking
+      try {
+        await git.branch([
+          '--set-upstream-to',
+          `${targetRemote}/${remoteBranchToPull}`,
+          targetBranch,
+        ]);
+      } catch {
+        // May fail if already set or branch doesn't exist, continue
+      }
+
+      // Use raw command for more reliable pull with explicit remote/branch
+      await git.raw(['pull', targetRemote, remoteBranchToPull]);
       return { success: true };
     } catch (error) {
       return {
@@ -433,7 +492,7 @@ export class GitService {
   /**
    * Fetch from remote
    */
-  async fetch(remote: string = 'origin', path?: string): Promise<IGitOperationResult> {
+  async fetch(remote?: string, path?: string): Promise<IGitOperationResult> {
     const workingPath = path ?? this.currentPath;
     if (!workingPath) {
       return { success: false, error: 'No working directory set' };
@@ -441,7 +500,27 @@ export class GitService {
 
     try {
       const git = simpleGit(workingPath);
-      await git.fetch(remote);
+
+      // Get the remote to use - either specified, from tracking, or first available
+      let targetRemote = remote;
+      if (!targetRemote) {
+        const status = await git.status();
+        if (status.tracking) {
+          const trackingParts = status.tracking.split('/');
+          if (trackingParts.length >= 1) {
+            targetRemote = trackingParts[0];
+          }
+        }
+        if (!targetRemote) {
+          const remotesList = await git.getRemotes();
+          if (remotesList.length === 0) {
+            return { success: false, error: 'No remote configured' };
+          }
+          targetRemote = remotesList[0].name;
+        }
+      }
+
+      await git.fetch(targetRemote);
       return { success: true };
     } catch (error) {
       return {

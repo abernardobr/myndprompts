@@ -429,6 +429,7 @@ export default {
       userEmailPlaceholder: "your.email{'@'}example.com",
       initRepository: 'Initialise Repository',
       configureGit: 'Configure Git',
+      remoteName: 'Remote Name',
       dangerZone: 'Danger Zone',
       removeGit: 'Remove Git',
       removeGitDescription:

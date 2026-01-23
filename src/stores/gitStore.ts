@@ -522,6 +522,32 @@ export const useGitStore = defineStore('git', () => {
   }
 
   /**
+   * Remove a remote
+   */
+  async function removeRemote(name: string): Promise<boolean> {
+    if (!isRepo.value) return false;
+
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const result = await gitService.removeRemote(name);
+      if (result.success) {
+        await loadRemotes();
+        return true;
+      } else {
+        error.value = result.error ?? 'Failed to remove remote';
+        return false;
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to remove remote';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
    * Load user config
    */
   async function loadUserConfig(): Promise<void> {
@@ -669,6 +695,7 @@ export const useGitStore = defineStore('git', () => {
     switchBranch,
     loadRemotes,
     addRemote,
+    removeRemote,
     loadUserConfig,
     setUserConfig,
     clearError,
