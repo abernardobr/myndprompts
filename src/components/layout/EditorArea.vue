@@ -40,6 +40,11 @@ const splitDirection = computed(() => uiStore.splitDirection);
 const isSplitView = computed(() => uiStore.isSplitView);
 const hasAnyTabs = computed(() => editorPanes.value.some((p) => p.tabs.length > 0));
 
+// Open external link in default browser
+function openExternalLink(url: string): void {
+  void window.updateAPI?.openDownloadPage(url);
+}
+
 // Keyboard shortcuts for reference
 const shortcuts = [
   { keys: 'Ctrl+N', description: 'New Prompt' },
@@ -312,6 +317,32 @@ watch(
               </div>
             </div>
           </div>
+
+          <!-- Partner logos -->
+          <div class="editor-area__partners">
+            <a
+              href="#"
+              class="editor-area__partner-link"
+              @click.prevent="openExternalLink('https://myndware.com')"
+            >
+              <img
+                src="@/assets/images/MyndWare-Colorida-Horizontal.png"
+                alt="MyndWare"
+                class="editor-area__partner-logo"
+              />
+            </a>
+            <a
+              href="#"
+              class="editor-area__partner-link"
+              @click.prevent="openExternalLink('https://myndagents.com')"
+            >
+              <img
+                src="@/assets/images/myndagents_logo.png"
+                alt="MyndAgents"
+                class="editor-area__partner-logo"
+              />
+            </a>
+          </div>
         </div>
       </div>
     </template>
@@ -559,6 +590,33 @@ watch(
     font-size: 13px;
     color: var(--shortcut-desc-color, #cccccc);
   }
+
+  &__partners {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--partner-border, rgba(128, 128, 128, 0.2));
+  }
+
+  &__partner-link {
+    display: flex;
+    align-items: center;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &__partner-logo {
+    height: 32px;
+    width: auto;
+    object-fit: contain;
+  }
 }
 
 // Light theme
@@ -573,6 +631,7 @@ watch(
   --kbd-border: #d4d4d4;
   --kbd-color: #3b3b3b;
   --shortcut-desc-color: #3b3b3b;
+  --partner-border: rgba(0, 0, 0, 0.1);
 }
 
 // Dark theme
@@ -587,5 +646,6 @@ watch(
   --kbd-border: #454545;
   --kbd-color: #cccccc;
   --shortcut-desc-color: #cccccc;
+  --partner-border: rgba(255, 255, 255, 0.1);
 }
 </style>

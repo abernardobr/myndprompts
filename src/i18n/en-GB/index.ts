@@ -62,6 +62,8 @@ export default {
     info: 'Info',
     success: 'Success',
     retry: 'Retry',
+    item: 'item',
+    items: 'items',
   },
 
   // Activity bar
@@ -78,7 +80,7 @@ export default {
   sidebar: {
     explorer: 'Explorer',
     search: 'Search',
-    snippets: 'Snippets',
+    snippets: 'Library',
     favorites: 'Favourites',
     sourceControl: 'Source Control',
     settings: 'Settings',
@@ -158,7 +160,7 @@ export default {
   // Snippets panel
   snippetsPanel: {
     title: 'Snippets',
-    searchPlaceholder: 'Search snippets...',
+    searchPlaceholder: 'Search library...',
     createNew: 'Create new snippet',
     personas: 'Personas',
     textSnippets: 'Text Snippets',
@@ -184,6 +186,10 @@ export default {
     browserModeHint: 'Running in browser preview mode.',
     filterByTags: 'Filter by tags...',
     noTagsFound: 'No tags found',
+    filterByLanguage: 'Language',
+    selectLanguage: 'Select language...',
+    allLanguages: 'All languages',
+    noLanguagesFound: 'No languages found',
   },
 
   // Favourites panel
@@ -362,6 +368,8 @@ export default {
       tagsPlaceholder: 'Add tag...',
       tagsHint: 'Select existing tags or type to create new ones',
       tagsEmpty: 'No tags yet',
+      language: 'Language',
+      languageHint: 'Select the content language',
     },
     newProject: {
       title: 'New Project',
@@ -614,21 +622,35 @@ export default {
   // Plugins
   plugins: {
     // Section title
-    title: 'Plugins',
+    title: 'Libraries',
 
     // Tabs
     marketplace: 'Marketplace',
     installed: 'Installed',
 
     // Search and filters
-    searchPlaceholder: 'Search plugins...',
+    searchPlaceholder: 'Search libraries...',
+    searchItems: 'Search templates, personas, snippets...',
+    noItemsFound: 'No items found',
+    tryDifferentSearch: 'Try a different search term',
+    installLibrary: 'Install Library',
+    hintNavigate: 'navigate',
+    hintInstall: 'install library',
+    hintUninstall: 'uninstall',
+    hintClose: 'close',
     filterByType: 'Type',
     filterByTags: 'Tags',
     allTypes: 'All',
     allTags: 'All tags',
     clearFilters: 'Clear filters',
+    selectTags: 'Select tags...',
+    noTagsFound: 'No tags found',
+    filterByLanguage: 'Language',
+    selectLanguage: 'Select language...',
+    allLanguages: 'All languages',
+    noLanguagesFound: 'No languages found',
 
-    // Plugin types
+    // Library types
     types: {
       persona: 'Persona',
       templates: 'Templates',
@@ -636,7 +658,7 @@ export default {
       text_snippets: 'Text Snippets',
     },
 
-    // Plugin card
+    // Library card
     version: 'Version',
     items: 'items',
     installedOn: 'Installed',
@@ -654,18 +676,21 @@ export default {
     view: 'View',
 
     // Confirmation dialog
-    uninstallTitle: 'Uninstall Plugin',
+    uninstallTitle: 'Uninstall Library',
     uninstallMessage: 'Are you sure you want to uninstall "{name}"?',
-    uninstallWarning: 'This will remove all items provided by this plugin.',
+    uninstallWarning: 'This will remove all items provided by this library.',
 
     // Empty states
-    noPluginsFound: 'No plugins found',
+    noPluginsFound: 'No libraries found',
     noPluginsFoundHint: 'Try adjusting your filters',
-    noPluginsInstalled: 'No plugins installed',
-    noPluginsInstalledHint: 'Visit the Marketplace to discover and install plugins',
-    noPluginsOfType: 'No installed plugins of this type',
-    installFromMarketplace: 'Install plugins from the Marketplace first',
-    noContent: 'This plugin has no content',
+    noPluginsInstalled: 'No libraries installed',
+    noPluginsInstalledHint: 'Visit the Marketplace to discover and install libraries',
+    noInstalledLibraries: 'No installed libraries',
+    goToMarketplace: 'Browse the Marketplace tab to install libraries',
+    browseMarketplace: 'Browse Marketplace',
+    noPluginsOfType: 'No installed libraries of this type',
+    installFromMarketplace: 'Install libraries from the Marketplace first',
+    noContent: 'This library has no content',
 
     // Content selector dialog
     addFromLibrary: 'Add from Library',
@@ -675,32 +700,32 @@ export default {
     addSelected: 'Add Selected',
 
     // Notifications
-    installSuccess: 'Plugin installed successfully',
-    installError: 'Failed to install plugin',
-    updateSuccess: 'Plugin updated successfully',
-    updateError: 'Failed to update plugin',
-    uninstallSuccess: 'Plugin uninstalled successfully',
-    uninstallError: 'Failed to uninstall plugin',
+    installSuccess: 'Library installed successfully',
+    installError: 'Failed to install library',
+    updateSuccess: 'Library updated successfully',
+    updateError: 'Failed to update library',
+    uninstallSuccess: 'Library uninstalled successfully',
+    uninstallError: 'Failed to uninstall library',
     contentAddedSuccess: 'Added {count} item(s) from library',
     contentAddedError: 'Failed to add items from library',
-    clearAllSuccess: 'All plugins cleared successfully',
-    clearAllError: 'Failed to clear plugins',
+    clearAllSuccess: 'All libraries cleared successfully',
+    clearAllError: 'Failed to clear libraries',
 
     // Clear all (troubleshooting)
     clearAll: 'Clear All',
-    clearAllTitle: 'Clear All Plugins',
-    clearAllMessage: 'Are you sure you want to remove all installed plugins?',
+    clearAllTitle: 'Clear All Libraries',
+    clearAllMessage: 'Are you sure you want to remove all installed libraries?',
     clearAllWarning:
-      'This will remove all plugin metadata from storage. Use this to fix corrupt data.',
-    clearAllTooltip: 'Remove all installed plugins (for troubleshooting)',
+      'This will remove all library metadata from storage. Use this to fix corrupt data.',
+    clearAllTooltip: 'Remove all installed libraries (for troubleshooting)',
 
     // Loading states
-    loadingPlugins: 'Loading plugins...',
+    loadingPlugins: 'Loading libraries...',
     updatesAvailable: 'updates available',
 
     // Network/Error states
     offline: 'You appear to be offline. Please check your connection.',
-    networkError: 'Failed to connect to the plugin marketplace.',
-    fetchError: 'Failed to load plugins. Please try again.',
+    networkError: 'Failed to connect to the library marketplace.',
+    fetchError: 'Failed to load libraries. Please try again.',
   },
 };

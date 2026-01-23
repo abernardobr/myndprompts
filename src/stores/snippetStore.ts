@@ -247,6 +247,7 @@ export const useSnippetStore = defineStore('snippets', () => {
     type: ISnippetMetadata['type'] = 'text',
     content: string = '',
     tags: string[] = [],
+    language?: string,
     description?: string
   ): Promise<ISnippetFile> {
     if (!isElectron()) {
@@ -255,7 +256,14 @@ export const useSnippetStore = defineStore('snippets', () => {
 
     try {
       isLoading.value = true;
-      const snippet = await snippetService.createSnippet(name, type, content, tags, description);
+      const snippet = await snippetService.createSnippet(
+        name,
+        type,
+        content,
+        tags,
+        language,
+        description
+      );
 
       // Add to cache
       const newCache = new Map(snippetCache.value);

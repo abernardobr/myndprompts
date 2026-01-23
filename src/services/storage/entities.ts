@@ -169,6 +169,8 @@ export interface IPluginItem {
   description?: string;
   content: string;
   language?: string;
+  tags?: string[];
+  type?: PluginType;
 }
 
 /**
@@ -179,7 +181,8 @@ export interface IPlugin {
   name: string;
   description?: string;
   version: string;
-  type: PluginType;
+  type?: PluginType;
+  language?: string;
   tags: string[];
   items: IPluginItem[];
   installedAt: Date;

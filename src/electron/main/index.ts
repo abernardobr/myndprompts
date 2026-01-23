@@ -308,6 +308,13 @@ ipcMain.handle('app:get-user-data-path', () => {
   return app.getPath('userData');
 });
 
+// Toggle macOS traffic light visibility (for fullscreen dialogs)
+ipcMain.handle('app:set-traffic-lights-visible', (_event, visible: boolean) => {
+  if (mainWindow && platform === 'darwin') {
+    mainWindow.setWindowButtonVisibility(visible);
+  }
+});
+
 // ================================
 // Dialog IPC Handlers
 // ================================

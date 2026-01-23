@@ -100,6 +100,7 @@ export class FrontmatterService {
         `@${this.extractNameFromPath(filePath).toLowerCase().replace(/\s+/g, '-')}`,
       description: metadata.description,
       tags: metadata.tags ?? [],
+      language: metadata.language,
       createdAt: metadata.createdAt ?? now,
       updatedAt: metadata.updatedAt ?? now,
     };
@@ -166,6 +167,7 @@ export class FrontmatterService {
     type: ISnippetMetadata['type'] = 'text',
     content: string = '',
     tags: string[] = [],
+    language?: string,
     description?: string
   ): { metadata: ISnippetMetadata; content: string } {
     const now = new Date().toISOString();
@@ -178,6 +180,7 @@ export class FrontmatterService {
         shortcut,
         description,
         tags,
+        language,
         createdAt: now,
         updatedAt: now,
       },

@@ -10,6 +10,7 @@ import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useSnippetStore } from '@/stores/snippetStore';
 import type { ISnippetMetadata } from '@/services/file-system/types';
+import { getLanguageOptions } from '@/constants/languages';
 
 interface Props {
   modelValue: boolean;
@@ -19,7 +20,13 @@ interface Emits {
   (e: 'update:modelValue', value: boolean): void;
   (
     e: 'create',
-    data: { name: string; type: ISnippetMetadata['type']; description: string; tags: string[] }
+    data: {
+      name: string;
+      type: ISnippetMetadata['type'];
+      description: string;
+      tags: string[];
+      language: string | null;
+    }
   ): void;
 }
 
@@ -36,6 +43,13 @@ const snippetDescription = ref('');
 const snippetTags = ref<string[]>([]);
 const tagFilterText = ref('');
 const filteredTagOptions = ref<string[]>([]);
+
+// Language state
+const language = ref<string | null>(null);
+const filteredLanguageOptions = ref<{ value: string; label: string }[]>([]);
+
+// Language options for dropdown
+const languageOptions = computed(() => getLanguageOptions());
 
 // Type options with trigger characters
 const typeOptions = computed(() => [
@@ -122,6 +136,22 @@ function createTag(
   }
 }
 
+/**
+ * Filter language options based on user input
+ */
+function filterLanguages(val: string, update: (callback: () => void) => void): void {
+  update(() => {
+    if (!val) {
+      filteredLanguageOptions.value = languageOptions.value;
+    } else {
+      const needle = val.toLowerCase();
+      filteredLanguageOptions.value = languageOptions.value.filter((opt) =>
+        opt.label.toLowerCase().includes(needle)
+      );
+    }
+  });
+}
+
 // Preview shortcut
 const previewShortcut = computed(() => {
   if (!snippetName.value.trim()) return `${currentTrigger.value}...`;
@@ -149,6 +179,8 @@ watch(
       snippetTags.value = [];
       tagFilterText.value = '';
       filteredTagOptions.value = allExistingTags.value;
+      language.value = null;
+      filteredLanguageOptions.value = languageOptions.value;
     }
   }
 );
@@ -165,6 +197,7 @@ function handleCreate(): void {
     type: snippetType.value,
     description: snippetDescription.value.trim(),
     tags: snippetTags.value,
+    language: language.value,
   });
 
   emit('update:modelValue', false);
@@ -290,6 +323,35 @@ function handleCreate(): void {
             </template>
           </q-select>
         </div>
+
+        <!-- Language (optional) -->
+        <q-select
+          v-model="language"
+          :options="filteredLanguageOptions"
+          option-value="value"
+          option-label="label"
+          emit-value
+          map-options
+          clearable
+          dense
+          outlined
+          use-input
+          input-debounce="0"
+          :label="t('snippetsPanel.filterByLanguage') || 'Language'"
+          class="q-mt-md"
+          @filter="filterLanguages"
+        >
+          <template #prepend>
+            <q-icon name="translate" />
+          </template>
+          <template #no-option>
+            <q-item>
+              <q-item-section class="text-grey">
+                {{ t('snippetsPanel.noLanguagesFound') || 'No languages found' }}
+              </q-item-section>
+            </q-item>
+          </template>
+        </q-select>
       </q-card-section>
 
       <q-card-actions

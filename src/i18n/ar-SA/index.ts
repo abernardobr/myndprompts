@@ -62,6 +62,8 @@ export default {
     info: 'معلومات',
     success: 'نجاح',
     retry: 'إعادة المحاولة',
+    item: 'عنصر',
+    items: 'عناصر',
   },
 
   // Activity bar
@@ -78,7 +80,7 @@ export default {
   sidebar: {
     explorer: 'المستكشف',
     search: 'بحث',
-    snippets: 'المقتطفات',
+    snippets: 'المكتبة',
     favorites: 'المفضلة',
     sourceControl: 'التحكم بالمصدر',
     settings: 'الإعدادات',
@@ -142,7 +144,7 @@ export default {
   // Snippets panel
   snippetsPanel: {
     title: 'المقتطفات',
-    searchPlaceholder: 'البحث في المقتطفات...',
+    searchPlaceholder: 'البحث في المكتبة...',
     createNew: 'إنشاء مقتطف جديد',
     personas: 'الشخصيات',
     textSnippets: 'مقتطفات نصية',
@@ -168,6 +170,10 @@ export default {
     browserModeHint: 'يعمل في وضع معاينة المتصفح.',
     filterByTags: 'تصفية حسب الوسوم...',
     noTagsFound: 'لم يتم العثور على وسوم',
+    filterByLanguage: 'اللغة',
+    selectLanguage: 'اختر لغة...',
+    allLanguages: 'جميع اللغات',
+    noLanguagesFound: 'لم يتم العثور على لغات',
   },
 
   // Favorites panel
@@ -346,6 +352,8 @@ export default {
       tagsPlaceholder: 'إضافة وسم...',
       tagsHint: 'اختر من الوسوم الموجودة أو اكتب لإنشاء وسوم جديدة',
       tagsEmpty: 'لا توجد وسوم بعد',
+      language: 'اللغة',
+      languageHint: 'حدد لغة المحتوى',
     },
     newProject: {
       title: 'مشروع جديد',
@@ -594,24 +602,38 @@ export default {
     },
   },
 
-  // Plugins
+  // Libraries
   plugins: {
     // Section title
-    title: 'الإضافات',
+    title: 'المكتبات',
 
     // Tabs
     marketplace: 'المتجر',
     installed: 'المثبتة',
 
     // Search and filters
-    searchPlaceholder: 'البحث عن إضافات...',
+    searchPlaceholder: 'البحث عن مكتبات...',
+    searchItems: 'البحث في القوالب، الشخصيات، المقاطع...',
+    noItemsFound: 'لم يتم العثور على عناصر',
+    tryDifferentSearch: 'جرب مصطلح بحث مختلف',
+    installLibrary: 'تثبيت المكتبة',
+    hintNavigate: 'تنقل',
+    hintInstall: 'تثبيت المكتبة',
+    hintUninstall: 'إلغاء التثبيت',
+    hintClose: 'إغلاق',
     filterByType: 'النوع',
     filterByTags: 'الوسوم',
     allTypes: 'الكل',
     allTags: 'جميع الوسوم',
     clearFilters: 'مسح الفلاتر',
+    selectTags: 'اختر الوسوم...',
+    noTagsFound: 'لم يتم العثور على وسوم',
+    filterByLanguage: 'اللغة',
+    selectLanguage: 'اختر لغة...',
+    allLanguages: 'جميع اللغات',
+    noLanguagesFound: 'لم يتم العثور على لغات',
 
-    // Plugin types
+    // Library types
     types: {
       persona: 'شخصية',
       templates: 'قوالب',
@@ -619,7 +641,7 @@ export default {
       text_snippets: 'مقتطفات نصية',
     },
 
-    // Plugin card
+    // Library card
     version: 'الإصدار',
     items: 'عناصر',
     installedOn: 'تاريخ التثبيت',
@@ -637,18 +659,21 @@ export default {
     view: 'عرض',
 
     // Confirmation dialog
-    uninstallTitle: 'إلغاء تثبيت الإضافة',
+    uninstallTitle: 'إلغاء تثبيت المكتبة',
     uninstallMessage: 'هل أنت متأكد من رغبتك في إلغاء تثبيت "{name}"؟',
-    uninstallWarning: 'سيؤدي هذا إلى إزالة جميع العناصر المقدمة من هذه الإضافة.',
+    uninstallWarning: 'سيؤدي هذا إلى إزالة جميع العناصر المقدمة من هذه المكتبة.',
 
     // Empty states
-    noPluginsFound: 'لم يتم العثور على إضافات',
+    noPluginsFound: 'لم يتم العثور على مكتبات',
     noPluginsFoundHint: 'حاول تعديل الفلاتر',
-    noPluginsInstalled: 'لا توجد إضافات مثبتة',
-    noPluginsInstalledHint: 'قم بزيارة المتجر لاكتشاف وتثبيت الإضافات',
-    noPluginsOfType: 'لا توجد إضافات مثبتة من هذا النوع',
-    installFromMarketplace: 'قم بتثبيت الإضافات من المتجر أولاً',
-    noContent: 'لا يوجد محتوى لهذه الإضافة',
+    noPluginsInstalled: 'لا توجد مكتبات مثبتة',
+    noPluginsInstalledHint: 'قم بزيارة المتجر لاكتشاف وتثبيت المكتبات',
+    noInstalledLibraries: 'لا توجد مكتبات مثبتة',
+    goToMarketplace: 'تصفح علامة التبويب المتجر لتثبيت المكتبات',
+    browseMarketplace: 'تصفح المتجر',
+    noPluginsOfType: 'لا توجد مكتبات مثبتة من هذا النوع',
+    installFromMarketplace: 'قم بتثبيت المكتبات من المتجر أولاً',
+    noContent: 'لا يوجد محتوى لهذه المكتبة',
 
     // Content selector dialog
     addFromLibrary: 'إضافة من المكتبة',
@@ -658,32 +683,32 @@ export default {
     addSelected: 'إضافة المحدد',
 
     // Notifications
-    installSuccess: 'تم تثبيت الإضافة بنجاح',
-    installError: 'فشل تثبيت الإضافة',
-    updateSuccess: 'تم تحديث الإضافة بنجاح',
-    updateError: 'فشل تحديث الإضافة',
-    uninstallSuccess: 'تم إلغاء تثبيت الإضافة بنجاح',
-    uninstallError: 'فشل إلغاء تثبيت الإضافة',
+    installSuccess: 'تم تثبيت المكتبة بنجاح',
+    installError: 'فشل تثبيت المكتبة',
+    updateSuccess: 'تم تحديث المكتبة بنجاح',
+    updateError: 'فشل تحديث المكتبة',
+    uninstallSuccess: 'تم إلغاء تثبيت المكتبة بنجاح',
+    uninstallError: 'فشل إلغاء تثبيت المكتبة',
     contentAddedSuccess: 'تمت إضافة {count} عنصر(عناصر) من المكتبة',
     contentAddedError: 'فشل إضافة العناصر من المكتبة',
-    clearAllSuccess: 'تم مسح جميع الإضافات بنجاح',
-    clearAllError: 'فشل مسح الإضافات',
+    clearAllSuccess: 'تم مسح جميع المكتبات بنجاح',
+    clearAllError: 'فشل مسح المكتبات',
 
     // Clear all (troubleshooting)
     clearAll: 'مسح الكل',
-    clearAllTitle: 'مسح جميع الإضافات',
-    clearAllMessage: 'هل أنت متأكد من رغبتك في إزالة جميع الإضافات المثبتة؟',
+    clearAllTitle: 'مسح جميع المكتبات',
+    clearAllMessage: 'هل أنت متأكد من رغبتك في إزالة جميع المكتبات المثبتة؟',
     clearAllWarning:
-      'سيؤدي هذا إلى إزالة جميع بيانات الإضافات من التخزين. استخدم هذا لإصلاح البيانات التالفة.',
-    clearAllTooltip: 'إزالة جميع الإضافات المثبتة (لاستكشاف الأخطاء)',
+      'سيؤدي هذا إلى إزالة جميع بيانات المكتبات من التخزين. استخدم هذا لإصلاح البيانات التالفة.',
+    clearAllTooltip: 'إزالة جميع المكتبات المثبتة (لاستكشاف الأخطاء)',
 
     // Loading states
-    loadingPlugins: 'جارٍ تحميل الإضافات...',
+    loadingPlugins: 'جارٍ تحميل المكتبات...',
     updatesAvailable: 'تحديثات متاحة',
 
     // Network/Error states
     offline: 'يبدو أنك غير متصل بالإنترنت. تحقق من اتصالك.',
-    networkError: 'فشل الاتصال بمتجر الإضافات.',
-    fetchError: 'فشل تحميل الإضافات. حاول مرة أخرى.',
+    networkError: 'فشل الاتصال بمتجر المكتبات.',
+    fetchError: 'فشل تحميل المكتبات. حاول مرة أخرى.',
   },
 };

@@ -6,7 +6,7 @@
  * Used within EditorArea to support split view functionality.
  */
 
-import { ref, computed, watch, nextTick, onMounted, inject } from 'vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useUIStore, type IEditorPane, type IOpenTab } from '@/stores/uiStore';
 import { usePrompts } from '@/composables/usePrompts';
 import { useAutoSave } from '@/composables/useAutoSave';
@@ -332,14 +332,6 @@ function splitDown(): void {
   emit('split', 'vertical');
 }
 
-// Inject settings dialog opener from MainLayout
-const openSettingsDialog = inject<() => void>('openSettingsDialog');
-
-// Settings action
-function handleSettingsClick(): void {
-  openSettingsDialog?.();
-}
-
 // File icon helper
 function getFileIcon(fileName: string): string {
   const lowerName = fileName.toLowerCase();
@@ -584,17 +576,6 @@ onMounted(() => {
           @click="$emit('close')"
         >
           <q-tooltip>Close Pane</q-tooltip>
-        </q-btn>
-        <q-btn
-          flat
-          dense
-          round
-          size="sm"
-          icon="settings"
-          class="editor-pane__settings-btn"
-          @click="handleSettingsClick"
-        >
-          <q-tooltip>Settings (Ctrl+,)</q-tooltip>
         </q-btn>
       </div>
     </div>

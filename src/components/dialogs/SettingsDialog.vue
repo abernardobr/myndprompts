@@ -11,14 +11,11 @@
  */
 
 import { ref, computed, onMounted, watch } from 'vue';
-import { useUIStore, type Theme, FileCategory } from '@/stores/uiStore';
+import { useUIStore, type Theme } from '@/stores/uiStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { usePluginStore } from '@/stores/pluginStore';
-import { useSnippetStore } from '@/stores/snippetStore';
 import { useI18n } from 'vue-i18n';
 import CategoryListEditor from '@/components/settings/CategoryListEditor.vue';
 import FileSyncSection from '@/components/settings/FileSyncSection.vue';
-import PluginsSection from '@/components/settings/PluginsSection.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -31,8 +28,6 @@ const emit = defineEmits<{
 const { t, locale: i18nLocale } = useI18n({ useScope: 'global' });
 const uiStore = useUIStore();
 const settingsStore = useSettingsStore();
-const pluginStore = usePluginStore();
-const snippetStore = useSnippetStore();
 
 // Dialog visibility
 const isOpen = computed({
@@ -45,9 +40,6 @@ const searchQuery = ref('');
 
 // Currently selected category
 const selectedCategory = ref('appearance');
-
-// Track if settings have changed
-const hasChanges = ref(false);
 
 // Theme and locale
 const currentTheme = computed(() => uiStore.theme);
@@ -108,11 +100,6 @@ const categories = computed<ICategory[]>(() => [
     icon: 'sync',
   },
   {
-    id: 'plugins',
-    label: t('plugins.title') || 'Plugins',
-    icon: 'mdi-puzzle-outline',
-  },
-  {
     id: 'storage',
     label: t('settingsPanel.storage'),
     icon: 'folder',
@@ -136,62 +123,19 @@ function selectCategory(categoryId: string): void {
 
 function setTheme(theme: Theme): void {
   uiStore.setTheme(theme);
-  hasChanges.value = true;
 }
 
 function setLocale(newLocale: string): void {
   uiStore.setLocale(newLocale);
   i18nLocale.value = newLocale;
-  hasChanges.value = true;
 }
 
 function handleCancel(): void {
-  // TODO: Revert changes if needed
   isOpen.value = false;
-}
-
-function handleApply(): void {
-  // Settings are already applied in real-time
-  hasChanges.value = false;
 }
 
 function handleOk(): void {
-  handleApply();
   isOpen.value = false;
-}
-
-/**
- * Handle opening a snippet from the plugins section.
- * Finds the snippet by title, closes the dialog, and opens it in the editor.
- */
-async function handleOpenSnippet(itemTitle: string): Promise<void> {
-  try {
-    // Find the snippet by its name/title
-    const allSnippets = snippetStore.allSnippets;
-    const matchingSnippet = allSnippets.find((snippet) => snippet.metadata.name === itemTitle);
-
-    if (matchingSnippet) {
-      // Load the snippet to get full data
-      const loadedSnippet = await snippetStore.loadSnippet(matchingSnippet.filePath);
-
-      // Open a tab for the snippet
-      uiStore.openTab({
-        filePath: loadedSnippet.filePath,
-        fileName: loadedSnippet.fileName,
-        title: loadedSnippet.metadata.name,
-        isDirty: false,
-        isPinned: false,
-        fileCategory: FileCategory.MARKDOWN,
-      });
-
-      // Close the settings dialog
-      isOpen.value = false;
-    } else {
-      console.warn(`[SettingsDialog] Snippet "${itemTitle}" not found`);
-    }
-  } catch (error) {
-    console.error('[SettingsDialog] Failed to open snippet:', error);
-  }
 }
 
 // Get breadcrumb path for selected category
@@ -223,7 +167,6 @@ watch(isOpen, (open) => {
   if (open) {
     selectedCategory.value = 'appearance';
     searchQuery.value = '';
-    hasChanges.value = false;
   }
 });
 </script>
@@ -351,20 +294,6 @@ watch(isOpen, (open) => {
                   />
                 </span>
               </div>
-              <!-- Refresh button for Plugins section -->
-              <q-btn
-                v-if="selectedCategory === 'plugins' && pluginStore.isInitialized"
-                flat
-                dense
-                round
-                icon="mdi-refresh"
-                size="sm"
-                color="grey"
-                :loading="pluginStore.isLoading"
-                @click="pluginStore.refreshMarketplace(true)"
-              >
-                <q-tooltip>{{ t('common.refresh') || 'Refresh' }}</q-tooltip>
-              </q-btn>
             </div>
 
             <!-- Settings content -->
@@ -489,11 +418,6 @@ watch(isOpen, (open) => {
                 </div>
               </template>
 
-              <!-- Plugins -->
-              <template v-if="selectedCategory === 'plugins'">
-                <PluginsSection @open-snippet="handleOpenSnippet" />
-              </template>
-
               <!-- Storage -->
               <template v-if="selectedCategory === 'storage'">
                 <div class="settings-dialog__section">
@@ -521,12 +445,6 @@ watch(isOpen, (open) => {
             flat
             :label="t('common.cancel')"
             @click="handleCancel"
-          />
-          <q-btn
-            flat
-            :label="t('common.apply') || 'Apply'"
-            :disable="!hasChanges"
-            @click="handleApply"
           />
           <q-btn
             color="primary"
@@ -786,5 +704,10 @@ watch(isOpen, (open) => {
   .q-dialog__inner {
     z-index: 9999 !important;
   }
+}
+
+// Ensure all q-menu/q-select popups appear above the dialog
+.q-menu {
+  z-index: 10000 !important;
 }
 </style>

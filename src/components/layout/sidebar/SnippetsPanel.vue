@@ -12,6 +12,7 @@ import { useSnippetStore } from '@/stores/snippetStore';
 import { usePromptStore } from '@/stores/promptStore';
 import { useUIStore, FileCategory } from '@/stores/uiStore';
 import type { ISnippetFile, ISnippetMetadata } from '@/services/file-system/types';
+import { getLanguageLabel } from '@/constants/languages';
 import NewSnippetDialog from '@/components/dialogs/NewSnippetDialog.vue';
 import RenameDialog from '@/components/dialogs/RenameDialog.vue';
 
@@ -37,6 +38,9 @@ const selectedCategory = ref<ISnippetMetadata['type'] | null>(null);
 
 // Selected tags for filtering
 const selectedTags = ref<string[]>([]);
+
+// Selected language for filtering
+const selectedLanguage = ref<string | null>(null);
 
 // Selected snippet for preview
 const selectedSnippet = ref<ISnippetFile | null>(null);
@@ -88,6 +92,17 @@ const allTags = computed(() => {
   return Array.from(tagSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 });
 
+// All unique languages from all snippets, sorted alphabetically
+const allSnippetLanguages = computed(() => {
+  const langSet = new Set<string>();
+  for (const snippet of snippetStore.allSnippets) {
+    if (snippet.metadata.language) {
+      langSet.add(snippet.metadata.language);
+    }
+  }
+  return Array.from(langSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+});
+
 // Tag options for the q-select component
 const tagOptions = computed(() => allTags.value);
 
@@ -117,6 +132,36 @@ function clearTags(): void {
   selectedTags.value = [];
 }
 
+// Language options derived from snippets (only languages that exist in items)
+const languageOptions = computed(() =>
+  allSnippetLanguages.value.map((code) => ({
+    value: code,
+    label: getLanguageLabel(code),
+  }))
+);
+
+// Filtered language options based on search input
+const filteredLanguageOptions = ref<{ value: string; label: string }[]>([]);
+
+// Filter function for language select
+function filterLanguages(val: string, update: (fn: () => void) => void): void {
+  update(() => {
+    if (val === '') {
+      filteredLanguageOptions.value = languageOptions.value;
+    } else {
+      const needle = val.toLowerCase();
+      filteredLanguageOptions.value = languageOptions.value.filter((opt) =>
+        opt.label.toLowerCase().includes(needle)
+      );
+    }
+  });
+}
+
+// Clear selected language
+function clearLanguage(): void {
+  selectedLanguage.value = null;
+}
+
 // Filtered snippets based on category, tags, and search
 const filteredSnippets = computed(() => {
   let snippets = snippetStore.allSnippets;
@@ -126,12 +171,19 @@ const filteredSnippets = computed(() => {
     snippets = snippets.filter((s) => s.metadata.type === selectedCategory.value);
   }
 
-  // Filter by selected tags (snippet must have ALL selected tags)
+  // Filter by selected tags (snippet must have ANY selected tag - OR logic)
   if (selectedTags.value.length > 0) {
     snippets = snippets.filter((s) =>
-      selectedTags.value.every((tag) =>
+      selectedTags.value.some((tag) =>
         s.metadata.tags.some((t) => t.toLowerCase() === tag.toLowerCase())
       )
+    );
+  }
+
+  // Filter by language
+  if (selectedLanguage.value) {
+    snippets = snippets.filter(
+      (s) => s.metadata.language?.toLowerCase() === selectedLanguage.value?.toLowerCase()
     );
   }
 
@@ -366,11 +418,12 @@ async function handleRename(newName: string): Promise<void> {
   }
 }
 
-// Handle save (for snippets with name, description, tags)
+// Handle save (for snippets with name, description, tags, language)
 async function handleSaveSnippet(result: {
   name: string;
   description?: string;
   tags?: string[];
+  language?: string | null;
 }): Promise<void> {
   if (!renameTarget.value) return;
 
@@ -383,6 +436,7 @@ async function handleSaveSnippet(result: {
     const tagsChanged =
       JSON.stringify([...(result.tags ?? [])].sort()) !==
       JSON.stringify([...(snippet.metadata.tags ?? [])].sort());
+    const languageChanged = result.language !== (snippet.metadata.language ?? null);
 
     // If name changed, rename first (this also loads it into cache and returns new path)
     if (nameChanged) {
@@ -390,8 +444,8 @@ async function handleSaveSnippet(result: {
       currentFilePath = renameResult.newFilePath;
     }
 
-    // Update description and tags if changed
-    if (descriptionChanged || tagsChanged) {
+    // Update description, tags, and language if changed
+    if (descriptionChanged || tagsChanged || languageChanged) {
       // Load the snippet into cache first (required by updateSnippetMetadata)
       await snippetStore.loadSnippet(currentFilePath);
 
@@ -399,10 +453,11 @@ async function handleSaveSnippet(result: {
       await snippetStore.updateSnippetMetadata(currentFilePath, {
         description: result.description,
         tags: result.tags,
+        language: result.language ?? undefined,
       });
     }
 
-    // Refresh the snippet list to show updated tags
+    // Refresh the snippet list to show updated data
     await snippetStore.refreshAllSnippets();
   } catch (err) {
     console.error('Failed to save snippet:', err);
@@ -415,9 +470,16 @@ async function handleCreateSnippet(data: {
   type: ISnippetMetadata['type'];
   description: string;
   tags: string[];
+  language: string | null;
 }): Promise<void> {
   try {
-    await snippetStore.createSnippet(data.name, data.type, '', data.tags);
+    await snippetStore.createSnippet(
+      data.name,
+      data.type,
+      '',
+      data.tags,
+      data.language ?? undefined
+    );
     // If a description was provided, update the snippet
     // This would require loading and updating the metadata
   } catch (err) {
@@ -478,33 +540,38 @@ onUnmounted(() => {
       </q-btn>
     </div>
 
-    <!-- Category filters -->
+    <!-- Category filters (compact badges) -->
     <div
       class="snippets-panel__categories"
       data-testid="snippet-type-filter"
     >
-      <div
+      <q-chip
         v-for="category in snippetCategories"
         :key="category.id"
-        :class="[
-          'snippets-panel__category',
-          { 'snippets-panel__category--selected': selectedCategory === category.id },
-        ]"
+        :outline="selectedCategory !== category.id"
+        :color="selectedCategory === category.id ? 'primary' : undefined"
+        :text-color="selectedCategory === category.id ? 'white' : undefined"
+        clickable
+        dense
+        class="snippets-panel__category-chip"
         @click="selectCategory(category.id)"
       >
         <q-icon
           :name="category.icon"
-          size="18px"
+          size="14px"
+          class="q-mr-xs"
         />
-        <span class="snippets-panel__category-label">{{ category.label }}</span>
+        {{ category.label }}
         <q-badge
           v-if="category.count > 0"
           :label="category.count"
-          color="primary"
-          class="snippets-panel__badge"
+          :color="selectedCategory === category.id ? 'white' : 'primary'"
+          :text-color="selectedCategory === category.id ? 'primary' : 'white'"
+          floating
+          rounded
+          class="snippets-panel__category-count"
         />
-        <span class="snippets-panel__trigger">{{ category.trigger }}</span>
-      </div>
+      </q-chip>
     </div>
 
     <!-- Tag filter -->
@@ -553,6 +620,45 @@ onUnmounted(() => {
           <q-item>
             <q-item-section class="text-grey">
               {{ t('snippetsPanel.noTagsFound') || 'No tags found' }}
+            </q-item-section>
+          </q-item>
+        </template>
+      </q-select>
+    </div>
+
+    <!-- Language filter -->
+    <div
+      v-if="allSnippetLanguages.length > 0"
+      class="snippets-panel__language-filter"
+    >
+      <q-select
+        v-model="selectedLanguage"
+        :options="filteredLanguageOptions"
+        option-value="value"
+        option-label="label"
+        emit-value
+        map-options
+        clearable
+        dense
+        outlined
+        use-input
+        input-debounce="0"
+        :placeholder="t('snippetsPanel.selectLanguage') || 'Select language...'"
+        class="snippets-panel__language-select"
+        popup-content-class="snippets-panel__language-popup"
+        @filter="filterLanguages"
+        @clear="clearLanguage"
+      >
+        <template #prepend>
+          <q-icon
+            name="translate"
+            size="18px"
+          />
+        </template>
+        <template #no-option>
+          <q-item>
+            <q-item-section class="text-grey">
+              {{ t('snippetsPanel.noLanguagesFound') || 'No languages found' }}
             </q-item-section>
           </q-item>
         </template>
@@ -654,19 +760,34 @@ onUnmounted(() => {
                 <div class="snippets-panel__item-name">{{ snippet.metadata.name }}</div>
                 <div class="snippets-panel__item-shortcut">{{ snippet.metadata.shortcut }}</div>
                 <div
-                  v-if="snippet.metadata.tags.length > 0"
-                  class="snippets-panel__item-tags"
+                  v-if="snippet.metadata.tags.length > 0 || snippet.metadata.language"
+                  class="snippets-panel__item-meta"
                 >
+                  <div
+                    v-if="snippet.metadata.tags.length > 0"
+                    class="snippets-panel__item-tags"
+                  >
+                    <q-chip
+                      v-for="tag in snippet.metadata.tags"
+                      :key="tag"
+                      dense
+                      size="xs"
+                      outline
+                      class="snippets-panel__item-tag"
+                    >
+                      {{ tag }}
+                    </q-chip>
+                  </div>
+                  <!-- Language badge -->
                   <q-chip
-                    v-for="tag in snippet.metadata.tags"
-                    :key="tag"
+                    v-if="snippet.metadata.language"
                     dense
                     size="xs"
-                    color="grey-7"
-                    text-color="white"
-                    class="snippets-panel__item-tag"
+                    outline
+                    color="primary"
+                    class="snippets-panel__item-language"
                   >
-                    {{ tag }}
+                    {{ getLanguageLabel(snippet.metadata.language) }}
                   </q-chip>
                 </div>
               </div>
@@ -815,6 +936,32 @@ onUnmounted(() => {
               </q-btn>
             </div>
           </div>
+          <!-- Tags and Language in preview -->
+          <div
+            v-if="selectedSnippet!.metadata.tags.length > 0 || selectedSnippet!.metadata.language"
+            class="snippets-panel__preview-tags-row"
+          >
+            <q-chip
+              v-for="tag in selectedSnippet!.metadata.tags"
+              :key="tag"
+              dense
+              size="sm"
+              outline
+              class="snippets-panel__preview-tag"
+            >
+              {{ tag }}
+            </q-chip>
+            <q-chip
+              v-if="selectedSnippet!.metadata.language"
+              dense
+              size="sm"
+              outline
+              color="primary"
+              class="snippets-panel__preview-language"
+            >
+              {{ getLanguageLabel(selectedSnippet!.metadata.language) }}
+            </q-chip>
+          </div>
           <span
             v-if="selectedSnippet!.metadata.description"
             class="snippets-panel__preview-description"
@@ -884,6 +1031,7 @@ onUnmounted(() => {
       :current-name="renameTarget?.currentName ?? ''"
       :current-description="renameTarget?.snippet?.metadata.description ?? ''"
       :current-tags="renameTarget?.snippet?.metadata.tags ?? []"
+      :current-language="renameTarget?.snippet?.metadata.language ?? null"
       :item-type="renameTarget?.snippet ? getRenameItemType(renameTarget.snippet) : 'snippet'"
       @rename="handleRename"
       @save="handleSaveSnippet"
@@ -918,9 +1066,30 @@ onUnmounted(() => {
   }
 
   &__categories {
-    padding: 8px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--border-color, #3c3c3c);
     flex-shrink: 0;
+  }
+
+  &__category-chip {
+    font-size: 12px;
+    position: relative;
+
+    :deep(.q-chip__content) {
+      padding-right: 4px;
+    }
+  }
+
+  &__category-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    font-size: 9px;
+    min-height: 16px;
+    padding: 0 4px;
   }
 
   &__tag-filter {
@@ -948,40 +1117,25 @@ onUnmounted(() => {
     }
   }
 
-  &__category {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    cursor: pointer;
-    color: var(--category-text, #cccccc);
-    transition: background-color 0.15s;
+  &__language-filter {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color, #3c3c3c);
+    flex-shrink: 0;
+  }
 
-    &:hover {
-      background-color: var(--category-hover, #2a2d2e);
+  &__language-select {
+    :deep(.q-field__native) {
+      font-size: 12px;
+      min-height: 24px;
     }
 
-    &--selected {
-      background-color: var(--category-selected, #37373d);
+    :deep(.q-field__control) {
+      min-height: 32px;
     }
-  }
 
-  &__category-label {
-    flex: 1;
-    font-size: 13px;
-  }
-
-  &__trigger {
-    font-family: monospace;
-    font-size: 11px;
-    padding: 1px 4px;
-    border-radius: 3px;
-    background-color: var(--trigger-bg, #3c3c3c);
-    color: var(--trigger-color, #9cdcfe);
-  }
-
-  &__badge {
-    font-size: 10px;
+    :deep(.q-field__prepend) {
+      padding-right: 8px;
+    }
   }
 
   &__main {
@@ -1093,14 +1247,32 @@ onUnmounted(() => {
     color: var(--item-shortcut-color, #808080);
   }
 
+  &__item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+  }
+
   &__item-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 2px;
-    margin-top: 3px;
   }
 
   &__item-tag {
+    font-size: 9px !important;
+    height: 16px !important;
+    min-height: 16px !important;
+    padding: 0 6px !important;
+
+    :deep(.q-chip__content) {
+      font-size: 9px;
+    }
+  }
+
+  &__item-language {
     font-size: 9px !important;
     height: 16px !important;
     min-height: 16px !important;
@@ -1176,6 +1348,25 @@ onUnmounted(() => {
   &__preview-description {
     font-size: 12px;
     color: var(--preview-description-color, #808080);
+  }
+
+  &__preview-tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__preview-tag {
+    font-size: 10px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+  }
+
+  &__preview-language {
+    font-size: 10px !important;
+    height: 20px !important;
+    min-height: 20px !important;
   }
 
   &__preview-content {

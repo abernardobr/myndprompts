@@ -6,12 +6,24 @@
  * Contains icons for switching between different views.
  */
 
-import { computed } from 'vue';
+import { computed, inject } from 'vue';
 import { useUIStore, type ActivityView } from '@/stores/uiStore';
 import { useAppStore } from '@/stores/appStore';
 
 const uiStore = useUIStore();
 const appStore = useAppStore();
+
+// Inject dialog openers from MainLayout
+const openSettingsDialog = inject<() => void>('openSettingsDialog');
+const openLibraryDialog = inject<() => void>('openLibraryDialog');
+
+function handleSettingsClick(): void {
+  openSettingsDialog?.();
+}
+
+function handleLibraryClick(): void {
+  openLibraryDialog?.();
+}
 
 const isMac = computed(() => appStore.isMac);
 
@@ -91,6 +103,47 @@ function isActive(activity: ActivityView): boolean {
         </q-tooltip>
       </q-btn>
     </div>
+
+    <!-- Bottom section with library and settings -->
+    <div class="activity-bar__bottom">
+      <!-- Library button -->
+      <q-btn
+        flat
+        dense
+        square
+        icon="mdi-puzzle-outline"
+        class="activity-bar__item"
+        data-testid="activity-library"
+        @click="handleLibraryClick"
+      >
+        <q-tooltip
+          anchor="center right"
+          self="center left"
+          :offset="[10, 0]"
+        >
+          Libraries
+        </q-tooltip>
+      </q-btn>
+      <!-- Settings button -->
+      <q-btn
+        flat
+        dense
+        square
+        icon="settings"
+        class="activity-bar__item"
+        data-testid="activity-settings"
+        @click="handleSettingsClick"
+      >
+        <q-tooltip
+          anchor="center right"
+          self="center left"
+          :offset="[10, 0]"
+        >
+          Settings
+          <span class="text-grey-5 q-ml-sm">Ctrl+,</span>
+        </q-tooltip>
+      </q-btn>
+    </div>
   </div>
 </template>
 
@@ -142,6 +195,14 @@ function isActive(activity: ActivityView): boolean {
     &::-webkit-scrollbar {
       display: none;
     }
+  }
+
+  &__bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    padding-bottom: 8px;
   }
 
   &__item {

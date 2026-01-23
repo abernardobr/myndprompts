@@ -78,6 +78,9 @@ export interface ElectronAPI {
   getPlatform: () => Promise<NodeJS.Platform>;
   getUserDataPath: () => Promise<string>;
 
+  // Window controls
+  setTrafficLightsVisible: (visible: boolean) => Promise<void>;
+
   // Dialogs
   showOpenDialog: (options: OpenDialogOptions) => Promise<OpenDialogResult>;
   showSaveDialog: (options: SaveDialogOptions) => Promise<SaveDialogResult>;
@@ -261,6 +264,8 @@ const electronApi: ElectronAPI = {
   getVersion: () => ipcRenderer.invoke('app:get-version') as Promise<string>,
   getPlatform: () => ipcRenderer.invoke('app:get-platform') as Promise<NodeJS.Platform>,
   getUserDataPath: () => ipcRenderer.invoke('app:get-user-data-path') as Promise<string>,
+  setTrafficLightsVisible: (visible) =>
+    ipcRenderer.invoke('app:set-traffic-lights-visible', visible) as Promise<void>,
   showOpenDialog: (options) =>
     ipcRenderer.invoke('dialog:open', options) as Promise<OpenDialogResult>,
   showSaveDialog: (options) =>

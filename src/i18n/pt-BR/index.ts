@@ -62,6 +62,8 @@ export default {
     info: 'Informação',
     success: 'Sucesso',
     retry: 'Tentar novamente',
+    item: 'item',
+    items: 'itens',
   },
 
   // Activity bar
@@ -78,7 +80,7 @@ export default {
   sidebar: {
     explorer: 'Explorador',
     search: 'Buscar',
-    snippets: 'Snippets',
+    snippets: 'Biblioteca',
     favorites: 'Favoritos',
     sourceControl: 'Controle de Versão',
     settings: 'Configurações',
@@ -142,7 +144,7 @@ export default {
   // Snippets panel
   snippetsPanel: {
     title: 'Snippets',
-    searchPlaceholder: 'Buscar snippets...',
+    searchPlaceholder: 'Buscar na biblioteca...',
     createNew: 'Criar novo snippet',
     personas: 'Personas',
     textSnippets: 'Snippets de Texto',
@@ -168,6 +170,10 @@ export default {
     browserModeHint: 'Executando em modo de visualização no navegador.',
     filterByTags: 'Filtrar por tags...',
     noTagsFound: 'Nenhuma tag encontrada',
+    filterByLanguage: 'Linguagem',
+    selectLanguage: 'Selecionar linguagem...',
+    allLanguages: 'Todas as linguagens',
+    noLanguagesFound: 'Nenhuma linguagem encontrada',
   },
 
   // Favorites panel
@@ -347,6 +353,8 @@ export default {
       tagsPlaceholder: 'Adicionar tag...',
       tagsHint: 'Selecione tags existentes ou digite para criar novas',
       tagsEmpty: 'Nenhuma tag ainda',
+      language: 'Idioma',
+      languageHint: 'Selecione o idioma do conteúdo',
     },
     newProject: {
       title: 'Novo Projeto',
@@ -598,24 +606,38 @@ export default {
     },
   },
 
-  // Plugins
+  // Libraries
   plugins: {
     // Section title
-    title: 'Plugins',
+    title: 'Bibliotecas',
 
     // Tabs
     marketplace: 'Marketplace',
-    installed: 'Instalados',
+    installed: 'Instaladas',
 
     // Search and filters
-    searchPlaceholder: 'Buscar plugins...',
+    searchPlaceholder: 'Buscar bibliotecas...',
+    searchItems: 'Buscar modelos, personas, snippets...',
+    noItemsFound: 'Nenhum item encontrado',
+    tryDifferentSearch: 'Tente um termo de busca diferente',
+    installLibrary: 'Instalar Biblioteca',
+    hintNavigate: 'navegar',
+    hintInstall: 'instalar biblioteca',
+    hintUninstall: 'desinstalar',
+    hintClose: 'fechar',
     filterByType: 'Tipo',
     filterByTags: 'Tags',
     allTypes: 'Todos',
     allTags: 'Todas as tags',
     clearFilters: 'Limpar filtros',
+    selectTags: 'Selecionar tags...',
+    noTagsFound: 'Nenhuma tag encontrada',
+    filterByLanguage: 'Linguagem',
+    selectLanguage: 'Selecionar linguagem...',
+    allLanguages: 'Todas as linguagens',
+    noLanguagesFound: 'Nenhuma linguagem encontrada',
 
-    // Plugin types
+    // Library types
     types: {
       persona: 'Persona',
       templates: 'Templates',
@@ -623,11 +645,11 @@ export default {
       text_snippets: 'Snippets de Texto',
     },
 
-    // Plugin card
+    // Library card
     version: 'Versão',
     items: 'itens',
-    installedOn: 'Instalado em',
-    updatedOn: 'Atualizado em',
+    installedOn: 'Instalada em',
+    updatedOn: 'Atualizada em',
 
     // Actions
     view: 'Visualizar',
@@ -635,23 +657,26 @@ export default {
     installing: 'Instalando...',
     update: 'Atualizar',
     updateTo: 'Atualizar para v{version}',
-    updateAll: 'Atualizar Todos',
+    updateAll: 'Atualizar Todas',
     updating: 'Atualizando...',
     uninstall: 'Desinstalar',
     uninstalling: 'Desinstalando...',
 
     // Confirmation dialog
-    uninstallTitle: 'Desinstalar Plugin',
+    uninstallTitle: 'Desinstalar Biblioteca',
     uninstallMessage: 'Tem certeza que deseja desinstalar "{name}"?',
-    uninstallWarning: 'Isso removerá todos os itens fornecidos por este plugin.',
+    uninstallWarning: 'Isso removerá todos os itens fornecidos por esta biblioteca.',
 
     // Empty states
-    noPluginsFound: 'Nenhum plugin encontrado',
+    noPluginsFound: 'Nenhuma biblioteca encontrada',
     noPluginsFoundHint: 'Tente ajustar seus filtros',
-    noPluginsInstalled: 'Nenhum plugin instalado',
-    noPluginsInstalledHint: 'Visite o Marketplace para descobrir e instalar plugins',
-    noPluginsOfType: 'Nenhum plugin instalado deste tipo',
-    installFromMarketplace: 'Instale plugins do Marketplace primeiro',
+    noPluginsInstalled: 'Nenhuma biblioteca instalada',
+    noPluginsInstalledHint: 'Visite o Marketplace para descobrir e instalar bibliotecas',
+    noInstalledLibraries: 'Nenhuma biblioteca instalada',
+    goToMarketplace: 'Navegue até a aba Marketplace para instalar bibliotecas',
+    browseMarketplace: 'Navegar no Marketplace',
+    noPluginsOfType: 'Nenhuma biblioteca instalada deste tipo',
+    installFromMarketplace: 'Instale bibliotecas do Marketplace primeiro',
     noContent: 'Nenhum conteúdo disponível',
 
     // Content selector dialog
@@ -662,32 +687,32 @@ export default {
     addSelected: 'Adicionar Selecionados',
 
     // Notifications
-    installSuccess: 'Plugin instalado com sucesso',
-    installError: 'Falha ao instalar plugin',
-    updateSuccess: 'Plugin atualizado com sucesso',
-    updateError: 'Falha ao atualizar plugin',
-    uninstallSuccess: 'Plugin desinstalado com sucesso',
-    uninstallError: 'Falha ao desinstalar plugin',
+    installSuccess: 'Biblioteca instalada com sucesso',
+    installError: 'Falha ao instalar biblioteca',
+    updateSuccess: 'Biblioteca atualizada com sucesso',
+    updateError: 'Falha ao atualizar biblioteca',
+    uninstallSuccess: 'Biblioteca desinstalada com sucesso',
+    uninstallError: 'Falha ao desinstalar biblioteca',
     contentAddedSuccess: '{count} item(ns) adicionado(s) da biblioteca',
     contentAddedError: 'Falha ao adicionar itens da biblioteca',
-    clearAllSuccess: 'Todos os plugins foram removidos com sucesso',
-    clearAllError: 'Falha ao limpar plugins',
+    clearAllSuccess: 'Todas as bibliotecas foram removidas com sucesso',
+    clearAllError: 'Falha ao limpar bibliotecas',
 
     // Clear all (troubleshooting)
     clearAll: 'Limpar Tudo',
-    clearAllTitle: 'Limpar Todos os Plugins',
-    clearAllMessage: 'Tem certeza que deseja remover todos os plugins instalados?',
+    clearAllTitle: 'Limpar Todas as Bibliotecas',
+    clearAllMessage: 'Tem certeza que deseja remover todas as bibliotecas instaladas?',
     clearAllWarning:
-      'Isso removerá todos os metadados de plugins do armazenamento. Use isso para corrigir dados corrompidos.',
-    clearAllTooltip: 'Remover todos os plugins instalados (para solução de problemas)',
+      'Isso removerá todos os metadados de bibliotecas do armazenamento. Use isso para corrigir dados corrompidos.',
+    clearAllTooltip: 'Remover todas as bibliotecas instaladas (para solução de problemas)',
 
     // Loading states
-    loadingPlugins: 'Carregando plugins...',
+    loadingPlugins: 'Carregando bibliotecas...',
     updatesAvailable: 'atualizações disponíveis',
 
     // Network/Error states
     offline: 'Você parece estar offline. Verifique sua conexão.',
-    networkError: 'Falha ao conectar ao marketplace de plugins.',
-    fetchError: 'Falha ao carregar plugins. Tente novamente.',
+    networkError: 'Falha ao conectar ao marketplace de bibliotecas.',
+    fetchError: 'Falha ao carregar bibliotecas. Tente novamente.',
   },
 };

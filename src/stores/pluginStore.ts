@@ -35,6 +35,7 @@ export const usePluginStore = defineStore('plugins', () => {
   const searchQuery = ref('');
   const selectedTypes = ref<PluginType[]>([]);
   const selectedTags = ref<string[]>([]);
+  const selectedLanguage = ref<string | null>(null);
 
   // ================================
   // Computed / Getters
@@ -49,6 +50,50 @@ export const usePluginStore = defineStore('plugins', () => {
   });
 
   /**
+   * Get all types from a plugin (plugin-level and item-level)
+   */
+  function getPluginTypes(plugin: IMarketplacePlugin | IPlugin): PluginType[] {
+    const types: PluginType[] = [];
+    if (plugin.type) {
+      types.push(plugin.type);
+    }
+    plugin.items.forEach((item) => {
+      if (item.type && !types.includes(item.type)) {
+        types.push(item.type);
+      }
+    });
+    return types;
+  }
+
+  /**
+   * Get all tags from a plugin (plugin-level and item-level)
+   */
+  function getPluginTags(plugin: IMarketplacePlugin | IPlugin): string[] {
+    const tags = [...plugin.tags];
+    plugin.items.forEach((item) => {
+      item.tags?.forEach((tag) => {
+        if (!tags.includes(tag)) {
+          tags.push(tag);
+        }
+      });
+    });
+    return tags;
+  }
+
+  /**
+   * Get all unique languages from a plugin's items
+   */
+  function getPluginLanguages(plugin: IMarketplacePlugin | IPlugin): string[] {
+    const languages = new Set<string>();
+    plugin.items.forEach((item) => {
+      if (item.language) {
+        languages.add(item.language);
+      }
+    });
+    return Array.from(languages);
+  }
+
+  /**
    * Filtered marketplace plugins based on search query, type, and tags
    * Uses diacritics-insensitive search
    */
@@ -59,35 +104,92 @@ export const usePluginStore = defineStore('plugins', () => {
     if (searchQuery.value) {
       const query = normalizeForSearch(searchQuery.value);
       result = result.filter((p) => {
-        const type = normalizeForSearch(p.type);
-        const tags = normalizeForSearch(p.tags.join(' '));
+        const types = normalizeForSearch(getPluginTypes(p).join(' '));
+        const tags = normalizeForSearch(getPluginTags(p).join(' '));
         const id = normalizeForSearch(p.id);
-        return type.includes(query) || tags.includes(query) || id.includes(query);
+        const name = normalizeForSearch(p.name);
+        return (
+          types.includes(query) ||
+          tags.includes(query) ||
+          id.includes(query) ||
+          name.includes(query)
+        );
       });
     }
 
-    // Filter by type
+    // Filter by type (check both plugin-level and item-level types)
     if (selectedTypes.value.length > 0) {
-      result = result.filter((p) => selectedTypes.value.includes(p.type));
+      result = result.filter((p) => {
+        const pluginTypes = getPluginTypes(p);
+        return selectedTypes.value.some((t) => pluginTypes.includes(t));
+      });
     }
 
-    // Filter by tags
+    // Filter by tags (check both plugin-level and item-level tags)
     if (selectedTags.value.length > 0) {
-      result = result.filter((p) => p.tags.some((tag) => selectedTags.value.includes(tag)));
+      result = result.filter((p) => {
+        const pluginTags = getPluginTags(p);
+        return selectedTags.value.some((tag) => pluginTags.includes(tag));
+      });
+    }
+
+    // Filter by language (check item-level languages)
+    const lang = selectedLanguage.value;
+    if (lang) {
+      result = result.filter((p) => {
+        const pluginLanguages = getPluginLanguages(p);
+        return pluginLanguages.includes(lang);
+      });
     }
 
     return result;
   });
 
   /**
-   * All unique tags from marketplace and installed plugins
+   * All unique tags from marketplace and installed plugins (including item-level tags)
    */
   const allTags = computed(() => {
     const tags = new Set<string>();
     [...marketplace.value, ...installed.value].forEach((p) => {
+      // Plugin-level tags
       p.tags.forEach((tag) => tags.add(tag));
+      // Item-level tags
+      p.items.forEach((item) => {
+        item.tags?.forEach((tag) => tags.add(tag));
+      });
     });
     return Array.from(tags).sort();
+  });
+
+  /**
+   * All unique languages from marketplace and installed plugins (item-level)
+   */
+  const allLanguages = computed(() => {
+    const languages = new Set<string>();
+    [...marketplace.value, ...installed.value].forEach((p) => {
+      getPluginLanguages(p).forEach((lang) => languages.add(lang));
+    });
+    return Array.from(languages).sort((a, b) => a.localeCompare(b));
+  });
+
+  /**
+   * All unique types from marketplace and installed plugins (including item-level types)
+   */
+  const allTypes = computed(() => {
+    const types = new Set<PluginType>();
+    [...marketplace.value, ...installed.value].forEach((p) => {
+      // Plugin-level type
+      if (p.type) {
+        types.add(p.type);
+      }
+      // Item-level types
+      p.items.forEach((item) => {
+        if (item.type) {
+          types.add(item.type);
+        }
+      });
+    });
+    return Array.from(types);
   });
 
   /**
@@ -339,12 +441,20 @@ export const usePluginStore = defineStore('plugins', () => {
   }
 
   /**
+   * Set selected language filter
+   */
+  function setSelectedLanguage(language: string | null): void {
+    selectedLanguage.value = language;
+  }
+
+  /**
    * Clear all filters
    */
   function clearFilters(): void {
     searchQuery.value = '';
     selectedTypes.value = [];
     selectedTags.value = [];
+    selectedLanguage.value = null;
   }
 
   // ================================
@@ -425,13 +535,21 @@ export const usePluginStore = defineStore('plugins', () => {
     searchQuery,
     selectedTypes,
     selectedTags,
+    selectedLanguage,
 
     // Computed / Getters
     availablePlugins,
     filteredMarketplace,
     allTags,
+    allTypes,
+    allLanguages,
     hasUpdates,
     updateCount,
+
+    // Utility functions
+    getPluginTypes,
+    getPluginTags,
+    getPluginLanguages,
 
     // Actions
     initialize,
@@ -446,6 +564,7 @@ export const usePluginStore = defineStore('plugins', () => {
     setSearchQuery,
     setSelectedTypes,
     setSelectedTags,
+    setSelectedLanguage,
     clearFilters,
 
     // Helper Methods

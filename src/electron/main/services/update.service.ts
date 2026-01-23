@@ -8,6 +8,7 @@
 import { app } from 'electron';
 import path from 'path';
 import { readFileSync } from 'fs';
+import { fetchVersion, API_ENDPOINTS } from '@/services/api/myndprompts-api';
 
 // Read version from package.json (app.getVersion() returns Electron version in dev mode)
 let cachedAppVersion: string | null = null;
@@ -27,13 +28,6 @@ function getAppVersion(): string {
 // ==========================================
 // Interfaces
 // ==========================================
-
-/**
- * Remote version response from the API
- */
-export interface IRemoteVersionInfo {
-  version: string;
-}
 
 /**
  * Processed update information
@@ -58,10 +52,7 @@ export interface IUpdateCheckResult {
 // Constants
 // ==========================================
 
-const VERSION_API_URL = 'https://www.myndprompts.com/version';
-const GITHUB_RELEASES_URL = 'https://github.com/myndprompts/myndprompts/releases/tag';
 const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
-const REQUEST_TIMEOUT_MS = 10 * 1000; // 10 seconds
 
 // ==========================================
 // Service Implementation
@@ -98,12 +89,10 @@ export class UpdateService {
   }
 
   /**
-   * Generate download URL for a specific version
+   * Generate download URL for updates
    */
-  getDownloadUrl(version: string): string {
-    // Ensure version has 'v' prefix for GitHub releases
-    const versionTag = version.startsWith('v') ? version : `v${version}`;
-    return `${GITHUB_RELEASES_URL}/${versionTag}`;
+  getDownloadUrl(_version: string): string {
+    return API_ENDPOINTS.DOWNLOAD_PAGE;
   }
 
   /**
@@ -161,41 +150,7 @@ export class UpdateService {
    * Fetch the latest version from the remote API
    */
   async fetchRemoteVersion(): Promise<string> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(VERSION_API_URL, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': `MyndPrompts/${this.getCurrentVersion()}`,
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = (await response.json()) as IRemoteVersionInfo;
-
-      if (!data || typeof data.version !== 'string') {
-        throw new Error('Invalid version response format');
-      }
-
-      return data.version;
-    } catch (error) {
-      clearTimeout(timeoutId);
-
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Request timeout - server did not respond');
-      }
-
-      throw error;
-    }
+    return fetchVersion();
   }
 
   /**

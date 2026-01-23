@@ -35,14 +35,17 @@ const installingIds = ref<Set<string>>(new Set());
 // Plugin being viewed (null = show list, plugin = show content viewer)
 const viewingPlugin = ref<IMarketplacePlugin | null>(null);
 
-// Plugin type options for filter
+// Plugin type options for filter (dynamically from marketplace data)
 const pluginTypes = computed(() =>
-  Object.values(PLUGIN_TYPE_INFO).map((info) => ({
-    value: info.type,
-    label: info.label,
-    icon: info.icon,
-    color: info.color,
-  }))
+  pluginStore.allTypes.map((type) => {
+    const info = PLUGIN_TYPE_INFO[type];
+    return {
+      value: type,
+      label: info?.label ?? type,
+      icon: info?.icon ?? 'mdi-puzzle',
+      color: info?.color ?? 'grey',
+    };
+  })
 );
 
 // Sync local search with store (debounced)
@@ -75,23 +78,60 @@ function isTypeSelected(type: PluginType): boolean {
   return pluginStore.selectedTypes.includes(type);
 }
 
-// Toggle tag filter
-function toggleTag(tag: string): void {
-  const current = [...pluginStore.selectedTags];
-  const index = current.indexOf(tag);
+// Local state for tags filter input
+const tagsFilterText = ref('');
 
-  if (index >= 0) {
-    current.splice(index, 1);
-  } else {
-    current.push(tag);
-  }
+// Local state for language filter input
+const languageFilterText = ref('');
 
-  pluginStore.setSelectedTags(current);
+// Update tags filter
+function onTagsChange(value: string[]): void {
+  pluginStore.setSelectedTags(value);
 }
 
-// Check if tag is selected
-function isTagSelected(tag: string): boolean {
-  return pluginStore.selectedTags.includes(tag);
+// Normalize string for diacritics-insensitive search
+function normalizeForSearch(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+// Filter tags function for q-select
+function filterTags(val: string, update: (fn: () => void) => void): void {
+  update(() => {
+    tagsFilterText.value = val;
+  });
+}
+
+// Computed filtered tag options for the select
+const filteredTagOptions = computed(() => {
+  if (!tagsFilterText.value) {
+    return pluginStore.allTags;
+  }
+  const needle = normalizeForSearch(tagsFilterText.value);
+  return pluginStore.allTags.filter((tag) => normalizeForSearch(tag).includes(needle));
+});
+
+// Filter languages function for q-select
+function filterLanguages(val: string, update: (fn: () => void) => void): void {
+  update(() => {
+    languageFilterText.value = val;
+  });
+}
+
+// Computed filtered language options
+const filteredLanguageOptions = computed(() => {
+  if (!languageFilterText.value) {
+    return pluginStore.allLanguages;
+  }
+  const needle = normalizeForSearch(languageFilterText.value);
+  return pluginStore.allLanguages.filter((lang) => normalizeForSearch(lang).includes(needle));
+});
+
+// Update language filter
+function onLanguageChange(value: string | null): void {
+  pluginStore.setSelectedLanguage(value);
 }
 
 // Clear all filters
@@ -105,7 +145,8 @@ const hasActiveFilters = computed(() => {
   return (
     pluginStore.searchQuery !== '' ||
     pluginStore.selectedTypes.length > 0 ||
-    pluginStore.selectedTags.length > 0
+    pluginStore.selectedTags.length > 0 ||
+    pluginStore.selectedLanguage !== null
   );
 });
 
@@ -229,26 +270,85 @@ watch(
         <!-- Tags Filter -->
         <div
           v-if="pluginStore.allTags.length > 0"
-          class="plugins-marketplace__filter-group"
+          class="plugins-marketplace__filter-group plugins-marketplace__filter-group--tags"
         >
           <span class="plugins-marketplace__filter-label">
             {{ t('plugins.filterByTags') || 'Tags' }}:
           </span>
-          <div class="plugins-marketplace__filter-chips">
-            <q-chip
-              v-for="tag in pluginStore.allTags"
-              :key="tag"
-              :outline="!isTagSelected(tag)"
-              :color="isTagSelected(tag) ? 'secondary' : undefined"
-              :text-color="isTagSelected(tag) ? 'white' : undefined"
-              clickable
-              dense
-              class="plugins-marketplace__filter-chip"
-              @click="toggleTag(tag)"
-            >
-              {{ tag }}
-            </q-chip>
-          </div>
+          <q-select
+            :model-value="pluginStore.selectedTags"
+            :options="filteredTagOptions"
+            multiple
+            dense
+            outlined
+            use-input
+            use-chips
+            input-debounce="0"
+            dropdown-icon="mdi-chevron-down"
+            :placeholder="
+              pluginStore.selectedTags.length === 0
+                ? t('plugins.selectTags') || 'Select tags...'
+                : ''
+            "
+            class="plugins-marketplace__tags-select"
+            popup-content-class="plugins-marketplace__tags-dropdown"
+            @update:model-value="onTagsChange"
+            @filter="filterTags"
+            @input-value="(val) => (tagsFilterText = val)"
+          >
+            <template #selected-item="scope">
+              <q-chip
+                removable
+                dense
+                color="secondary"
+                text-color="white"
+                class="q-ma-xs"
+                @remove="scope.removeAtIndex(scope.index)"
+              >
+                {{ scope.opt }}
+              </q-chip>
+            </template>
+            <template #no-option>
+              <q-item>
+                <q-item-section class="text-grey">
+                  {{ t('plugins.noTagsFound') || 'No tags found' }}
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+        </div>
+
+        <!-- Language Filter -->
+        <div
+          v-if="pluginStore.allLanguages.length > 0"
+          class="plugins-marketplace__filter-group plugins-marketplace__filter-group--language"
+        >
+          <span class="plugins-marketplace__filter-label">
+            {{ t('plugins.filterByLanguage') || 'Language' }}:
+          </span>
+          <q-select
+            :model-value="pluginStore.selectedLanguage"
+            :options="filteredLanguageOptions"
+            dense
+            outlined
+            clearable
+            use-input
+            input-debounce="0"
+            dropdown-icon="mdi-chevron-down"
+            :placeholder="t('plugins.selectLanguage') || 'Select language...'"
+            class="plugins-marketplace__language-select"
+            popup-content-class="plugins-marketplace__language-dropdown"
+            @update:model-value="onLanguageChange"
+            @filter="filterLanguages"
+          >
+            <template #no-option>
+              <q-item>
+                <q-item-section class="text-grey">
+                  {{ t('plugins.noLanguagesFound') || 'No languages found' }}
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
         </div>
 
         <!-- Clear Filters -->
@@ -412,6 +512,51 @@ watch(
     font-size: 12px;
   }
 
+  &__filter-group--tags {
+    align-items: center;
+  }
+
+  &__filter-group--language {
+    align-items: center;
+  }
+
+  &__tags-select {
+    flex: 1;
+    min-width: 200px;
+    max-width: 400px;
+
+    :deep(.q-field__control) {
+      min-height: 32px;
+      background-color: var(--input-bg, rgba(0, 0, 0, 0.05));
+    }
+
+    :deep(.q-field__native) {
+      min-height: 28px;
+      padding: 2px 8px;
+    }
+
+    :deep(.q-chip) {
+      font-size: 11px;
+      height: 20px;
+    }
+  }
+
+  &__language-select {
+    flex: 1;
+    min-width: 150px;
+    max-width: 250px;
+
+    :deep(.q-field__control) {
+      min-height: 32px;
+      background-color: var(--input-bg, rgba(0, 0, 0, 0.05));
+    }
+
+    :deep(.q-field__native) {
+      min-height: 28px;
+      padding: 2px 8px;
+    }
+  }
+
   &__clear-filters {
     margin-top: 8px;
   }
@@ -448,5 +593,16 @@ watch(
   --input-bg: rgba(255, 255, 255, 0.1);
   --text-secondary: #999;
   --border-color: #3c3c3c;
+}
+</style>
+
+<style lang="scss">
+// Global styles for dropdown (rendered in portal outside component)
+.plugins-marketplace__tags-dropdown {
+  z-index: 9999 !important;
+}
+
+.plugins-marketplace__language-dropdown {
+  z-index: 9999 !important;
 }
 </style>

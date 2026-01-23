@@ -62,6 +62,8 @@ export default {
     info: 'Informazione',
     success: 'Successo',
     retry: 'Riprova',
+    item: 'elemento',
+    items: 'elementi',
   },
 
   // Activity bar
@@ -78,7 +80,7 @@ export default {
   sidebar: {
     explorer: 'Esplora',
     search: 'Cerca',
-    snippets: 'Snippet',
+    snippets: 'Libreria',
     favorites: 'Preferiti',
     sourceControl: 'Controllo Versione',
     settings: 'Impostazioni',
@@ -142,7 +144,7 @@ export default {
   // Snippets panel
   snippetsPanel: {
     title: 'Snippet',
-    searchPlaceholder: 'Cerca snippet...',
+    searchPlaceholder: 'Cerca nella libreria...',
     createNew: 'Crea nuovo snippet',
     personas: 'Personas',
     textSnippets: 'Snippet di Testo',
@@ -168,6 +170,10 @@ export default {
     browserModeHint: 'In esecuzione in modalità anteprima browser.',
     filterByTags: 'Filtra per tag...',
     noTagsFound: 'Nessun tag trovato',
+    filterByLanguage: 'Linguaggio',
+    selectLanguage: 'Seleziona linguaggio...',
+    allLanguages: 'Tutti i linguaggi',
+    noLanguagesFound: 'Nessun linguaggio trovato',
   },
 
   // Favorites panel
@@ -347,6 +353,8 @@ export default {
       tagsPlaceholder: 'Aggiungi tag...',
       tagsHint: 'Seleziona tag esistenti o digita per crearne di nuovi',
       tagsEmpty: 'Nessun tag ancora',
+      language: 'Lingua',
+      languageHint: 'Seleziona la lingua del contenuto',
     },
     newProject: {
       title: 'Nuovo Progetto',
@@ -601,21 +609,35 @@ export default {
   // Plugins
   plugins: {
     // Section title
-    title: 'Plugin',
+    title: 'Librerie',
 
     // Tabs
     marketplace: 'Marketplace',
-    installed: 'Installati',
+    installed: 'Installate',
 
     // Search and filters
-    searchPlaceholder: 'Cerca plugin...',
+    searchPlaceholder: 'Cerca librerie...',
+    searchItems: 'Cerca modelli, personas, snippet...',
+    noItemsFound: 'Nessun elemento trovato',
+    tryDifferentSearch: 'Prova con un termine di ricerca diverso',
+    installLibrary: 'Installa Libreria',
+    hintNavigate: 'naviga',
+    hintInstall: 'installa libreria',
+    hintUninstall: 'disinstalla',
+    hintClose: 'chiudi',
     filterByType: 'Tipo',
     filterByTags: 'Tag',
     allTypes: 'Tutti',
     allTags: 'Tutti i tag',
     clearFilters: 'Cancella filtri',
+    selectTags: 'Seleziona tag...',
+    noTagsFound: 'Nessun tag trovato',
+    filterByLanguage: 'Linguaggio',
+    selectLanguage: 'Seleziona linguaggio...',
+    allLanguages: 'Tutti i linguaggi',
+    noLanguagesFound: 'Nessun linguaggio trovato',
 
-    // Plugin types
+    // Library types
     types: {
       persona: 'Persona',
       templates: 'Modelli',
@@ -623,36 +645,39 @@ export default {
       text_snippets: 'Snippet di Testo',
     },
 
-    // Plugin card
+    // Library card
     version: 'Versione',
     items: 'elementi',
-    installedOn: 'Installato il',
-    updatedOn: 'Aggiornato il',
+    installedOn: 'Installata il',
+    updatedOn: 'Aggiornata il',
 
     // Actions
     install: 'Installa',
     installing: 'Installazione...',
     update: 'Aggiorna',
     updateTo: 'Aggiorna a v{version}',
-    updateAll: 'Aggiorna Tutti',
+    updateAll: 'Aggiorna Tutte',
     updating: 'Aggiornamento...',
     uninstall: 'Disinstalla',
     uninstalling: 'Disinstallazione...',
     view: 'Visualizza',
 
     // Confirmation dialog
-    uninstallTitle: 'Disinstalla Plugin',
+    uninstallTitle: 'Disinstalla Libreria',
     uninstallMessage: 'Sei sicuro di voler disinstallare "{name}"?',
-    uninstallWarning: 'Questo rimuoverà tutti gli elementi forniti da questo plugin.',
+    uninstallWarning: 'Questo rimuoverà tutti gli elementi forniti da questa libreria.',
 
     // Empty states
-    noPluginsFound: 'Nessun plugin trovato',
+    noPluginsFound: 'Nessuna libreria trovata',
     noPluginsFoundHint: 'Prova a modificare i filtri',
-    noPluginsInstalled: 'Nessun plugin installato',
-    noPluginsInstalledHint: 'Visita il Marketplace per scoprire e installare plugin',
-    noPluginsOfType: 'Nessun plugin installato di questo tipo',
-    installFromMarketplace: 'Installa prima i plugin dal Marketplace',
-    noContent: 'Questo plugin non ha contenuto',
+    noPluginsInstalled: 'Nessuna libreria installata',
+    noPluginsInstalledHint: 'Visita il Marketplace per scoprire e installare librerie',
+    noInstalledLibraries: 'Nessuna libreria installata',
+    goToMarketplace: 'Sfoglia la scheda Marketplace per installare librerie',
+    browseMarketplace: 'Sfoglia Marketplace',
+    noPluginsOfType: 'Nessuna libreria installata di questo tipo',
+    installFromMarketplace: 'Installa prima le librerie dal Marketplace',
+    noContent: 'Questa libreria non ha contenuto',
 
     // Content selector dialog
     addFromLibrary: 'Aggiungi dalla Libreria',
@@ -662,32 +687,32 @@ export default {
     addSelected: 'Aggiungi Selezionati',
 
     // Notifications
-    installSuccess: 'Plugin installato con successo',
-    installError: 'Installazione plugin fallita',
-    updateSuccess: 'Plugin aggiornato con successo',
-    updateError: 'Aggiornamento plugin fallito',
-    uninstallSuccess: 'Plugin disinstallato con successo',
-    uninstallError: 'Disinstallazione plugin fallita',
+    installSuccess: 'Libreria installata con successo',
+    installError: 'Installazione libreria fallita',
+    updateSuccess: 'Libreria aggiornata con successo',
+    updateError: 'Aggiornamento libreria fallito',
+    uninstallSuccess: 'Libreria disinstallata con successo',
+    uninstallError: 'Disinstallazione libreria fallita',
     contentAddedSuccess: '{count} elemento/i aggiunto/i dalla libreria',
     contentAddedError: "Errore nell'aggiunta degli elementi dalla libreria",
-    clearAllSuccess: 'Tutti i plugin rimossi con successo',
-    clearAllError: 'Errore durante la rimozione dei plugin',
+    clearAllSuccess: 'Tutte le librerie rimosse con successo',
+    clearAllError: 'Errore durante la rimozione delle librerie',
 
     // Clear all (troubleshooting)
     clearAll: 'Cancella Tutto',
-    clearAllTitle: 'Cancella Tutti i Plugin',
-    clearAllMessage: 'Sei sicuro di voler rimuovere tutti i plugin installati?',
+    clearAllTitle: 'Cancella Tutte le Librerie',
+    clearAllMessage: 'Sei sicuro di voler rimuovere tutte le librerie installate?',
     clearAllWarning:
-      'Questo rimuoverà tutti i metadati dei plugin dalla memoria. Usalo per correggere dati corrotti.',
-    clearAllTooltip: 'Rimuovi tutti i plugin installati (risoluzione problemi)',
+      'Questo rimuoverà tutti i metadati delle librerie dalla memoria. Usalo per correggere dati corrotti.',
+    clearAllTooltip: 'Rimuovi tutte le librerie installate (risoluzione problemi)',
 
     // Loading states
-    loadingPlugins: 'Caricamento plugin...',
+    loadingPlugins: 'Caricamento librerie...',
     updatesAvailable: 'aggiornamenti disponibili',
 
     // Network/Error states
     offline: 'Sembra che tu sia offline. Controlla la tua connessione.',
-    networkError: 'Connessione al marketplace dei plugin fallita.',
-    fetchError: 'Caricamento plugin fallito. Riprova.',
+    networkError: 'Connessione al marketplace delle librerie fallita.',
+    fetchError: 'Caricamento librerie fallito. Riprova.',
   },
 };

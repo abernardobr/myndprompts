@@ -8,7 +8,8 @@ export interface IMarketplacePlugin {
   name: string;
   description?: string;
   version: string;
-  type: PluginType;
+  type?: PluginType;
+  language?: string;
   tags: string[];
   items: IPluginItem[];
 }

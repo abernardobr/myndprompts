@@ -10,12 +10,14 @@
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useSnippetStore } from '@/stores/snippetStore';
+import { getLanguageLabel } from '@/constants/languages';
 
 interface Props {
   modelValue: boolean;
   currentName: string;
   currentDescription?: string;
   currentTags?: string[];
+  currentLanguage?: string | null;
   itemType: 'prompt' | 'snippet' | 'persona' | 'template' | 'text' | 'project' | 'directory';
 }
 
@@ -23,6 +25,7 @@ interface RenameResult {
   name: string;
   description?: string;
   tags?: string[];
+  language?: string | null;
 }
 
 interface Emits {
@@ -34,6 +37,7 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   currentDescription: '',
   currentTags: () => [],
+  currentLanguage: null,
 });
 const emit = defineEmits<Emits>();
 
@@ -49,7 +53,9 @@ const isSnippetType = computed(() =>
 const newName = ref('');
 const description = ref('');
 const tags = ref<string[]>([]);
+const language = ref<string | null>(null);
 const filteredTagOptions = ref<string[]>([]);
+const filteredLanguageOptions = ref<{ value: string; label: string }[]>([]);
 const nameInput = ref<HTMLInputElement | null>(null);
 
 // Get all unique tags from all snippets
@@ -61,6 +67,19 @@ const allExistingTags = computed(() => {
     }
   }
   return Array.from(tagSet).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+});
+
+// Get all unique languages from all snippets (with labels)
+const allExistingLanguages = computed(() => {
+  const langSet = new Set<string>();
+  for (const snippet of snippetStore.allSnippets) {
+    if (snippet.metadata.language) {
+      langSet.add(snippet.metadata.language);
+    }
+  }
+  return Array.from(langSet)
+    .map((code) => ({ value: code, label: getLanguageLabel(code) }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 });
 
 /**
@@ -103,6 +122,22 @@ function createTag(
   }
 }
 
+/**
+ * Filter language options based on user input
+ */
+function filterLanguages(val: string, update: (callback: () => void) => void): void {
+  update(() => {
+    if (!val) {
+      filteredLanguageOptions.value = allExistingLanguages.value;
+    } else {
+      const normalizedSearch = normalizeForSearch(val);
+      filteredLanguageOptions.value = allExistingLanguages.value.filter((lang) =>
+        normalizeForSearch(lang.label).includes(normalizedSearch)
+      );
+    }
+  });
+}
+
 // Validation
 const nameError = computed(() => {
   if (!newName.value.trim()) {
@@ -129,6 +164,7 @@ const hasChanges = computed(() => {
     const currentTagsStr = JSON.stringify([...(props.currentTags ?? [])].sort());
     const newTagsStr = JSON.stringify([...tags.value].sort());
     if (currentTagsStr !== newTagsStr) return true;
+    if (language.value !== (props.currentLanguage ?? null)) return true;
   }
   return false;
 });
@@ -168,7 +204,9 @@ watch(
       newName.value = props.currentName;
       description.value = props.currentDescription ?? '';
       tags.value = [...(props.currentTags ?? [])];
+      language.value = props.currentLanguage ?? null;
       filteredTagOptions.value = allExistingTags.value;
+      filteredLanguageOptions.value = allExistingLanguages.value;
       // Focus and select input after dialog opens
       setTimeout(() => {
         nameInput.value?.focus();
@@ -191,6 +229,7 @@ function handleSave(): void {
       name: newName.value.trim(),
       description: description.value,
       tags: tags.value,
+      language: language.value,
     });
   } else {
     // Emit just rename for non-snippets (backwards compatibility)
@@ -298,6 +337,39 @@ function handleKeydown(event: KeyboardEvent): void {
               </template>
             </q-select>
           </div>
+
+          <!-- Language -->
+          <div class="language-section">
+            <q-select
+              v-model="language"
+              :options="filteredLanguageOptions"
+              option-value="value"
+              option-label="label"
+              emit-value
+              map-options
+              :label="t('dialogs.newSnippet.language') || 'Language'"
+              outlined
+              clearable
+              use-input
+              input-debounce="0"
+              :hint="t('dialogs.newSnippet.languageHint') || 'Select the content language'"
+              @filter="filterLanguages"
+            >
+              <template #prepend>
+                <q-icon
+                  name="translate"
+                  size="20px"
+                />
+              </template>
+              <template #no-option>
+                <q-item>
+                  <q-item-section class="text-grey">
+                    {{ t('snippetsPanel.noLanguagesFound') || 'No languages found' }}
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
+          </div>
         </template>
       </q-card-section>
 
@@ -333,5 +405,9 @@ function handleKeydown(event: KeyboardEvent): void {
 
 .tags-section {
   margin-top: 8px;
+}
+
+.language-section {
+  margin-top: 16px;
 }
 </style>

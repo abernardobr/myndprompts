@@ -8,9 +8,10 @@
 
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { IPluginItem } from '@/services/storage/entities';
+import type { IPluginItem, PluginType } from '@/services/storage/entities';
 import type { IMarketplacePlugin } from '@/services/plugins/types';
 import type { IPlugin } from '@/services/storage/entities';
+import { PLUGIN_TYPE_INFO } from '@/services/plugins/types';
 
 const props = defineProps<{
   plugin: IMarketplacePlugin | IPlugin;
@@ -35,6 +36,30 @@ const totalItems = computed(() => props.plugin.items.length);
 // Current item
 const currentItem = computed<IPluginItem | undefined>(() => {
   return props.plugin.items[currentIndex.value];
+});
+
+// Get the effective type for the current item (item-level or fallback to plugin-level)
+const currentItemType = computed<PluginType | undefined>(() => {
+  return currentItem.value?.type ?? props.plugin.type;
+});
+
+// Get type display info for the current item
+const currentItemTypeInfo = computed(() => {
+  if (!currentItemType.value) return null;
+  const info = PLUGIN_TYPE_INFO[currentItemType.value];
+  return info
+    ? {
+        type: currentItemType.value,
+        icon: info.icon,
+        color: info.color,
+        label: info.label,
+      }
+    : null;
+});
+
+// Get tags for the current item (item-level tags, or empty if none)
+const currentItemTags = computed<string[]>(() => {
+  return currentItem.value?.tags ?? [];
 });
 
 // Navigation
@@ -106,16 +131,50 @@ function handleOpenSnippet(): void {
       <template v-if="currentItem">
         <!-- Item header -->
         <div class="plugin-content-viewer__item-header">
-          <div class="plugin-content-viewer__item-title">
-            <div class="text-h6">{{ currentItem.title }}</div>
-            <q-chip
-              v-if="currentItem.language"
-              dense
-              size="sm"
-              outline
+          <div class="plugin-content-viewer__item-info">
+            <div class="plugin-content-viewer__item-title">
+              <div class="text-h6">{{ currentItem.title }}</div>
+              <q-chip
+                v-if="currentItem.language"
+                dense
+                size="sm"
+                outline
+              >
+                {{ currentItem.language }}
+              </q-chip>
+            </div>
+            <!-- Type and Tags row -->
+            <div
+              v-if="currentItemTypeInfo || currentItemTags.length > 0"
+              class="plugin-content-viewer__item-meta"
             >
-              {{ currentItem.language }}
-            </q-chip>
+              <!-- Type chip -->
+              <q-chip
+                v-if="currentItemTypeInfo"
+                dense
+                size="sm"
+                :color="currentItemTypeInfo.color"
+                text-color="white"
+                class="plugin-content-viewer__type-chip"
+              >
+                <q-icon
+                  :name="currentItemTypeInfo.icon"
+                  size="12px"
+                  class="q-mr-xs"
+                />
+                {{ currentItemTypeInfo.label }}
+              </q-chip>
+              <!-- Tags -->
+              <q-chip
+                v-for="tag in currentItemTags"
+                :key="tag"
+                dense
+                size="sm"
+                class="plugin-content-viewer__tag-chip"
+              >
+                {{ tag }}
+              </q-chip>
+            </div>
           </div>
           <!-- Open button (only shown for installed plugins) -->
           <q-btn
@@ -237,12 +296,34 @@ function handleOpenSnippet(): void {
     border-bottom: 1px solid var(--border-color, #e0e0e0);
   }
 
+  &__item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+
   &__item-title {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1;
-    min-width: 0;
+  }
+
+  &__item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__type-chip {
+    font-size: 11px;
+  }
+
+  &__tag-chip {
+    font-size: 11px;
+    background-color: var(--tag-bg, rgba(0, 0, 0, 0.05));
   }
 
   &__item-content {
@@ -294,11 +375,13 @@ function handleOpenSnippet(): void {
   --border-color: #e0e0e0;
   --pre-bg: #f5f5f5;
   --text-secondary: #666;
+  --tag-bg: rgba(0, 0, 0, 0.05);
 }
 
 .body--dark .plugin-content-viewer {
   --border-color: #3c3c3c;
   --pre-bg: #1e1e1e;
   --text-secondary: #999;
+  --tag-bg: rgba(255, 255, 255, 0.1);
 }
 </style>

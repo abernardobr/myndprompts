@@ -334,6 +334,7 @@ export class PromptFileService {
     type: ISnippetMetadata['type'] = 'text',
     content: string = '',
     tags: string[] = [],
+    language?: string,
     description?: string
   ): Promise<ISnippetFile> {
     const api = this.getAPI();
@@ -343,6 +344,7 @@ export class PromptFileService {
       type,
       content,
       tags,
+      language,
       description
     );
 

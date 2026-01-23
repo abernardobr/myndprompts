@@ -24,6 +24,7 @@ import EditorArea from '@/components/layout/EditorArea.vue';
 import BottomPanel from '@/components/layout/BottomPanel.vue';
 import StatusBar from '@/components/layout/StatusBar.vue';
 import SettingsDialog from '@/components/dialogs/SettingsDialog.vue';
+import LibraryDialog from '@/components/dialogs/LibraryDialog.vue';
 import UpdateDialog from '@/components/dialogs/UpdateDialog.vue';
 
 const uiStore = useUIStore();
@@ -77,11 +78,20 @@ function onVerticalResize(panes: { size: number }[]): void {
 // Settings dialog state
 const showSettingsDialog = ref(false);
 
+// Library dialog state
+const showLibraryDialog = ref(false);
+
 // Provide function to open settings dialog from child components
 function openSettingsDialog(): void {
   showSettingsDialog.value = true;
 }
 provide('openSettingsDialog', openSettingsDialog);
+
+// Provide function to open library dialog from child components
+function openLibraryDialog(): void {
+  showLibraryDialog.value = true;
+}
+provide('openLibraryDialog', openLibraryDialog);
 
 // Menu event listener cleanup
 let cleanupSettingsListener: (() => void) | null = null;
@@ -184,6 +194,9 @@ onUnmounted(() => {
 
     <!-- Settings Dialog -->
     <SettingsDialog v-model="showSettingsDialog" />
+
+    <!-- Library Dialog -->
+    <LibraryDialog v-model="showLibraryDialog" />
 
     <!-- Update Dialog -->
     <UpdateDialog

@@ -49,6 +49,7 @@ export interface ISnippetMetadata {
   shortcut: string;
   description?: string;
   tags: string[];
+  language?: string;
   createdAt?: string;
   updatedAt?: string;
 }

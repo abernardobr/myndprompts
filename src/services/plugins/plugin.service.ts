@@ -1,5 +1,6 @@
 import { getPluginRepository } from '../storage/repositories';
 import { getPromptFileService } from '../file-system';
+import { fetchMarketplacePlugins } from '../api/myndprompts-api';
 import type { IPlugin, PluginType } from '../storage/entities';
 import type { ISnippetMetadata } from '../file-system/types';
 import type { IMarketplacePlugin, IPluginUpdateInfo, IPluginOperationResult } from './types';
@@ -11,7 +12,6 @@ import type { IMarketplacePlugin, IPluginUpdateInfo, IPluginOperationResult } fr
 export class PluginService {
   private static instance: PluginService;
 
-  private readonly marketplaceUrl = 'https://www.myndprompts.com/plugins';
   private readonly cacheDurationMs = 5 * 60 * 1000; // 5 minutes
 
   private marketplaceCache: IMarketplacePlugin[] | null = null;
@@ -50,19 +50,14 @@ export class PluginService {
     }
 
     try {
-      console.log('[PluginService] Fetching from:', this.marketplaceUrl);
-      const response = await fetch(this.marketplaceUrl);
-
-      console.log('[PluginService] Response status:', response.status, response.statusText);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = (await response.json()) as IMarketplacePlugin[];
+      console.log('[PluginService] Fetching marketplace plugins...');
+      const data = await fetchMarketplacePlugins();
       console.log('[PluginService] Raw data received:', data.length, 'items');
 
       // Validate and clean the data
-      this.marketplaceCache = data.filter((plugin) => this.isValidPlugin.call(this, plugin));
+      this.marketplaceCache = (data as IMarketplacePlugin[]).filter((plugin) =>
+        this.isValidPlugin.call(this, plugin)
+      );
       console.log('[PluginService] Valid plugins after filtering:', this.marketplaceCache.length);
       this.lastFetchTime = now;
 
@@ -162,32 +157,54 @@ export class PluginService {
           description: plugin.description,
           version: plugin.version,
           type: plugin.type,
+          language: plugin.language,
           tags: plugin.tags,
           items: plugin.items,
         })
-      ) as Omit<import('../storage/entities').IPlugin, 'installedAt' | 'updatedAt'>;
+      ) as Omit<import('../storage/entities').IPlugin, 'installedAt' | 'updatedAt'> & {
+        language?: string;
+      };
 
       // Install the plugin metadata in IndexedDB
       await getPluginRepository().install(cleanPlugin);
 
       // Create snippet files for each plugin item
       const snippetService = getPromptFileService();
-      const snippetType = this.mapPluginTypeToSnippetType(plugin.type);
       console.log(
-        `[PluginService] Installing plugin "${plugin.id}" with type "${plugin.type}" -> snippetType "${snippetType}"`
+        `[PluginService] Installing plugin "${plugin.id}" with library-level type "${plugin.type ?? 'none'}"`
       );
 
       for (const item of cleanPlugin.items) {
         try {
+          // Use item-level type if available, otherwise fall back to library-level type
+          const itemType = item.type ?? cleanPlugin.type;
+
+          // Skip items without a type (neither item-level nor library-level)
+          if (!itemType) {
+            console.warn(
+              `[PluginService] Skipping item "${item.title}" - no type defined at item or library level`
+            );
+            continue;
+          }
+
+          const snippetType = this.mapPluginTypeToSnippetType(itemType);
+
+          // Merge library tags with item tags (unique union)
+          const mergedTags = [...new Set([...cleanPlugin.tags, ...(item.tags ?? [])])];
+
+          // Use item-level language if available, otherwise fall back to plugin-level language
+          const itemLanguage = item.language ?? cleanPlugin.language;
+
           console.log(
-            `[PluginService] Creating snippet "${item.title}" with type "${snippetType}" and tags:`,
-            cleanPlugin.tags
+            `[PluginService] Creating snippet "${item.title}" with type "${snippetType}", language: "${itemLanguage ?? 'none'}", and tags:`,
+            mergedTags
           );
           await snippetService.createSnippet(
             item.title,
             snippetType,
             item.content,
-            cleanPlugin.tags,
+            mergedTags,
+            itemLanguage,
             item.description
           );
         } catch (err) {
@@ -375,19 +392,59 @@ export class PluginService {
 
   /**
    * Validate that a plugin object has required fields
+   * Type can be at plugin level, item level, or both
    */
   private isValidPlugin(plugin: unknown): plugin is IMarketplacePlugin {
-    if (!plugin || typeof plugin !== 'object') return false;
+    if (!plugin || typeof plugin !== 'object') {
+      console.log('[PluginService] isValidPlugin: Invalid plugin object');
+      return false;
+    }
 
     const p = plugin as Record<string, unknown>;
-    return (
-      typeof p.id === 'string' &&
-      typeof p.name === 'string' &&
-      typeof p.version === 'string' &&
-      typeof p.type === 'string' &&
-      Array.isArray(p.tags) &&
-      Array.isArray(p.items)
+
+    // Check required fields
+    if (typeof p.id !== 'string') {
+      console.log('[PluginService] isValidPlugin: Missing or invalid id');
+      return false;
+    }
+    if (typeof p.name !== 'string') {
+      console.log('[PluginService] isValidPlugin: Missing or invalid name for', p.id);
+      return false;
+    }
+    if (typeof p.version !== 'string') {
+      console.log('[PluginService] isValidPlugin: Missing or invalid version for', p.id);
+      return false;
+    }
+    if (!Array.isArray(p.tags)) {
+      console.log('[PluginService] isValidPlugin: Missing or invalid tags for', p.id);
+      return false;
+    }
+    if (!Array.isArray(p.items)) {
+      console.log('[PluginService] isValidPlugin: Missing or invalid items for', p.id);
+      return false;
+    }
+
+    // Type is optional at plugin level, but if not present,
+    // at least one item should have a type
+    const hasPluginType = typeof p.type === 'string';
+    const hasItemType = (p.items as Array<Record<string, unknown>>).some(
+      (item) => typeof item.type === 'string'
     );
+
+    if (!hasPluginType && !hasItemType) {
+      console.log('[PluginService] isValidPlugin: No type found at plugin or item level for', p.id);
+      return false;
+    }
+
+    console.log(
+      '[PluginService] isValidPlugin: Valid plugin',
+      p.id,
+      'hasPluginType:',
+      hasPluginType,
+      'hasItemType:',
+      hasItemType
+    );
+    return true;
   }
 
   /**
