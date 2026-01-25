@@ -63,6 +63,70 @@ export class FileIndexRepository extends BaseRepository<IFileIndexEntry, string>
   }
 
   /**
+   * Add entries in batches to prevent IndexedDB from timing out on large datasets.
+   * Processes entries in chunks and yields to the event loop between batches.
+   *
+   * @param entries - Array of file index entries to add
+   * @param batchSize - Number of entries per batch (default: 1000)
+   * @param onProgress - Optional callback for progress updates
+   */
+  async addEntriesBatched(
+    entries: IFileIndexEntry[],
+    batchSize: number = 1000,
+    onProgress?: (current: number, total: number) => void
+  ): Promise<void> {
+    const total = entries.length;
+    console.log(
+      `[FileIndexRepository] addEntriesBatched starting: ${total} entries, batchSize: ${batchSize}`
+    );
+
+    for (let i = 0; i < total; i += batchSize) {
+      const batch = entries.slice(i, Math.min(i + batchSize, total));
+      const batchNum = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(total / batchSize);
+
+      try {
+        await this.table.bulkAdd(batch);
+      } catch (error) {
+        // Log error but continue with next batch
+        console.error(
+          `[FileIndexRepository] Error adding batch ${batchNum}/${totalBatches} (${i}-${i + batch.length}):`,
+          error
+        );
+        // Try adding one by one for this batch to salvage what we can
+        let recovered = 0;
+        for (const entry of batch) {
+          try {
+            await this.table.add(entry);
+            recovered++;
+          } catch {
+            // Skip individual entry that fails
+          }
+        }
+        console.log(
+          `[FileIndexRepository] Recovered ${recovered}/${batch.length} entries from failed batch`
+        );
+      }
+
+      // Report progress
+      const processed = Math.min(i + batchSize, total);
+      onProgress?.(processed, total);
+
+      // Log progress every 5 batches or on last batch
+      if (batchNum % 5 === 0 || batchNum === totalBatches) {
+        console.log(
+          `[FileIndexRepository] Batch ${batchNum}/${totalBatches} complete (${processed}/${total} entries)`
+        );
+      }
+
+      // Yield to event loop between batches to prevent UI freezing
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    console.log(`[FileIndexRepository] addEntriesBatched complete: ${total} entries saved`);
+  }
+
+  /**
    * Remove all file entries for a specific project folder
    */
   async removeByProjectFolder(projectFolderId: string): Promise<void> {

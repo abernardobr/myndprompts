@@ -657,14 +657,22 @@ ipcMain.handle('git:remove', async (_event, repoPath: string) => {
 // ================================
 
 ipcMain.handle('fs:start-indexing', async (event, folderPath: string, operationId: string) => {
+  console.log(`[IPC] fs:start-indexing called for: ${folderPath} (operationId: ${operationId})`);
+
   const indexer = getFileIndexerService();
   const window = BrowserWindow.fromWebContents(event.sender);
 
-  const files = await indexer.indexDirectory(folderPath, operationId, (progress) => {
-    window?.webContents.send('fs:index-progress', { operationId, ...progress });
-  });
+  try {
+    const files = await indexer.indexDirectory(folderPath, operationId, (progress) => {
+      window?.webContents.send('fs:index-progress', { operationId, ...progress });
+    });
 
-  return files;
+    console.log(`[IPC] fs:start-indexing completed for: ${folderPath} (${files.length} files)`);
+    return files;
+  } catch (error) {
+    console.error(`[IPC] fs:start-indexing error for: ${folderPath}`, error);
+    throw error;
+  }
 });
 
 ipcMain.handle('fs:cancel-indexing', (_event, operationId: string) => {

@@ -125,6 +125,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useUIStore } from 'src/stores/uiStore';
+import { normalizePath, splitPath } from '@/utils/path.utils';
 
 /**
  * AudioPlayer - Plays audio files with a music-player-like interface
@@ -160,9 +161,10 @@ const isMuted = ref(false);
 
 // Computed
 const audioUrl = computed(() => {
-  // Convert file path to file:// URL
-  const encodedPath = props.filePath.split('/').map(encodeURIComponent).join('/');
-  return `file://${encodedPath}`;
+  // Convert file path to file:// URL (normalize for cross-platform support)
+  const normalized = normalizePath(props.filePath);
+  const encodedPath = splitPath(normalized).map(encodeURIComponent).join('/');
+  return `file:///${encodedPath}`;
 });
 
 const progressPercent = computed(() => {

@@ -116,18 +116,21 @@ export default configure(() => {
         },
 
         win: {
-          target: 'nsis',
+          target: [
+            {
+              target: 'nsis',
+              arch: ['x64'],
+            },
+          ],
           icon: 'src-electron/icons/icon.ico',
-          executableName: 'MyndPrompts',
         },
 
         nsis: {
           oneClick: false,
-          allowToChangeInstallationDirectory: true,
-          createDesktopShortcut: true,
+          perMachine: false,
+          allowToChangeInstallationDirectory: false,
+          createDesktopShortcut: 'always',
           createStartMenuShortcut: true,
-          shortcutName: 'MyndPrompts',
-          runAfterFinish: false,
         },
 
         linux: {

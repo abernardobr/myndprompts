@@ -38,6 +38,15 @@ import FileSyncDialog from '@/components/dialogs/FileSyncDialog.vue';
 import PluginContentSelectorDialog from '@/components/dialogs/PluginContentSelectorDialog.vue';
 import type { PluginType } from '@/services/storage/entities';
 import ExplorerTreeNode from '@/components/layout/sidebar/ExplorerTreeNode.vue';
+import {
+  getBasename,
+  getDirname,
+  joinPath,
+  splitPath,
+  getRelativePath,
+  hasExtension,
+  isChildPath,
+} from '@/utils/path.utils';
 
 const $q = useQuasar();
 const { t } = useI18n({ useScope: 'global' });
@@ -286,8 +295,8 @@ function buildDirectoryChildren(
   const directPrompts: IPromptFile[] = [];
 
   for (const prompt of prompts) {
-    const relativePath = prompt.filePath.slice(dirPath.length + 1);
-    const parts = relativePath.split('/');
+    const relativePath = getRelativePath(dirPath, prompt.filePath);
+    const parts = splitPath(relativePath);
 
     if (parts.length === 1) {
       // Direct child
@@ -295,7 +304,7 @@ function buildDirectoryChildren(
     } else {
       // In a subdirectory
       const subDir = parts[0];
-      const subDirPath = `${dirPath}/${subDir}`;
+      const subDirPath = joinPath(dirPath, subDir);
       const existing = subDirs.get(subDirPath) ?? [];
       existing.push(prompt);
       subDirs.set(subDirPath, existing);
@@ -314,7 +323,7 @@ function buildDirectoryChildren(
   const sortedSubDirs = Array.from(subDirs.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
   for (const [subDirPath, subPrompts] of sortedSubDirs) {
-    const dirName = subDirPath.split('/').pop() ?? subDirPath;
+    const dirName = getBasename(subDirPath) || subDirPath;
     children.push({
       id: subDirPath,
       label: dirName,
@@ -443,13 +452,13 @@ async function loadProjectFileStatuses(projectPath: string): Promise<void> {
       const tracked = new Set<string>();
 
       for (const file of gitStore.stagedFiles) {
-        staged.add(`${projectPath}/${file.filePath}`);
+        staged.add(joinPath(projectPath, file.filePath));
       }
       for (const file of gitStore.modifiedFiles) {
-        modified.add(`${projectPath}/${file.filePath}`);
+        modified.add(joinPath(projectPath, file.filePath));
       }
       for (const file of gitStore.untrackedFiles) {
-        untracked.add(`${projectPath}/${file.filePath}`);
+        untracked.add(joinPath(projectPath, file.filePath));
       }
 
       // Get tracked files from git ls-files
@@ -677,7 +686,7 @@ async function openFile(node: ITreeNode): Promise<void> {
       });
     } else {
       // Non-markdown files - open directly without loading content
-      const fileName = node.filePath.split('/').pop() ?? 'Unknown';
+      const fileName = getBasename(node.filePath) || 'Unknown';
       const title = fileName;
 
       uiStore.openTab({
@@ -827,7 +836,7 @@ async function handleRename(newName: string): Promise<void> {
       const newPath = await projectStore.renameDirectory(filePath, newName);
       // Update any open tabs that were in this directory
       for (const tab of uiStore.openTabs) {
-        if (tab.filePath.startsWith(filePath + '/')) {
+        if (isChildPath(filePath, tab.filePath)) {
           const newTabPath = tab.filePath.replace(filePath, newPath);
           uiStore.updateTabFilePath(tab.filePath, newTabPath, tab.title);
         }
@@ -835,8 +844,8 @@ async function handleRename(newName: string): Promise<void> {
       await promptStore.refreshAllPrompts();
     } else if (node.type === 'file') {
       // Rename non-markdown file (using moveFile which handles rename)
-      const parentDir = node.parentPath ?? filePath.substring(0, filePath.lastIndexOf('/'));
-      const newPath = `${parentDir}/${newName}`;
+      const parentDir = node.parentPath ?? getDirname(filePath);
+      const newPath = joinPath(parentDir, newName);
       await window.fileSystemAPI.moveFile(filePath, newPath);
       // Update tab if file is open
       uiStore.updateTabFilePath(filePath, newPath, newName);
@@ -1922,8 +1931,8 @@ async function handleExternalFileDrop(files: FileList, targetDir: string): Promi
         isDirectory = fileInfo?.isDirectory ?? false;
       } else {
         // Fallback: directories typically have no extension and empty type
-        const hasExtension = filePath.split('/').pop()?.includes('.') ?? false;
-        isDirectory = !hasExtension && file.type === '' && file.size === 0;
+        const hasExt = hasExtension(filePath);
+        isDirectory = !hasExt && file.type === '' && file.size === 0;
       }
 
       if (isDirectory) {

@@ -48,8 +48,13 @@ onMounted(async () => {
 watch(
   () => props.modelValue,
   async (isOpen) => {
-    if (isOpen && !fileSyncStore.isInitialized) {
-      await fileSyncStore.initialize();
+    if (isOpen) {
+      if (!fileSyncStore.isInitialized) {
+        await fileSyncStore.initialize();
+      } else {
+        // Reset any folders stuck in "indexing" status from previous sessions
+        await fileSyncStore.resetStuckFolders();
+      }
     }
   }
 );
@@ -127,11 +132,47 @@ async function stopAllSync(): Promise<void> {
 }
 
 async function syncAll(): Promise<void> {
-  for (const folder of folders.value) {
-    if (folder.status !== 'indexing') {
-      await fileSyncStore.startIndexing(folder.id);
+  // Capture folder IDs at the start to avoid issues with reactive state changes during iteration
+  const folderIds = folders.value.map((f) => ({
+    id: f.id,
+    path: f.folderPath,
+    status: f.status,
+  }));
+
+  console.log('[FileSyncDialog] syncAll called with folders:', folderIds);
+
+  for (let i = 0; i < folderIds.length; i++) {
+    const folderInfo = folderIds[i];
+    console.log(
+      `[FileSyncDialog] Processing folder ${i + 1}/${folderIds.length}: ${folderInfo.path} (id: ${folderInfo.id})`
+    );
+
+    // Get current status from store (might have changed)
+    const currentFolder = folders.value.find((f) => f.id === folderInfo.id);
+    const currentStatus = currentFolder?.status ?? 'unknown';
+
+    console.log(`[FileSyncDialog] Current status for ${folderInfo.path}: ${currentStatus}`);
+
+    if (currentStatus !== 'indexing') {
+      console.log(`[FileSyncDialog] Starting indexing for: ${folderInfo.path}`);
+      try {
+        await fileSyncStore.startIndexing(folderInfo.id);
+        console.log(`[FileSyncDialog] Completed indexing for: ${folderInfo.path}`);
+      } catch (err) {
+        console.error(`[FileSyncDialog] Error indexing ${folderInfo.path}:`, err);
+      }
+    } else {
+      console.log(`[FileSyncDialog] Skipping ${folderInfo.path} - already indexing`);
+    }
+
+    // Small delay between folders to let UI update
+    if (i < folderIds.length - 1) {
+      console.log('[FileSyncDialog] Waiting 100ms before next folder...');
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
+
+  console.log('[FileSyncDialog] syncAll completed');
 }
 
 function getStatusColor(status: string): string {

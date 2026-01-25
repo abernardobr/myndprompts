@@ -12,6 +12,7 @@ import { getUIStateRepository } from '@/services/storage';
 import type { IUIState, IEditorSplitConfig } from '@/services/storage';
 import { setAppLocale } from '@/boot/i18n';
 import { FileCategory, getFileCategory, getMimeType } from '@/services/file-system/file-types';
+import { getBasename } from '@/utils/path.utils';
 
 // Re-export FileCategory for convenience
 export { FileCategory } from '@/services/file-system/file-types';
@@ -181,7 +182,7 @@ export const useUIStore = defineStore('ui', () => {
             // Detect file category from extension
             const fileCategory = getFileCategory(filePath);
             const mimeType = getMimeType(filePath);
-            const fileName = filePath.split('/').pop() ?? filePath;
+            const fileName = getBasename(filePath) || filePath;
             return {
               id: filePath,
               filePath,
@@ -209,7 +210,7 @@ export const useUIStore = defineStore('ui', () => {
               // Detect file category from extension for new tabs
               const fileCategory = getFileCategory(filePath);
               const mimeType = getMimeType(filePath);
-              const fileName = filePath.split('/').pop() ?? filePath;
+              const fileName = getBasename(filePath) || filePath;
               return {
                 id: filePath,
                 filePath,
@@ -496,7 +497,7 @@ export const useUIStore = defineStore('ui', () => {
 
       tab.id = newFilePath;
       tab.filePath = newFilePath;
-      tab.fileName = newFilePath.split('/').pop() ?? newFilePath;
+      tab.fileName = getBasename(newFilePath) || newFilePath;
       tab.title = newTitle;
       tab.fileCategory = fileCategory;
       tab.mimeType = mimeType;
@@ -512,7 +513,7 @@ export const useUIStore = defineStore('ui', () => {
         if (paneTab) {
           paneTab.id = newFilePath;
           paneTab.filePath = newFilePath;
-          paneTab.fileName = newFilePath.split('/').pop() ?? newFilePath;
+          paneTab.fileName = getBasename(newFilePath) || newFilePath;
           paneTab.title = newTitle;
           paneTab.fileCategory = fileCategory;
           paneTab.mimeType = mimeType;

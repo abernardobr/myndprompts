@@ -32,6 +32,10 @@ export interface IIndexProgress {
   total: number;
   currentFile?: string;
   error?: string;
+  /** Number of directories scanned (during scanning phase) */
+  directoriesScanned?: number;
+  /** Number of files/directories skipped due to errors */
+  skipped?: number;
 }
 
 /**
@@ -267,37 +271,57 @@ export class FileIndexerService {
     const abortController = new AbortController();
     this.abortControllers.set(operationId, abortController);
 
+    // Track crawl statistics
+    const stats = {
+      directoriesScanned: 0,
+      skipped: 0,
+      lastProgressTime: Date.now(),
+    };
+
     try {
       // Notify scanning phase
-      onProgress?.({ phase: 'scanning', current: 0, total: 0 });
+      onProgress?.({ phase: 'scanning', current: 0, total: 0, directoriesScanned: 0, skipped: 0 });
 
       // Detect project types
       const projectTypes = await this.detectProjectType(folderPath);
+      console.log(`[FileIndexer] Detected project types for ${folderPath}:`, projectTypes);
       const isIgnored = this.buildIgnorePatterns(projectTypes);
 
       const files: IIndexedFile[] = [];
 
-      // Crawl the directory
+      // Crawl the directory with stats tracking
       await this.crawlDirectory(
         folderPath,
         folderPath,
         isIgnored,
         files,
         abortController.signal,
-        onProgress
+        onProgress,
+        stats
       );
 
-      // Notify completion
-      onProgress?.({ phase: 'complete', current: files.length, total: files.length });
+      // Notify completion with final stats
+      console.log(
+        `[FileIndexer] Completed indexing ${folderPath}: ${files.length} files, ${stats.directoriesScanned} directories, ${stats.skipped} skipped`
+      );
+      onProgress?.({
+        phase: 'complete',
+        current: files.length,
+        total: files.length,
+        directoriesScanned: stats.directoriesScanned,
+        skipped: stats.skipped,
+      });
 
       return files;
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
+        console.log(`[FileIndexer] Indexing cancelled for ${folderPath}`);
         onProgress?.({ phase: 'cancelled', current: 0, total: 0 });
         return [];
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[FileIndexer] Error indexing ${folderPath}:`, error);
       onProgress?.({ phase: 'error', current: 0, total: 0, error: errorMessage });
       throw error;
     } finally {
@@ -306,7 +330,7 @@ export class FileIndexerService {
   }
 
   /**
-   * Recursive directory crawl
+   * Recursive directory crawl with progress tracking
    */
   private async crawlDirectory(
     currentPath: string,
@@ -314,7 +338,8 @@ export class FileIndexerService {
     isIgnored: picomatch.Matcher,
     results: IIndexedFile[],
     signal: AbortSignal,
-    onProgress?: (progress: IIndexProgress) => void
+    onProgress?: (progress: IIndexProgress) => void,
+    stats?: { directoriesScanned: number; skipped: number; lastProgressTime: number }
   ): Promise<void> {
     // Check for abort
     if (signal.aborted) {
@@ -328,9 +353,49 @@ export class FileIndexerService {
     try {
       entries = await fs.readdir(currentPath, { withFileTypes: true, encoding: 'utf-8' });
     } catch (error) {
-      // Skip directories we can't read (permissions, etc.)
-      console.warn(`Cannot read directory ${currentPath}:`, error);
+      // Track skipped directory and log the error
+      if (stats) {
+        stats.skipped++;
+      }
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`[FileIndexer] Cannot read directory ${currentPath}: ${errorMessage}`);
+
+      // Send progress update with error info for visibility
+      const now = Date.now();
+      if (stats && onProgress && now - stats.lastProgressTime > 500) {
+        stats.lastProgressTime = now;
+        onProgress({
+          phase: 'scanning',
+          current: results.length,
+          total: 0,
+          directoriesScanned: stats.directoriesScanned,
+          skipped: stats.skipped,
+          currentFile: path.relative(rootPath, currentPath),
+        });
+      }
       return;
+    }
+
+    // Track directory scanned
+    if (stats) {
+      stats.directoriesScanned++;
+
+      // Send periodic progress updates during scanning (every 500ms or every 50 directories)
+      const now = Date.now();
+      if (now - stats.lastProgressTime > 500 || stats.directoriesScanned % 50 === 0) {
+        stats.lastProgressTime = now;
+        onProgress?.({
+          phase: 'scanning',
+          current: results.length,
+          total: 0,
+          directoriesScanned: stats.directoriesScanned,
+          skipped: stats.skipped,
+          currentFile: path.relative(rootPath, currentPath),
+        });
+
+        // Yield to event loop to prevent blocking
+        await new Promise((resolve) => setImmediate(resolve));
+      }
     }
 
     for (const entry of entries) {
@@ -351,10 +416,18 @@ export class FileIndexerService {
 
       if (entry.isDirectory()) {
         // Recursively crawl subdirectories
-        await this.crawlDirectory(fullPath, rootPath, isIgnored, results, signal, onProgress);
+        await this.crawlDirectory(
+          fullPath,
+          rootPath,
+          isIgnored,
+          results,
+          signal,
+          onProgress,
+          stats
+        );
       } else if (entry.isFile()) {
         try {
-          const stats = await fs.stat(fullPath);
+          const fileStats = await fs.stat(fullPath);
 
           results.push({
             fileName: entry.name,
@@ -362,19 +435,37 @@ export class FileIndexerService {
             fullPath,
             relativePath,
             extension: path.extname(entry.name).toLowerCase(),
-            size: stats.size,
-            modifiedAt: stats.mtime,
+            size: fileStats.size,
+            modifiedAt: fileStats.mtime,
           });
 
-          // Report progress
-          onProgress?.({
-            phase: 'indexing',
-            current: results.length,
-            total: -1, // Unknown total during crawl
-            currentFile: relativePath,
-          });
-        } catch {
-          // Skip files we can't stat (permissions, broken symlinks, etc.)
+          // Report progress periodically (every 100 files or 500ms)
+          if (stats) {
+            const now = Date.now();
+            if (results.length % 100 === 0 || now - stats.lastProgressTime > 500) {
+              stats.lastProgressTime = now;
+              onProgress?.({
+                phase: 'indexing',
+                current: results.length,
+                total: -1, // Unknown total during crawl
+                currentFile: relativePath,
+                directoriesScanned: stats.directoriesScanned,
+                skipped: stats.skipped,
+              });
+
+              // Yield to event loop periodically
+              if (results.length % 500 === 0) {
+                await new Promise((resolve) => setImmediate(resolve));
+              }
+            }
+          }
+        } catch (error) {
+          // Track skipped file
+          if (stats) {
+            stats.skipped++;
+          }
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.warn(`[FileIndexer] Cannot stat file ${fullPath}: ${errorMessage}`);
         }
       }
     }

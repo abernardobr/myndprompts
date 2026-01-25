@@ -9,6 +9,7 @@
 import * as monaco from 'monaco-editor';
 import type { ISnippetFile } from '@/services/file-system/types';
 import { useFileSyncStore } from '@/stores/fileSyncStore';
+import { useProjectStore } from '@/stores/projectStore';
 
 /**
  * Snippet definition interface
@@ -494,6 +495,56 @@ const TRIGGER_TYPE_MAP: Record<string, string> = {
 };
 
 /**
+ * Interface for file info from the file system API
+ */
+interface IFileInfo {
+  path: string;
+  name: string;
+  extension: string;
+  size: number;
+  isDirectory: boolean;
+  createdAt: Date;
+  modifiedAt: Date;
+}
+
+/**
+ * Get project files (prompts) from the current project
+ */
+async function getProjectFiles(
+  projectPath: string,
+  query: string
+): Promise<{ fileName: string; fullPath: string; relativePath: string; normalizedName: string }[]> {
+  if (!window?.fileSystemAPI) {
+    return [];
+  }
+
+  try {
+    const files: IFileInfo[] = await window.fileSystemAPI.listFilesRecursive(projectPath);
+    const queryLower = query.toLowerCase();
+
+    return files
+      .filter((file) => {
+        // Only include markdown files (prompts)
+        if (file.extension !== '.md') return false;
+        // Filter by query if provided
+        if (queryLower === '') return true;
+        return (
+          file.name.toLowerCase().includes(queryLower) ||
+          file.path.toLowerCase().includes(queryLower)
+        );
+      })
+      .map((file) => ({
+        fileName: file.name,
+        fullPath: file.path,
+        relativePath: file.path.replace(projectPath, '').replace(/^[/\\]/, ''),
+        normalizedName: file.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Get the trigger prefix for a snippet type
  */
 export function getTriggerForType(type: string): string {
@@ -622,33 +673,105 @@ export function registerUserSnippetsProvider(): monaco.IDisposable {
 
       // Add file suggestions when triggered by @
       if (triggerChar === '@') {
+        const seenPaths = new Set<string>();
+
+        // 1. First, add project files (prompts from the library) - these get priority
+        try {
+          const projectStore = useProjectStore();
+
+          // Ensure project store is initialized
+          if (!projectStore.isInitialized) {
+            await projectStore.initialize();
+          }
+
+          // Get current file path from model URI
+          const currentFilePath = model.uri.scheme === 'file' ? model.uri.fsPath : '';
+
+          console.log('[snippet-provider] @ trigger - current file:', currentFilePath);
+
+          // Find project for current file
+          const currentProject =
+            currentFilePath !== '' ? projectStore.getProjectForPath(currentFilePath) : null;
+
+          console.log('[snippet-provider] @ trigger - project lookup:', {
+            currentFilePath,
+            currentProject: currentProject
+              ? { name: currentProject.name, folderPath: currentProject.folderPath }
+              : null,
+            allProjects: projectStore.allProjects.map((p) => ({
+              name: p.name,
+              folderPath: p.folderPath,
+            })),
+          });
+
+          if (currentProject !== null) {
+            const projectFiles = await getProjectFiles(currentProject.folderPath, searchText);
+            console.log('[snippet-provider] @ trigger - project files found:', projectFiles.length);
+
+            // Add project file suggestions with sortText that puts them first (after snippets)
+            for (const file of projectFiles) {
+              if (!seenPaths.has(file.fullPath)) {
+                seenPaths.add(file.fullPath);
+                suggestions.push({
+                  label: {
+                    label: file.fileName,
+                    description: '📁 Prompt',
+                    detail: file.relativePath,
+                  },
+                  kind: monaco.languages.CompletionItemKind.File,
+                  insertText: file.fullPath,
+                  detail: file.relativePath,
+                  documentation: {
+                    value: `**Prompt from library:**\n\`${file.relativePath}\`\n\n*Full path:* \`${file.fullPath}\``,
+                  },
+                  range,
+                  // sortText starting with '1' puts library files before external files
+                  sortText: `1_${file.normalizedName}`,
+                  filterText: `@${file.normalizedName}`,
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to get project file suggestions:', err);
+        }
+
+        // 2. Then, add files from File Sync (indexed external folders)
         try {
           const fileSyncStore = useFileSyncStore();
 
-          // Only if initialized
+          // Ensure file sync store is initialized
+          if (!fileSyncStore.isInitialized) {
+            await fileSyncStore.initialize();
+          }
+
+          // Only proceed if initialized successfully
           if (fileSyncStore.isInitialized) {
             const query = searchText;
             const files = await fileSyncStore.searchFiles(query);
 
-            // Add file suggestions with sortText that puts them after snippets
+            // Add file suggestions with sortText that puts them after library files
             for (const file of files) {
-              suggestions.push({
-                label: {
-                  label: file.fileName,
-                  description: 'File',
+              if (!seenPaths.has(file.fullPath)) {
+                seenPaths.add(file.fullPath);
+                suggestions.push({
+                  label: {
+                    label: file.fileName,
+                    description: 'File',
+                    detail: file.relativePath,
+                  },
+                  kind: monaco.languages.CompletionItemKind.File,
+                  insertText: file.fullPath,
                   detail: file.relativePath,
-                },
-                kind: monaco.languages.CompletionItemKind.File,
-                insertText: file.fullPath,
-                detail: file.relativePath,
-                documentation: {
-                  value: `**Insert file path:**\n\`${file.fullPath}\``,
-                },
-                range,
-                // sortText starting with '2' puts files after snippets (which start with '0' or '1')
-                sortText: `2_${file.normalizedName}`,
-                filterText: `@${file.normalizedName}`,
-              });
+                  documentation: {
+                    value: `**Insert file path:**\n\`${file.fullPath}\``,
+                  },
+                  range,
+                  // sortText starting with '2' puts external files after library files
+                  sortText: `2_${file.normalizedName}`,
+                  filterText: `@${file.normalizedName}`,
+                });
+              }
             }
           }
         } catch (err) {

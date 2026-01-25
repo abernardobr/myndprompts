@@ -4,6 +4,13 @@
 # Builds the application for macOS, Linux, and Windows
 # Outputs are saved to dist/Builds/{mac,windows,linux}
 #
+# Usage:
+#   ./scripts/build-all.sh           # Build all platforms
+#   ./scripts/build-all.sh -p mac    # Build macOS only
+#   ./scripts/build-all.sh -p win    # Build Windows only
+#   ./scripts/build-all.sh -p linux  # Build Linux only
+#   ./scripts/build-all.sh -p all    # Build all platforms (same as no argument)
+#
 # macOS Code Signing & Notarization:
 # ----------------------------------
 # For signed and notarized macOS builds, set these environment variables:
@@ -30,6 +37,47 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Default: build all platforms
+BUILD_PLATFORM="all"
+
+# Parse command line arguments
+while getopts "p:h" opt; do
+    case $opt in
+        p)
+            BUILD_PLATFORM="$OPTARG"
+            ;;
+        h)
+            echo "Usage: $0 [-p platform]"
+            echo ""
+            echo "Options:"
+            echo "  -p platform   Platform to build: mac, win, linux, or all (default: all)"
+            echo "  -h            Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0              # Build all platforms"
+            echo "  $0 -p mac       # Build macOS only"
+            echo "  $0 -p win       # Build Windows only"
+            echo "  $0 -p linux     # Build Linux only"
+            exit 0
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Validate platform argument
+case $BUILD_PLATFORM in
+    mac|win|linux|all)
+        ;;
+    *)
+        echo -e "${RED}Invalid platform: $BUILD_PLATFORM${NC}"
+        echo "Valid options: mac, win, linux, all"
+        exit 1
+        ;;
+esac
+
 # Get the project root directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -44,6 +92,8 @@ LINUX_OUTPUT="$BUILD_OUTPUT/linux"
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}   MyndPrompt Multi-Platform Build     ${NC}"
 echo -e "${BLUE}========================================${NC}"
+echo ""
+echo -e "${YELLOW}Building for: ${BUILD_PLATFORM}${NC}"
 echo ""
 
 # Change to project root
@@ -168,31 +218,37 @@ check_macos_signing() {
 }
 
 # Build for macOS
-echo ""
-echo -e "${YELLOW}Starting macOS build...${NC}"
-check_macos_signing
+if [ "$BUILD_PLATFORM" = "all" ] || [ "$BUILD_PLATFORM" = "mac" ]; then
+    echo ""
+    echo -e "${YELLOW}Starting macOS build...${NC}"
+    check_macos_signing
 
-if build_platform "mac" "macOS"; then
-    copy_builds "mac" "$MAC_OUTPUT"
-    MAC_SUCCESS=true
+    if build_platform "mac" "macOS"; then
+        copy_builds "mac" "$MAC_OUTPUT"
+        MAC_SUCCESS=true
+    fi
 fi
 
 # Build for Linux (x64 and arm64)
-echo ""
-echo -e "${YELLOW}Starting Linux build (x64 + arm64)...${NC}"
+if [ "$BUILD_PLATFORM" = "all" ] || [ "$BUILD_PLATFORM" = "linux" ]; then
+    echo ""
+    echo -e "${YELLOW}Starting Linux build (x64 + arm64)...${NC}"
 
-if build_platform "linux" "Linux (x64 + arm64)"; then
-    copy_builds "linux" "$LINUX_OUTPUT"
-    LINUX_SUCCESS=true
+    if build_platform "linux" "Linux (x64 + arm64)"; then
+        copy_builds "linux" "$LINUX_OUTPUT"
+        LINUX_SUCCESS=true
+    fi
 fi
 
 # Build for Windows
-echo ""
-echo -e "${YELLOW}Starting Windows build...${NC}"
+if [ "$BUILD_PLATFORM" = "all" ] || [ "$BUILD_PLATFORM" = "win" ]; then
+    echo ""
+    echo -e "${YELLOW}Starting Windows build...${NC}"
 
-if build_platform "win" "Windows"; then
-    copy_builds "win" "$WINDOWS_OUTPUT"
-    WIN_SUCCESS=true
+    if build_platform "win" "Windows"; then
+        copy_builds "win" "$WINDOWS_OUTPUT"
+        WIN_SUCCESS=true
+    fi
 fi
 
 # Summary
@@ -202,22 +258,28 @@ echo -e "${BLUE}           Build Summary               ${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
-if $MAC_SUCCESS; then
-    echo -e "${GREEN}✓ macOS build successful${NC}"
-else
-    echo -e "${RED}✗ macOS build failed${NC}"
+if [ "$BUILD_PLATFORM" = "all" ] || [ "$BUILD_PLATFORM" = "mac" ]; then
+    if $MAC_SUCCESS; then
+        echo -e "${GREEN}✓ macOS build successful${NC}"
+    else
+        echo -e "${RED}✗ macOS build failed${NC}"
+    fi
 fi
 
-if $LINUX_SUCCESS; then
-    echo -e "${GREEN}✓ Linux build successful (x64 + arm64)${NC}"
-else
-    echo -e "${RED}✗ Linux build failed${NC}"
+if [ "$BUILD_PLATFORM" = "all" ] || [ "$BUILD_PLATFORM" = "linux" ]; then
+    if $LINUX_SUCCESS; then
+        echo -e "${GREEN}✓ Linux build successful (x64 + arm64)${NC}"
+    else
+        echo -e "${RED}✗ Linux build failed${NC}"
+    fi
 fi
 
-if $WIN_SUCCESS; then
-    echo -e "${GREEN}✓ Windows build successful${NC}"
-else
-    echo -e "${RED}✗ Windows build failed${NC}"
+if [ "$BUILD_PLATFORM" = "all" ] || [ "$BUILD_PLATFORM" = "win" ]; then
+    if $WIN_SUCCESS; then
+        echo -e "${GREEN}✓ Windows build successful${NC}"
+    else
+        echo -e "${RED}✗ Windows build failed${NC}"
+    fi
 fi
 
 echo ""
@@ -229,28 +291,34 @@ echo ""
 echo -e "${BLUE}Built files by platform:${NC}"
 echo ""
 
-echo -e "${BLUE}macOS (${MAC_OUTPUT}):${NC}"
-if [ -d "$MAC_OUTPUT" ] && [ "$(ls -A $MAC_OUTPUT 2>/dev/null)" ]; then
-    ls -lh "$MAC_OUTPUT"
-else
-    echo "  (no files)"
-fi
-echo ""
-
-echo -e "${BLUE}Windows (${WINDOWS_OUTPUT}):${NC}"
-if [ -d "$WINDOWS_OUTPUT" ] && [ "$(ls -A $WINDOWS_OUTPUT 2>/dev/null)" ]; then
-    ls -lh "$WINDOWS_OUTPUT"
-else
-    echo "  (no files)"
-fi
-echo ""
-
-echo -e "${BLUE}Linux (${LINUX_OUTPUT}):${NC}"
-if [ -d "$LINUX_OUTPUT" ] && [ "$(ls -A $LINUX_OUTPUT 2>/dev/null)" ]; then
-    ls -lh "$LINUX_OUTPUT"
-else
-    echo "  (no files)"
+if [ "$BUILD_PLATFORM" = "all" ] || [ "$BUILD_PLATFORM" = "mac" ]; then
+    echo -e "${BLUE}macOS (${MAC_OUTPUT}):${NC}"
+    if [ -d "$MAC_OUTPUT" ] && [ "$(ls -A $MAC_OUTPUT 2>/dev/null)" ]; then
+        ls -lh "$MAC_OUTPUT"
+    else
+        echo "  (no files)"
+    fi
+    echo ""
 fi
 
-echo ""
+if [ "$BUILD_PLATFORM" = "all" ] || [ "$BUILD_PLATFORM" = "win" ]; then
+    echo -e "${BLUE}Windows (${WINDOWS_OUTPUT}):${NC}"
+    if [ -d "$WINDOWS_OUTPUT" ] && [ "$(ls -A $WINDOWS_OUTPUT 2>/dev/null)" ]; then
+        ls -lh "$WINDOWS_OUTPUT"
+    else
+        echo "  (no files)"
+    fi
+    echo ""
+fi
+
+if [ "$BUILD_PLATFORM" = "all" ] || [ "$BUILD_PLATFORM" = "linux" ]; then
+    echo -e "${BLUE}Linux (${LINUX_OUTPUT}):${NC}"
+    if [ -d "$LINUX_OUTPUT" ] && [ "$(ls -A $LINUX_OUTPUT 2>/dev/null)" ]; then
+        ls -lh "$LINUX_OUTPUT"
+    else
+        echo "  (no files)"
+    fi
+    echo ""
+fi
+
 echo -e "${GREEN}Build process completed!${NC}"

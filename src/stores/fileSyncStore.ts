@@ -10,6 +10,7 @@ import { ref, computed } from 'vue';
 import { getProjectFolderRepository } from '@/services/storage/repositories/project-folder.repository';
 import { getFileIndexRepository } from '@/services/storage/repositories/file-index.repository';
 import type { IProjectFolder, IFileIndexEntry } from '@/services/storage/entities';
+import { getBasename, getRelativePath, isChildPath } from '@/utils/path.utils';
 
 /**
  * Active indexing operation state
@@ -17,10 +18,15 @@ import type { IProjectFolder, IFileIndexEntry } from '@/services/storage/entitie
 interface IIndexingOperation {
   operationId: string;
   folderId: string;
-  phase: 'scanning' | 'indexing' | 'complete' | 'cancelled' | 'error';
+  phase: 'scanning' | 'indexing' | 'saving' | 'complete' | 'cancelled' | 'error';
   current: number;
+  total?: number;
   currentFile?: string;
   error?: string;
+  /** Number of directories scanned */
+  directoriesScanned?: number;
+  /** Number of files/directories skipped due to errors */
+  skipped?: number;
 }
 
 export const useFileSyncStore = defineStore('fileSync', () => {
@@ -83,6 +89,9 @@ export const useFileSyncStore = defineStore('fileSync', () => {
       const repo = getProjectFolderRepository();
       projectFolders.value = await repo.getAllFolders();
 
+      // Reset any folders stuck in "indexing" status (from previous crashed sessions)
+      await resetStuckFolders();
+
       // Set up progress listener
       if (isElectron() && window.fileSystemAPI.onIndexProgress !== undefined) {
         const cleanup = window.fileSystemAPI.onIndexProgress(handleIndexProgress);
@@ -103,6 +112,27 @@ export const useFileSyncStore = defineStore('fileSync', () => {
       console.error('Failed to initialize file sync store:', err);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /**
+   * Reset folders that are stuck in "indexing" status.
+   * This can happen if the app crashed during indexing.
+   */
+  async function resetStuckFolders(): Promise<void> {
+    const stuckFolders = projectFolders.value.filter((f) => f.status === 'indexing');
+    if (stuckFolders.length === 0) return;
+
+    console.log(
+      `[FileSyncStore] Found ${stuckFolders.length} folders stuck in 'indexing' status, resetting...`
+    );
+
+    const repo = getProjectFolderRepository();
+    for (const folder of stuckFolders) {
+      // Reset to 'pending' so they can be re-indexed
+      await repo.updateStatus(folder.id, 'pending');
+      folder.status = 'pending';
+      console.log(`[FileSyncStore] Reset folder ${folder.folderPath} from 'indexing' to 'pending'`);
     }
   }
 
@@ -160,9 +190,21 @@ export const useFileSyncStore = defineStore('fileSync', () => {
    * Start indexing a folder
    */
   async function startIndexing(folderId: string): Promise<void> {
+    console.log(`[FileSyncStore] startIndexing called for folderId: ${folderId}`);
+
     const folder = projectFolders.value.find((f) => f.id === folderId);
-    if (folder === undefined) return;
-    if (!isElectron()) return;
+    if (folder === undefined) {
+      console.warn(`[FileSyncStore] Folder not found: ${folderId}`);
+      return;
+    }
+    if (!isElectron()) {
+      console.warn('[FileSyncStore] Not in Electron environment');
+      return;
+    }
+
+    console.log(
+      `[FileSyncStore] Starting indexing for folder: ${folder.folderPath} (status: ${folder.status})`
+    );
 
     const operationId = crypto.randomUUID();
     activeIndexingOperations.value.set(operationId, {
@@ -170,6 +212,8 @@ export const useFileSyncStore = defineStore('fileSync', () => {
       folderId,
       phase: 'scanning',
       current: 0,
+      directoriesScanned: 0,
+      skipped: 0,
     });
 
     try {
@@ -178,13 +222,28 @@ export const useFileSyncStore = defineStore('fileSync', () => {
       await folderRepo.updateStatus(folderId, 'indexing');
       folder.status = 'indexing';
 
+      console.log(`[FileSyncStore] Calling IPC startIndexing for: ${folder.folderPath}`);
+
       // Start indexing via IPC
       const files = await window.fileSystemAPI.startIndexing(folder.folderPath, operationId);
 
-      // Clear existing entries and save new ones
+      console.log(
+        `[FileSyncStore] Indexing returned ${files.length} files, now saving to database...`
+      );
+
+      // Update operation to saving phase
+      const operation = activeIndexingOperations.value.get(operationId);
+      if (operation) {
+        operation.phase = 'saving';
+        operation.current = 0;
+        operation.total = files.length;
+      }
+
+      // Clear existing entries
       const indexRepo = getFileIndexRepository();
       await indexRepo.removeByProjectFolder(folderId);
 
+      // Map files to entries
       const entries: IFileIndexEntry[] = files.map((f) => ({
         id: crypto.randomUUID(),
         projectFolderId: folderId,
@@ -198,9 +257,18 @@ export const useFileSyncStore = defineStore('fileSync', () => {
         indexedAt: new Date(),
       }));
 
+      // Save in batches to prevent IndexedDB timeouts
       if (entries.length > 0) {
-        await indexRepo.addEntries(entries);
+        await indexRepo.addEntriesBatched(entries, 1000, (current, total) => {
+          const op = activeIndexingOperations.value.get(operationId);
+          if (op) {
+            op.current = current;
+            op.total = total;
+          }
+        });
       }
+
+      console.log(`[FileSyncStore] Successfully saved ${entries.length} entries to database`);
 
       // Update folder stats
       await folderRepo.updateIndexStats(folderId, entries.length);
@@ -211,10 +279,19 @@ export const useFileSyncStore = defineStore('fileSync', () => {
       folder.lastIndexedAt = new Date();
       folder.errorMessage = undefined;
 
-      // Start watching the folder for changes
-      await startWatching(folderId);
+      console.log(
+        `[FileSyncStore] Indexing complete for ${folder.folderPath}, starting watcher (non-blocking)...`
+      );
+
+      // Start watching the folder for changes (fire-and-forget, don't block indexing)
+      startWatching(folderId).catch((watchErr) => {
+        console.warn(`[FileSyncStore] Failed to start watcher for ${folder.folderPath}:`, watchErr);
+      });
+
+      console.log(`[FileSyncStore] startIndexing returning for ${folder.folderPath}`);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Indexing failed';
+      console.error(`[FileSyncStore] Indexing failed for ${folder.folderPath}:`, err);
 
       if (errorMsg !== 'Aborted') {
         const folderRepo = getProjectFolderRepository();
@@ -224,6 +301,9 @@ export const useFileSyncStore = defineStore('fileSync', () => {
       }
     } finally {
       activeIndexingOperations.value.delete(operationId);
+      console.log(
+        `[FileSyncStore] startIndexing FINALLY block completed for folderId: ${folderId}`
+      );
     }
   }
 
@@ -253,15 +333,27 @@ export const useFileSyncStore = defineStore('fileSync', () => {
     operationId: string;
     phase: string;
     current: number;
+    total?: number;
     currentFile?: string;
     error?: string;
+    directoriesScanned?: number;
+    skipped?: number;
   }): void {
     const operation = activeIndexingOperations.value.get(data.operationId);
     if (operation !== undefined) {
       operation.phase = data.phase as IIndexingOperation['phase'];
       operation.current = data.current;
+      if (data.total !== undefined) {
+        operation.total = data.total;
+      }
       operation.currentFile = data.currentFile;
       operation.error = data.error;
+      if (data.directoriesScanned !== undefined) {
+        operation.directoriesScanned = data.directoriesScanned;
+      }
+      if (data.skipped !== undefined) {
+        operation.skipped = data.skipped;
+      }
     }
   }
 
@@ -269,9 +361,23 @@ export const useFileSyncStore = defineStore('fileSync', () => {
    * Start watching a folder for file changes
    */
   async function startWatching(folderId: string): Promise<void> {
+    console.log(`[FileSyncStore] startWatching called for folderId: ${folderId}`);
+
     const folder = projectFolders.value.find((f) => f.id === folderId);
-    if (folder === undefined || activeWatchers.value.has(folderId)) return;
-    if (window.fileSystemAPI?.watchPath === undefined) return;
+    if (folder === undefined) {
+      console.log(`[FileSyncStore] startWatching - folder not found: ${folderId}`);
+      return;
+    }
+    if (activeWatchers.value.has(folderId)) {
+      console.log(`[FileSyncStore] startWatching - already watching: ${folderId}`);
+      return;
+    }
+    if (window.fileSystemAPI?.watchPath === undefined) {
+      console.log(`[FileSyncStore] startWatching - watchPath API not available`);
+      return;
+    }
+
+    console.log(`[FileSyncStore] startWatching - calling watchPath for: ${folder.folderPath}`);
 
     try {
       const watcherId = await window.fileSystemAPI.watchPath(folder.folderPath, {
@@ -280,8 +386,11 @@ export const useFileSyncStore = defineStore('fileSync', () => {
         depth: 99,
       });
       activeWatchers.value.set(folderId, watcherId);
+      console.log(
+        `[FileSyncStore] startWatching - successfully started watcher ${watcherId} for: ${folder.folderPath}`
+      );
     } catch (err) {
-      console.error('Failed to start watcher for folder:', folderId, err);
+      console.error('[FileSyncStore] Failed to start watcher for folder:', folderId, err);
     }
   }
 
@@ -313,12 +422,12 @@ export const useFileSyncStore = defineStore('fileSync', () => {
    * Handle file change events from file watcher
    */
   async function handleFileChange(event: { type: string; path: string }): Promise<void> {
-    // Find which folder this file belongs to
-    const folder = projectFolders.value.find((f) => event.path.startsWith(f.folderPath + '/'));
+    // Find which folder this file belongs to (using cross-platform path comparison)
+    const folder = projectFolders.value.find((f) => isChildPath(f.folderPath, event.path));
     if (folder === undefined || folder.status !== 'indexed') return;
 
     const indexRepo = getFileIndexRepository();
-    const fileName = event.path.split('/').pop() ?? '';
+    const fileName = getBasename(event.path);
 
     // Skip common ignored files
     if (fileName.startsWith('.') || fileName === 'node_modules') return;
@@ -341,7 +450,7 @@ export const useFileSyncStore = defineStore('fileSync', () => {
             fileName: fileName,
             normalizedName: normalizeFileName(fileName),
             fullPath: event.path,
-            relativePath: event.path.slice(folder.folderPath.length + 1),
+            relativePath: getRelativePath(folder.folderPath, event.path),
             extension: getExtension(fileName),
             size: 0,
             modifiedAt: new Date(),
@@ -374,15 +483,28 @@ export const useFileSyncStore = defineStore('fileSync', () => {
    * Search indexed files
    */
   async function searchFiles(query: string, projectPath?: string): Promise<IFileIndexEntry[]> {
-    if (query.trim() === '') return [];
-
+    // Allow empty queries for initial autocomplete (return first 50 files)
     const indexRepo = getFileIndexRepository();
     const normalizedQuery = query
+      .trim()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
 
     let results: IFileIndexEntry[] = [];
+
+    // Log search context for debugging
+    console.log('[FileSyncStore] searchFiles:', {
+      query,
+      normalizedQuery,
+      projectPath,
+      indexedFolders: projectFolders.value.length,
+      indexedFoldersStatus: projectFolders.value.map((f) => ({
+        path: f.folderPath,
+        status: f.status,
+        fileCount: f.fileCount,
+      })),
+    });
 
     if (projectPath !== undefined && projectPath !== '') {
       // Search within specific project's folders
@@ -395,6 +517,8 @@ export const useFileSyncStore = defineStore('fileSync', () => {
       // Search all indexed folders
       results = await indexRepo.searchByNameGlobal(normalizedQuery);
     }
+
+    console.log(`[FileSyncStore] Search returned ${results.length} results for query: "${query}"`);
 
     // Sort by relevance
     results.sort((a, b) => {
@@ -418,6 +542,17 @@ export const useFileSyncStore = defineStore('fileSync', () => {
    * Start background indexing for pending/stale folders
    */
   async function startBackgroundIndexing(): Promise<void> {
+    console.log('[FileSyncStore] startBackgroundIndexing called');
+    console.log(
+      '[FileSyncStore] All folders:',
+      projectFolders.value.map((f) => ({
+        id: f.id,
+        path: f.folderPath,
+        status: f.status,
+        fileCount: f.fileCount,
+      }))
+    );
+
     // Get folders that need indexing
     const foldersToIndex = projectFolders.value.filter((f) => {
       // Index pending folders
@@ -436,20 +571,49 @@ export const useFileSyncStore = defineStore('fileSync', () => {
       return false;
     });
 
+    console.log(
+      '[FileSyncStore] Folders to index:',
+      foldersToIndex.map((f) => ({
+        id: f.id,
+        path: f.folderPath,
+        status: f.status,
+      }))
+    );
+
     // Index sequentially to avoid overwhelming the system
-    for (const folder of foldersToIndex) {
+    for (let i = 0; i < foldersToIndex.length; i++) {
+      const folder = foldersToIndex[i];
       // Check if we've been cancelled (store cleanup)
-      if (!isInitialized.value) break;
+      if (!isInitialized.value) {
+        console.log('[FileSyncStore] Background indexing cancelled - store not initialized');
+        break;
+      }
+
+      console.log(
+        `[FileSyncStore] Starting background index ${i + 1}/${foldersToIndex.length}: ${folder.folderPath}`
+      );
 
       try {
         await startIndexing(folder.id);
+        console.log(
+          `[FileSyncStore] Completed background index ${i + 1}/${foldersToIndex.length}: ${folder.folderPath}`
+        );
       } catch (err) {
-        console.error('Background indexing failed for folder:', folder.folderPath, err);
+        console.error(
+          `[FileSyncStore] Background indexing failed for folder ${i + 1}/${foldersToIndex.length}:`,
+          folder.folderPath,
+          err
+        );
       }
 
       // Small delay between folders
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (i < foldersToIndex.length - 1) {
+        console.log('[FileSyncStore] Waiting 500ms before next folder...');
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
     }
+
+    console.log('[FileSyncStore] Background indexing complete');
   }
 
   /**
@@ -507,5 +671,6 @@ export const useFileSyncStore = defineStore('fileSync', () => {
     startWatching,
     stopWatching,
     stopAllWatchers,
+    resetStuckFolders,
   };
 });

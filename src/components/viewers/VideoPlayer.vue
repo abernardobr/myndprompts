@@ -148,6 +148,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useUIStore } from 'src/stores/uiStore';
+import { normalizePath, splitPath } from '@/utils/path.utils';
 
 /**
  * VideoPlayer - Plays video files with custom controls
@@ -190,9 +191,10 @@ let hideControlsTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // Computed
 const videoUrl = computed(() => {
-  // Convert file path to file:// URL
-  const encodedPath = props.filePath.split('/').map(encodeURIComponent).join('/');
-  return `file://${encodedPath}`;
+  // Convert file path to file:// URL (normalize for cross-platform support)
+  const normalized = normalizePath(props.filePath);
+  const encodedPath = splitPath(normalized).map(encodeURIComponent).join('/');
+  return `file:///${encodedPath}`;
 });
 
 const progressPercent = computed(() => {

@@ -9,6 +9,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useGitStore } from '@/stores/gitStore';
 import type { IGitFileStatus } from '@/services/git/types';
+import { getBasename } from '@/utils/path.utils';
 
 const gitStore = useGitStore();
 
@@ -79,7 +80,7 @@ function getStatusColor(status: string): string {
 
 // Get file name from path
 function getFileName(filePath: string): string {
-  return filePath.split('/').pop() ?? filePath;
+  return getBasename(filePath) || filePath;
 }
 
 // Stage a single file

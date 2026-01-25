@@ -79,12 +79,20 @@ export function createFilePathProvider(): monaco.languages.CompletionItemProvide
       const fileSyncStore = useFileSyncStore();
       const projectStore = useProjectStore();
 
-      // Ensure project store is initialized
+      // Ensure stores are initialized
       if (!projectStore.isInitialized) {
         try {
           await projectStore.initialize();
         } catch (err) {
           console.warn('[file-path-provider] Failed to initialize project store:', err);
+        }
+      }
+
+      if (!fileSyncStore.isInitialized) {
+        try {
+          await fileSyncStore.initialize();
+        } catch (err) {
+          console.warn('[file-path-provider] Failed to initialize file sync store:', err);
         }
       }
 

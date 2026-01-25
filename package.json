@@ -1,6 +1,6 @@
 {
   "name": "myndprompts",
-  "version": "0.1.6",
+  "version": "0.1.8",
   "type": "module",
   "description": "AI Prompt Manager - Desktop application for managing, organizing, and optimizing prompts for AI coding tools",
   "productName": "MyndPrompts",
@@ -67,7 +67,7 @@
     "@vue/eslint-config-typescript": "^12.0.0",
     "autoprefixer": "^10.4.17",
     "electron": "^40.0.0",
-    "electron-builder": "^24.9.1",
+    "electron-builder": "24.13.0",
     "eslint": "^8.56.0",
     "eslint-plugin-vue": "^9.20.1",
     "fake-indexeddb": "^5.0.2",

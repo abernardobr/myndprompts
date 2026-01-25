@@ -103,6 +103,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useUIStore } from 'src/stores/uiStore';
+import { normalizePath, splitPath } from '@/utils/path.utils';
 
 /**
  * ImageViewer - Displays images with zoom and pan controls
@@ -325,8 +326,9 @@ async function loadImage(): Promise<void> {
       imageDataUrl.value = dataUrl;
     } else {
       // Fallback for non-Electron environment (won't work for local files)
-      const encodedPath = props.filePath.split('/').map(encodeURIComponent).join('/');
-      imageDataUrl.value = `file://${encodedPath}`;
+      const normalized = normalizePath(props.filePath);
+      const encodedPath = splitPath(normalized).map(encodeURIComponent).join('/');
+      imageDataUrl.value = `file:///${encodedPath}`;
     }
   } catch (err) {
     // Check if file not found (ENOENT) - close the tab

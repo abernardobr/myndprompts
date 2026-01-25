@@ -11,6 +11,7 @@ import { getPromptFileService } from '@/services/file-system';
 import { getProjectRepository } from '@/services/storage';
 import type { IProject } from '@/services/storage';
 import type { IDirectoryInfo, IDirectoryContentsCount } from '@/services/file-system/types';
+import { splitPath, joinPath, getRelativePath } from '@/utils/path.utils';
 
 export const useProjectStore = defineStore('projects', () => {
   // Check if running in Electron environment
@@ -485,11 +486,11 @@ export const useProjectStore = defineStore('projects', () => {
 
         // Add all intermediate paths
         let currentPath = project.folderPath;
-        const relativePath = targetPath.slice(project.folderPath.length);
-        const segments = relativePath.split('/').filter(Boolean);
+        const relativePath = getRelativePath(project.folderPath, targetPath);
+        const segments = splitPath(relativePath);
 
         for (let i = 0; i < segments.length - 1; i++) {
-          currentPath = `${currentPath}/${segments[i]}`;
+          currentPath = joinPath(currentPath, segments[i]);
           newSet.add(currentPath);
         }
       }
