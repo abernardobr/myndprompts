@@ -262,6 +262,63 @@ export default {
     failedToReset: 'فشل في استعادة الفئات',
   },
 
+  // Settings (export/import)
+  settings: {
+    storage: {
+      browserMode: 'إعدادات التخزين متاحة في تطبيق سطح المكتب.',
+      locationHint: 'جميع الأوامر والمقتطفات والإعدادات مخزنة في هذا الموقع.',
+      exportTitle: 'تصدير البيانات',
+      exportDescription: 'قم بتصدير جميع الأوامر والمقتطفات والشخصيات والقوالب كأرشيف ZIP.',
+      exportButton: 'تصدير جميع البيانات',
+      exportDialogTitle: 'تصدير بيانات MyndPrompts',
+      exportSuccess: 'تم تصدير البيانات بنجاح',
+      exportError: 'فشل في تصدير البيانات',
+      exportSummary: '{prompts} أمر، {snippets} مقتطف، {total} ملف تم تصديرها',
+      exporting: 'جارٍ التصدير...',
+      importTitle: 'استيراد البيانات',
+      importDescription: 'قم باستيراد الأوامر والبيانات الأخرى من أرشيف ZIP تم تصديره مسبقاً.',
+      importWarning: 'سيتم إعادة تسمية الملفات الموجودة بنفس الاسم لتجنب التعارضات.',
+      importButton: 'استيراد البيانات',
+      importDialogTitle: 'استيراد بيانات MyndPrompts',
+      importSuccess: 'تم استيراد البيانات بنجاح',
+      importError: 'فشل في استيراد البيانات',
+      importSummary:
+        '{prompts} أمر، {snippets} مقتطف، {total} ملف تم استيرادها ({skipped} تم تخطيها)',
+      importing: 'جارٍ الاستيراد...',
+      // Error messages - keyed by ERROR_CODES
+      errors: {
+        FILE_NOT_FOUND: 'الملف غير موجود',
+        INVALID_ZIP: 'تنسيق ملف ZIP غير صالح',
+        MISSING_MANIFEST: 'ملف المانيفست مفقود أو غير صالح',
+        INVALID_MANIFEST: 'ملف المانيفست تالف أو غير صالح',
+        VERSION_INCOMPATIBLE: 'تم إنشاء هذا التصدير بإصدار غير متوافق',
+        WRITE_ERROR: 'فشل في الكتابة إلى الوجهة',
+        PERMISSION_DENIED: 'الإذن مرفوض - تحقق من حقوق الوصول',
+        CORRUPTED_ZIP: 'ملف ZIP تالف أو لا يمكن استخراجه',
+        EMPTY_FILE: 'الملف فارغ',
+        FILE_TOO_LARGE: 'حجم الملف يتجاوز الحد الأقصى المسموح به',
+        CHECKSUM_MISMATCH: 'فشل التحقق من السلامة - قد تكون البيانات تالفة',
+        UNKNOWN_ERROR: 'حدث خطأ غير متوقع',
+        // Legacy keys for backward compatibility
+        invalidZip: 'تنسيق ملف ZIP غير صالح',
+        missingManifest: 'ملف المانيفست مفقود أو غير صالح',
+        versionIncompatible: 'إصدار التصدير غير متوافق',
+        fileNotFound: 'الملف غير موجود',
+        permissionDenied: 'الإذن مرفوض',
+      },
+
+      // Progress phases
+      progress: {
+        reading: 'قراءة الملفات',
+        compressing: 'ضغط',
+        writing: 'كتابة الأرشيف',
+        extracting: 'استخراج',
+        validating: 'تحقق',
+        copying: 'نسخ الملفات',
+      },
+    },
+  },
+
   // Theme
   theme: {
     light: 'فاتح',

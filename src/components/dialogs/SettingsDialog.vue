@@ -16,6 +16,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useI18n } from 'vue-i18n';
 import CategoryListEditor from '@/components/settings/CategoryListEditor.vue';
 import FileSyncSection from '@/components/settings/FileSyncSection.vue';
+import StorageSection from '@/components/settings/StorageSection.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -422,12 +423,7 @@ watch(isOpen, (open) => {
               <template v-if="selectedCategory === 'storage'">
                 <div class="settings-dialog__section">
                   <div class="settings-dialog__section-title">{{ t('settingsPanel.storage') }}</div>
-                  <div class="settings-dialog__setting">
-                    <span class="settings-dialog__setting-label"
-                      >{{ t('settingsPanel.storageLocation') }}:</span
-                    >
-                    <span class="settings-dialog__setting-value">~/.myndprompt</span>
-                  </div>
+                  <StorageSection />
                 </div>
               </template>
             </div>

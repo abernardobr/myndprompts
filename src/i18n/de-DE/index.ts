@@ -263,6 +263,67 @@ export default {
     failedToReset: 'Kategorien konnten nicht zurückgesetzt werden',
   },
 
+  // Settings (export/import)
+  settings: {
+    storage: {
+      browserMode: 'Die Speichereinstellungen sind in der Desktop-App verfügbar.',
+      locationHint:
+        'Alle Ihre Prompts, Snippets und Einstellungen werden an diesem Ort gespeichert.',
+      exportTitle: 'Daten Exportieren',
+      exportDescription:
+        'Exportieren Sie alle Ihre Prompts, Snippets, Personas und Vorlagen als ZIP-Archiv.',
+      exportButton: 'Alle Daten Exportieren',
+      exportDialogTitle: 'MyndPrompts Daten Exportieren',
+      exportSuccess: 'Daten erfolgreich exportiert',
+      exportError: 'Fehler beim Exportieren der Daten',
+      exportSummary: '{prompts} Prompts, {snippets} Snippets, {total} Dateien insgesamt exportiert',
+      exporting: 'Exportiere...',
+      importTitle: 'Daten Importieren',
+      importDescription:
+        'Importieren Sie Prompts und andere Daten aus einem zuvor exportierten ZIP-Archiv.',
+      importWarning:
+        'Vorhandene Dateien mit demselben Namen werden umbenannt, um Konflikte zu vermeiden.',
+      importButton: 'Daten Importieren',
+      importDialogTitle: 'MyndPrompts Daten Importieren',
+      importSuccess: 'Daten erfolgreich importiert',
+      importError: 'Fehler beim Importieren der Daten',
+      importSummary:
+        '{prompts} Prompts, {snippets} Snippets, {total} Dateien insgesamt importiert ({skipped} übersprungen)',
+      importing: 'Importiere...',
+      // Error messages - keyed by ERROR_CODES
+      errors: {
+        FILE_NOT_FOUND: 'Datei nicht gefunden',
+        INVALID_ZIP: 'Ungültiges ZIP-Dateiformat',
+        MISSING_MANIFEST: 'Fehlende oder ungültige Manifest-Datei',
+        INVALID_MANIFEST: 'Die Manifest-Datei ist fehlerhaft oder ungültig',
+        VERSION_INCOMPATIBLE: 'Dieser Export wurde mit einer inkompatiblen Version erstellt',
+        WRITE_ERROR: 'Fehler beim Schreiben zum Ziel',
+        PERMISSION_DENIED: 'Zugriff verweigert - überprüfen Sie die Zugriffsrechte',
+        CORRUPTED_ZIP: 'Die ZIP-Datei ist beschädigt oder kann nicht extrahiert werden',
+        EMPTY_FILE: 'Die Datei ist leer',
+        FILE_TOO_LARGE: 'Die Dateigröße überschreitet das maximal zulässige Limit',
+        CHECKSUM_MISMATCH: 'Integritätsprüfung fehlgeschlagen - Daten könnten beschädigt sein',
+        UNKNOWN_ERROR: 'Ein unerwarteter Fehler ist aufgetreten',
+        // Legacy keys for backward compatibility
+        invalidZip: 'Ungültiges ZIP-Dateiformat',
+        missingManifest: 'Fehlende oder ungültige Manifest-Datei',
+        versionIncompatible: 'Inkompatible Export-Version',
+        fileNotFound: 'Datei nicht gefunden',
+        permissionDenied: 'Zugriff verweigert',
+      },
+
+      // Progress phases
+      progress: {
+        reading: 'Dateien werden gelesen',
+        compressing: 'Komprimieren',
+        writing: 'Archiv wird geschrieben',
+        extracting: 'Extrahieren',
+        validating: 'Validieren',
+        copying: 'Dateien werden kopiert',
+      },
+    },
+  },
+
   // Theme
   theme: {
     light: 'Hell',

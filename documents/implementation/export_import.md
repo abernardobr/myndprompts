@@ -205,16 +205,16 @@ Default behavior: **Rename** (safe, non-destructive)
 
 ### Checklist
 
-- [ ] **Task 1**: Create Export/Import types and interfaces
-- [ ] **Task 2**: Implement ExportImportService in main process
-- [ ] **Task 3**: Add IPC handlers for export/import operations
-- [ ] **Task 4**: Create StorageSection component with Export/Import UI
-- [ ] **Task 5**: Integrate StorageSection into SettingsDialog
-- [ ] **Task 6**: Add i18n translation keys for all locales
-- [ ] **Task 7**: Implement progress tracking and notifications
-- [ ] **Task 8**: Add error handling and validation
-- [ ] **Task 9**: Write unit tests for ExportImportService
-- [ ] **Task 10**: End-to-end testing and documentation
+- [x] **Task 1**: Create Export/Import types and interfaces
+- [x] **Task 2**: Implement ExportImportService in main process
+- [x] **Task 3**: Add IPC handlers for export/import operations
+- [x] **Task 4**: Create StorageSection component with Export/Import UI
+- [x] **Task 5**: Integrate StorageSection into SettingsDialog
+- [x] **Task 6**: Add i18n translation keys for all locales
+- [x] **Task 7**: Implement progress tracking and notifications
+- [x] **Task 8**: Add error handling and validation
+- [x] **Task 9**: Write unit tests for ExportImportService
+- [x] **Task 10**: End-to-end testing and documentation
 
 ---
 
@@ -1309,27 +1309,90 @@ npm install -D @types/archiver
 
 ## Appendix: File Checklist
 
-Files to create:
+Files created:
 
-- [ ] `src/services/export-import/types.ts`
-- [ ] `src/electron/main/services/export-import.service.ts`
-- [ ] `src/components/settings/StorageSection.vue`
-- [ ] `src/electron/main/services/__tests__/export-import.service.test.ts`
+- [x] `src/services/export-import/types.ts`
+- [x] `src/electron/main/services/export-import.service.ts`
+- [x] `src/components/settings/StorageSection.vue`
+- [x] `src/electron/main/services/__tests__/export-import.service.test.ts`
 
-Files to modify:
+Files modified:
 
-- [ ] `src/electron/main/index.ts` (add IPC handlers)
-- [ ] `src-electron/electron-main.ts` (add IPC handlers)
-- [ ] `src/electron/preload/index.ts` (add API exposure)
-- [ ] `src/components/dialogs/SettingsDialog.vue` (integrate StorageSection)
-- [ ] `src/i18n/en-US/index.ts` (add translations)
-- [ ] `src/i18n/en-GB/index.ts` (add translations)
-- [ ] `src/i18n/en-IE/index.ts` (add translations)
-- [ ] `src/i18n/pt-BR/index.ts` (add translations)
-- [ ] `src/i18n/pt-PT/index.ts` (add translations)
-- [ ] `src/i18n/es-ES/index.ts` (add translations)
-- [ ] `src/i18n/fr-FR/index.ts` (add translations)
-- [ ] `src/i18n/de-DE/index.ts` (add translations)
-- [ ] `src/i18n/it-IT/index.ts` (add translations)
-- [ ] `src/i18n/ar-SA/index.ts` (add translations)
-- [ ] `package.json` (add archiver, extract-zip dependencies)
+- [x] `src/electron/main/index.ts` (add IPC handlers)
+- [x] `src-electron/electron-main.ts` (add IPC handlers)
+- [x] `src/electron/preload/index.ts` (add API exposure)
+- [x] `src/components/dialogs/SettingsDialog.vue` (integrate StorageSection)
+- [x] `src/i18n/en-US/index.ts` (add translations)
+- [x] `src/i18n/en-GB/index.ts` (add translations)
+- [x] `src/i18n/en-IE/index.ts` (add translations)
+- [x] `src/i18n/pt-BR/index.ts` (add translations)
+- [x] `src/i18n/pt-PT/index.ts` (add translations)
+- [x] `src/i18n/es-ES/index.ts` (add translations)
+- [x] `src/i18n/fr-FR/index.ts` (add translations)
+- [x] `src/i18n/de-DE/index.ts` (add translations)
+- [x] `src/i18n/it-IT/index.ts` (add translations)
+- [x] `src/i18n/ar-SA/index.ts` (add translations)
+- [x] `package.json` (add archiver, extract-zip dependencies)
+- [x] `README.md` (add export/import documentation)
+
+---
+
+## Appendix: Implementation Completion Report
+
+### Code Review Checklist (Completed)
+
+- [x] All TypeScript types are correct (no type errors in export-import files)
+- [x] No critical ESLint errors (only formatting warnings remain)
+- [x] IPC handlers are in BOTH entry points (src/electron/main/index.ts and src-electron/electron-main.ts)
+- [x] Translations exist in all 10 locales
+- [x] Error messages are user-friendly with localized error codes
+- [x] Loading states prevent double-clicks (buttons disabled during operations)
+
+### Unit Test Results
+
+**26 tests passing** covering:
+
+1. **Export functionality** (6 tests)
+   - Creates valid ZIP file with index.json
+   - Includes correct statistics in export result
+   - Exports with options to exclude certain types
+   - Handles empty storage directory
+   - Preserves nested folder structure
+   - Handles export with empty storage gracefully
+
+2. **Import functionality** (6 tests)
+   - Imports files from valid ZIP
+   - Handles conflict resolution: skip
+   - Handles conflict resolution: replace
+   - Handles conflict resolution: rename
+   - Tracks conflicts in result
+   - Fails gracefully with invalid ZIP
+
+3. **Validation tests** (8 tests)
+   - Passes validation for valid export
+   - Fails validation for non-existent file (FILE_NOT_FOUND)
+   - Fails validation for empty file (EMPTY_FILE)
+   - Fails validation for ZIP without index.json (MISSING_MANIFEST)
+   - Fails validation for invalid manifest JSON (INVALID_MANIFEST)
+   - Fails validation for incompatible version (VERSION_INCOMPATIBLE)
+   - Fails validation for corrupted ZIP (CORRUPTED_ZIP)
+   - Returns warnings for large files
+
+4. **Error handling** (4 tests)
+   - Includes error code for file not found
+   - Detects error codes from import result
+   - Returns correct error for invalid ZIP file
+   - Handles missing files in ZIP gracefully
+
+5. **Singleton tests** (2 tests)
+   - Returns the same instance
+   - Resets the instance
+
+### Documentation Added
+
+- Export/Import section added to `README.md` with:
+  - Step-by-step export instructions
+  - Step-by-step import instructions
+  - Export file format description
+  - Conflict resolution behavior
+- Roadmap updated to mark export/import feature as complete

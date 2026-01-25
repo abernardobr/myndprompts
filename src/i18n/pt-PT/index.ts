@@ -263,6 +263,75 @@ export default {
     failedToReset: 'Falha ao repor categorias',
   },
 
+  // Settings (export/import)
+  settings: {
+    storage: {
+      // Browser mode
+      browserMode: 'As definições de armazenamento estão disponíveis na aplicação desktop.',
+
+      // Location
+      locationHint: 'Todos os seus prompts, snippets e definições são armazenados neste local.',
+
+      // Export section
+      exportTitle: 'Exportar Dados',
+      exportDescription:
+        'Exporte todos os seus prompts, snippets, personas e modelos como um ficheiro ZIP.',
+      exportButton: 'Exportar Todos os Dados',
+      exportDialogTitle: 'Exportar Dados do MyndPrompts',
+      exportSuccess: 'Dados exportados com sucesso',
+      exportError: 'Falha ao exportar dados',
+      exportSummary:
+        '{prompts} prompts, {snippets} snippets, {total} ficheiros exportados no total',
+      exporting: 'A exportar...',
+
+      // Import section
+      importTitle: 'Importar Dados',
+      importDescription:
+        'Importe prompts e outros dados de um ficheiro ZIP exportado anteriormente.',
+      importWarning:
+        'Ficheiros existentes com o mesmo nome serão renomeados para evitar conflitos.',
+      importButton: 'Importar Dados',
+      importDialogTitle: 'Importar Dados do MyndPrompts',
+      importSuccess: 'Dados importados com sucesso',
+      importError: 'Falha ao importar dados',
+      importSummary:
+        '{prompts} prompts, {snippets} snippets, {total} ficheiros importados ({skipped} ignorados)',
+      importing: 'A importar...',
+
+      // Error messages - keyed by ERROR_CODES
+      errors: {
+        FILE_NOT_FOUND: 'Ficheiro não encontrado',
+        INVALID_ZIP: 'Formato de ficheiro ZIP inválido',
+        MISSING_MANIFEST: 'Ficheiro de manifesto ausente ou inválido',
+        INVALID_MANIFEST: 'O ficheiro de manifesto está malformado ou inválido',
+        VERSION_INCOMPATIBLE: 'Esta exportação foi criada com uma versão incompatível',
+        WRITE_ERROR: 'Falha ao gravar no destino',
+        PERMISSION_DENIED: 'Permissão negada - verifique as permissões de acesso',
+        CORRUPTED_ZIP: 'O ficheiro ZIP está corrompido ou não pode ser extraído',
+        EMPTY_FILE: 'O ficheiro está vazio',
+        FILE_TOO_LARGE: 'O tamanho do ficheiro excede o limite máximo permitido',
+        CHECKSUM_MISMATCH: 'Verificação de integridade falhou - os dados podem estar corrompidos',
+        UNKNOWN_ERROR: 'Ocorreu um erro inesperado',
+        // Legacy keys for backward compatibility
+        invalidZip: 'Formato de ficheiro ZIP inválido',
+        missingManifest: 'Ficheiro de manifesto ausente ou inválido',
+        versionIncompatible: 'Versão de exportação incompatível',
+        fileNotFound: 'Ficheiro não encontrado',
+        permissionDenied: 'Permissão negada',
+      },
+
+      // Progress phases
+      progress: {
+        reading: 'A ler ficheiros',
+        compressing: 'A comprimir',
+        writing: 'A escrever arquivo',
+        extracting: 'A extrair',
+        validating: 'A validar',
+        copying: 'A copiar ficheiros',
+      },
+    },
+  },
+
   // Theme
   theme: {
     light: 'Claro',

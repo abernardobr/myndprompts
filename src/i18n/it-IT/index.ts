@@ -263,6 +263,67 @@ export default {
     failedToReset: 'Impossibile ripristinare le categorie',
   },
 
+  // Settings (export/import)
+  settings: {
+    storage: {
+      browserMode: "Le impostazioni di archiviazione sono disponibili nell'app desktop.",
+      locationHint:
+        'Tutti i tuoi prompt, snippet e impostazioni sono archiviati in questa posizione.',
+      exportTitle: 'Esporta Dati',
+      exportDescription:
+        'Esporta tutti i tuoi prompt, snippet, personas e modelli come archivio ZIP.',
+      exportButton: 'Esporta Tutti i Dati',
+      exportDialogTitle: 'Esporta Dati MyndPrompts',
+      exportSuccess: 'Dati esportati con successo',
+      exportError: 'Esportazione dati fallita',
+      exportSummary: '{prompts} prompt, {snippets} snippet, {total} file esportati in totale',
+      exporting: 'Esportazione in corso...',
+      importTitle: 'Importa Dati',
+      importDescription:
+        'Importa prompt e altri dati da un archivio ZIP precedentemente esportato.',
+      importWarning:
+        'I file esistenti con lo stesso nome verranno rinominati per evitare conflitti.',
+      importButton: 'Importa Dati',
+      importDialogTitle: 'Importa Dati MyndPrompts',
+      importSuccess: 'Dati importati con successo',
+      importError: 'Importazione dati fallita',
+      importSummary:
+        '{prompts} prompt, {snippets} snippet, {total} file importati in totale ({skipped} saltati)',
+      importing: 'Importazione in corso...',
+      // Error messages - keyed by ERROR_CODES
+      errors: {
+        FILE_NOT_FOUND: 'File non trovato',
+        INVALID_ZIP: 'Formato file ZIP non valido',
+        MISSING_MANIFEST: 'File manifest mancante o non valido',
+        INVALID_MANIFEST: 'Il file manifest è malformato o non valido',
+        VERSION_INCOMPATIBLE: 'Questa esportazione è stata creata con una versione incompatibile',
+        WRITE_ERROR: 'Scrittura nella destinazione fallita',
+        PERMISSION_DENIED: 'Permesso negato - verifica i diritti di accesso',
+        CORRUPTED_ZIP: 'Il file ZIP è corrotto o non può essere estratto',
+        EMPTY_FILE: 'Il file è vuoto',
+        FILE_TOO_LARGE: 'La dimensione del file supera il limite massimo consentito',
+        CHECKSUM_MISMATCH: 'Verifica integrità fallita - i dati potrebbero essere corrotti',
+        UNKNOWN_ERROR: 'Si è verificato un errore imprevisto',
+        // Legacy keys for backward compatibility
+        invalidZip: 'Formato file ZIP non valido',
+        missingManifest: 'File manifest mancante o non valido',
+        versionIncompatible: 'Versione di esportazione incompatibile',
+        fileNotFound: 'File non trovato',
+        permissionDenied: 'Permesso negato',
+      },
+
+      // Progress phases
+      progress: {
+        reading: 'Lettura file',
+        compressing: 'Compressione',
+        writing: 'Scrittura archivio',
+        extracting: 'Estrazione',
+        validating: 'Validazione',
+        copying: 'Copia file',
+      },
+    },
+  },
+
   // Theme
   theme: {
     light: 'Chiaro',

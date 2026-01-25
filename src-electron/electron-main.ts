@@ -15,12 +15,14 @@ import { getFileWatcherService } from '../src/electron/main/services/file-watche
 import { getGitService } from '../src/electron/main/services/git.service';
 import { getFileIndexerService } from '../src/electron/main/services/file-indexer.service';
 import { getUpdateService } from '../src/electron/main/services/update.service';
+import { getExportImportService } from '../src/electron/main/services/export-import.service';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
   IWatcherOptions,
 } from '../src/services/file-system/types';
 import type { IGitLogOptions } from '../src/services/git/types';
+import type { IExportOptions, IImportOptions } from '../src/services/export-import/types';
 
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform();
@@ -774,4 +776,23 @@ ipcMain.handle('update:get-current-version', () => {
 
 ipcMain.handle('update:open-download-page', async (_event, url: string) => {
   await shell.openExternal(url);
+});
+
+// ================================
+// Export/Import IPC Handlers
+// ================================
+
+ipcMain.handle('fs:export-data', async (_event, destPath: string, options?: IExportOptions) => {
+  const exportImportService = getExportImportService();
+  return exportImportService.exportData(destPath, options);
+});
+
+ipcMain.handle('fs:import-data', async (_event, zipPath: string, options?: IImportOptions) => {
+  const exportImportService = getExportImportService();
+  return exportImportService.importData(zipPath, options);
+});
+
+ipcMain.handle('fs:validate-export', async (_event, zipPath: string) => {
+  const exportImportService = getExportImportService();
+  return exportImportService.validateExport(zipPath);
 });

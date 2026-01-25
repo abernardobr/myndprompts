@@ -12,6 +12,15 @@ import type {
   IFileStorageConfig,
 } from '../../services/file-system/types';
 import type {
+  IExportOptions,
+  IImportOptions,
+  IExportResult,
+  IImportResult,
+  IValidationResult,
+  IExportProgress,
+  IImportProgress,
+} from '../../services/export-import/types';
+import type {
   IGitStatusSummary,
   IGitCommit,
   IGitBranch,
@@ -154,6 +163,14 @@ export interface FileSystemAPI {
   startIndexing: (folderPath: string, operationId: string) => Promise<IIndexedFile[]>;
   cancelIndexing: (operationId: string) => Promise<boolean>;
   onIndexProgress: (callback: (data: IIndexProgress) => void) => () => void;
+
+  // Export/Import
+  exportData: (destPath: string, options?: IExportOptions) => Promise<IExportResult>;
+  importData: (zipPath: string, options?: IImportOptions) => Promise<IImportResult>;
+  validateExport: (zipPath: string) => Promise<IValidationResult>;
+  onExportImportProgress: (
+    callback: (progress: IExportProgress | IImportProgress) => void
+  ) => () => void;
 
   // Utility for drag-and-drop (synchronous, runs in preload context)
   getPathForFile: (file: File) => string;
@@ -388,6 +405,27 @@ const fileSystemApi: FileSystemAPI = {
     // Return cleanup function
     return () => {
       ipcRenderer.removeListener('fs:index-progress', handler);
+    };
+  },
+
+  // Export/Import
+  exportData: (destPath, options) =>
+    ipcRenderer.invoke('fs:export-data', destPath, options) as Promise<IExportResult>,
+  importData: (zipPath, options) =>
+    ipcRenderer.invoke('fs:import-data', zipPath, options) as Promise<IImportResult>,
+  validateExport: (zipPath) =>
+    ipcRenderer.invoke('fs:validate-export', zipPath) as Promise<IValidationResult>,
+  onExportImportProgress: (callback) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      progress: IExportProgress | IImportProgress
+    ): void => {
+      callback(progress);
+    };
+    ipcRenderer.on('export-import:progress', handler);
+    // Return cleanup function
+    return () => {
+      ipcRenderer.removeListener('export-import:progress', handler);
     };
   },
 

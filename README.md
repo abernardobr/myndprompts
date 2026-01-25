@@ -22,6 +22,47 @@ MyndPrompts helps developers and prompt engineers efficiently manage their AI pr
 
 _Coming soon_
 
+## Export and Import
+
+MyndPrompts allows you to export all your data as a ZIP archive and import it back later or on another machine.
+
+### Exporting Data
+
+1. Open Settings (gear icon in the sidebar or `Cmd/Ctrl + ,`)
+2. Navigate to the **Storage** section
+3. Click **Export All Data**
+4. Choose a location to save the ZIP file
+5. Wait for the export to complete
+
+The export includes:
+
+- All prompts with their folder structure
+- Snippets
+- Personas
+- Templates
+- Project configurations
+
+### Importing Data
+
+1. Open Settings
+2. Navigate to the **Storage** section
+3. Click **Import Data**
+4. Select a previously exported ZIP file
+5. Wait for the import to complete
+
+> **Note:** If a file already exists with the same name, it will be renamed to avoid conflicts (e.g., `prompt.md` becomes `prompt (imported).md`).
+
+### Export File Format
+
+The export is a standard ZIP file containing:
+
+- `index.json` - Manifest with file metadata and statistics
+- `prompts/` - All prompt files
+- `snippets/` - All snippet files
+- `personas/` - All persona files
+- `templates/` - All template files
+- `projects/` - Project configurations
+
 ## Installation
 
 ### Prerequisites
@@ -131,7 +172,7 @@ For a comprehensive understanding of the project architecture, see:
 ### v0.4.0 - Collaboration
 
 - [ ] Cloud sync (optional)
-- [ ] Export/import prompt collections
+- [x] Export/import prompt collections
 - [ ] Share prompts via links
 - [ ] Team workspaces
 

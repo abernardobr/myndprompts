@@ -278,6 +278,72 @@ export default {
     failedToReset: 'Failed to reset categories',
   },
 
+  // Settings (export/import)
+  settings: {
+    storage: {
+      // Browser mode
+      browserMode: 'Storage settings are available in the desktop app.',
+
+      // Location
+      locationHint: 'All your prompts, snippets, and settings are stored in this location.',
+
+      // Export section
+      exportTitle: 'Export Data',
+      exportDescription:
+        'Export all your prompts, snippets, personas, and templates as a ZIP archive.',
+      exportButton: 'Export All Data',
+      exportDialogTitle: 'Export MyndPrompts Data',
+      exportSuccess: 'Data exported successfully',
+      exportError: 'Failed to export data',
+      exportSummary: '{prompts} prompts, {snippets} snippets, {total} total files exported',
+      exporting: 'Exporting...',
+
+      // Import section
+      importTitle: 'Import Data',
+      importDescription: 'Import prompts and other data from a previously exported ZIP archive.',
+      importWarning: 'Existing files with the same name will be renamed to avoid conflicts.',
+      importButton: 'Import Data',
+      importDialogTitle: 'Import MyndPrompts Data',
+      importSuccess: 'Data imported successfully',
+      importError: 'Failed to import data',
+      importSummary:
+        '{prompts} prompts, {snippets} snippets, {total} total files imported ({skipped} skipped)',
+      importing: 'Importing...',
+
+      // Error messages - keyed by ERROR_CODES
+      errors: {
+        FILE_NOT_FOUND: 'File not found',
+        INVALID_ZIP: 'Invalid ZIP file format',
+        MISSING_MANIFEST: 'Missing or invalid manifest file',
+        INVALID_MANIFEST: 'The manifest file is malformed or invalid',
+        VERSION_INCOMPATIBLE: 'This export was created with an incompatible version',
+        WRITE_ERROR: 'Failed to write to the destination',
+        PERMISSION_DENIED: 'Permission denied - check file access rights',
+        CORRUPTED_ZIP: 'The ZIP file is corrupted or cannot be extracted',
+        EMPTY_FILE: 'The file is empty',
+        FILE_TOO_LARGE: 'File size exceeds the maximum allowed limit',
+        CHECKSUM_MISMATCH: 'File integrity check failed - data may be corrupted',
+        UNKNOWN_ERROR: 'An unexpected error occurred',
+        // Legacy keys for backward compatibility
+        invalidZip: 'Invalid ZIP file format',
+        missingManifest: 'Missing or invalid manifest file',
+        versionIncompatible: 'Incompatible export version',
+        fileNotFound: 'File not found',
+        permissionDenied: 'Permission denied',
+      },
+
+      // Progress phases
+      progress: {
+        reading: 'Reading files',
+        compressing: 'Compressing',
+        writing: 'Writing archive',
+        extracting: 'Extracting',
+        validating: 'Validating',
+        copying: 'Copying files',
+      },
+    },
+  },
+
   // Theme
   theme: {
     light: 'Light',

@@ -17,12 +17,14 @@ import { getFileWatcherService } from './services/file-watcher.service';
 import { getGitService } from './services/git.service';
 import { getFileIndexerService } from './services/file-indexer.service';
 import { getUpdateService } from './services/update.service';
+import { getExportImportService } from './services/export-import.service';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
   IWatcherOptions,
 } from '../../services/file-system/types';
 import type { IGitLogOptions } from '../../services/git/types';
+import type { IExportOptions, IImportOptions } from '../../services/export-import/types';
 
 // Environment detection
 const platform = process.platform || os.platform();
@@ -777,6 +779,25 @@ ipcMain.handle('update:get-current-version', () => {
 
 ipcMain.handle('update:open-download-page', async (_event, url: string) => {
   await shell.openExternal(url);
+});
+
+// ================================
+// Export/Import IPC Handlers
+// ================================
+
+ipcMain.handle('fs:export-data', async (_event, destPath: string, options?: IExportOptions) => {
+  const exportImportService = getExportImportService();
+  return exportImportService.exportData(destPath, options);
+});
+
+ipcMain.handle('fs:import-data', async (_event, zipPath: string, options?: IImportOptions) => {
+  const exportImportService = getExportImportService();
+  return exportImportService.importData(zipPath, options);
+});
+
+ipcMain.handle('fs:validate-export', async (_event, zipPath: string) => {
+  const exportImportService = getExportImportService();
+  return exportImportService.validateExport(zipPath);
 });
 
 // Security: Prevent new window creation
