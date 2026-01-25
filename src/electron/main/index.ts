@@ -174,6 +174,12 @@ function createApplicationMenu(): void {
         },
         { type: 'separator' as const },
         {
+          label: 'Open Help',
+          click: () => {
+            mainWindow?.webContents.send('menu:help');
+          },
+        },
+        {
           label: 'MyndPrompts Documentation',
           click: () => {
             void shell.openExternal('https://github.com/myndprompts/myndprompts');

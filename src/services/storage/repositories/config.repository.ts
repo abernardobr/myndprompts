@@ -28,6 +28,7 @@ export const ConfigKeys = {
   FIRST_RUN_COMPLETED: 'app.firstRunCompleted',
   LAST_VERSION: 'app.lastVersion',
   PROMPT_CATEGORIES: 'prompts.categories',
+  HELP_DIALOG_DONT_SHOW: 'app.helpDialogDontShow',
 } as const;
 
 export type ConfigKey = (typeof ConfigKeys)[keyof typeof ConfigKeys];

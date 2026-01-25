@@ -26,6 +26,8 @@ import StatusBar from '@/components/layout/StatusBar.vue';
 import SettingsDialog from '@/components/dialogs/SettingsDialog.vue';
 import LibraryDialog from '@/components/dialogs/LibraryDialog.vue';
 import UpdateDialog from '@/components/dialogs/UpdateDialog.vue';
+import HelpDialog from '@/components/dialogs/HelpDialog.vue';
+import { ConfigKeys, getConfigRepository } from '@/services/storage/repositories/config.repository';
 
 const uiStore = useUIStore();
 const appStore = useAppStore();
@@ -81,6 +83,9 @@ const showSettingsDialog = ref(false);
 // Library dialog state
 const showLibraryDialog = ref(false);
 
+// Help dialog state
+const showHelpDialog = ref(false);
+
 // Provide function to open settings dialog from child components
 function openSettingsDialog(): void {
   showSettingsDialog.value = true;
@@ -93,9 +98,16 @@ function openLibraryDialog(): void {
 }
 provide('openLibraryDialog', openLibraryDialog);
 
+// Provide function to open help dialog from child components
+function openHelpDialog(): void {
+  showHelpDialog.value = true;
+}
+provide('openHelpDialog', openHelpDialog);
+
 // Menu event listener cleanup
 let cleanupSettingsListener: (() => void) | null = null;
 let cleanupUpdateListener: (() => void) | null = null;
+let cleanupHelpListener: (() => void) | null = null;
 
 // Initialize stores on mount
 onMounted(async () => {
@@ -111,18 +123,31 @@ onMounted(async () => {
     cleanupUpdateListener = window.menuAPI.onCheckForUpdates(() => {
       void appStore.checkForUpdates(true); // true = show dialog even if up-to-date
     });
+
+    // Listen for menu:help event from Electron menu
+    cleanupHelpListener = window.menuAPI.onHelp(() => {
+      showHelpDialog.value = true;
+    });
   }
 
   // Check for updates after a short delay (don't block startup)
   setTimeout(() => {
     void appStore.checkForUpdates(false); // false = only show if update available
   }, 3000);
+
+  // Show help dialog on first open (unless user disabled it)
+  const configRepository = getConfigRepository();
+  const dontShowHelp = await configRepository.get<boolean>(ConfigKeys.HELP_DIALOG_DONT_SHOW);
+  if (!dontShowHelp) {
+    showHelpDialog.value = true;
+  }
 });
 
 // Cleanup on unmount
 onUnmounted(() => {
   cleanupSettingsListener?.();
   cleanupUpdateListener?.();
+  cleanupHelpListener?.();
 });
 </script>
 
@@ -209,6 +234,9 @@ onUnmounted(() => {
       @skip-version="appStore.skipVersion(appStore.updateInfo?.latestVersion ?? '')"
       @retry="appStore.checkForUpdates(true)"
     />
+
+    <!-- Help Dialog -->
+    <HelpDialog v-model="showHelpDialog" />
   </div>
 </template>
 

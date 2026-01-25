@@ -190,6 +190,7 @@ export interface MenuAPI {
   onOpen: (callback: () => void) => () => void;
   onSave: (callback: () => void) => () => void;
   onCheckForUpdates: (callback: () => void) => () => void;
+  onHelp: (callback: () => void) => () => void;
 }
 
 // Update API
@@ -542,6 +543,11 @@ const menuApi: MenuAPI = {
     const handler = () => callback();
     ipcRenderer.on('menu:check-for-updates', handler);
     return () => ipcRenderer.removeListener('menu:check-for-updates', handler);
+  },
+  onHelp: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu:help', handler);
+    return () => ipcRenderer.removeListener('menu:help', handler);
   },
 };
 

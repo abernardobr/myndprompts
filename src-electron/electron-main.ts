@@ -188,6 +188,12 @@ function createApplicationMenu(): void {
         },
         { type: 'separator' },
         {
+          label: 'Open Help',
+          click: () => {
+            mainWindow?.webContents.send('menu:help');
+          },
+        },
+        {
           label: 'MyndPrompts Documentation',
           click: async () => {
             await shell.openExternal('https://myndprompts.com');

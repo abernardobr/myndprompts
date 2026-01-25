@@ -474,6 +474,13 @@ export default {
       retry: 'Reintentar',
       upToDateMessage: 'Estás usando la última versión de MyndPrompts.',
     },
+    help: {
+      title: 'Bienvenido a MyndPrompts',
+      description:
+        'Mira estos videos tutoriales para aprender a sacar el máximo provecho de MyndPrompts.',
+      dontShowAgain: 'No mostrar esto al iniciar',
+      close: 'Cerrar',
+    },
     gitSetup: {
       title: 'Configuración de Git',
       userName: 'Nombre de Usuario',

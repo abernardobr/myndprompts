@@ -461,6 +461,12 @@ export default {
       retry: 'إعادة المحاولة',
       upToDateMessage: 'أنت تستخدم أحدث إصدار من MyndPrompts.',
     },
+    help: {
+      title: 'مرحباً بك في MyndPrompts',
+      description: 'شاهد هذه الفيديوهات التعليمية لتتعلم كيفية الاستفادة القصوى من MyndPrompts.',
+      dontShowAgain: 'لا تظهر هذا عند بدء التشغيل',
+      close: 'إغلاق',
+    },
     gitSetup: {
       title: 'إعداد Git',
       userName: 'اسم المستخدم',
