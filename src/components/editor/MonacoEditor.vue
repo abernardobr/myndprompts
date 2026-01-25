@@ -354,6 +354,40 @@ function setupEventListeners(): void {
       },
     });
     disposables.push(insertImageActionDisposable);
+
+    // Format as Image action (context menu) - formats selected path as markdown image
+    const formatAsImageActionDisposable = editor.value.addAction({
+      id: 'myndprompts.formatAsImage',
+      label: t('editor.formatAsImage'),
+      contextMenuGroupId: 'modification',
+      contextMenuOrder: 1.6,
+      precondition: 'editorHasSelection',
+      run: (ed) => {
+        const selection = ed.getSelection();
+        if (selection === null) return;
+
+        const selectedText = ed.getModel()?.getValueInRange(selection) ?? '';
+        if (selectedText === '') return;
+
+        // Extract filename from path for alt text
+        const fileName = selectedText.split(/[/\\]/).pop() ?? 'image';
+        // Remove extension for cleaner alt text
+        const altText = fileName.replace(/\.[^.]+$/, '');
+
+        // Format as markdown image
+        const markdownImage = `![${altText}](${selectedText})`;
+
+        // Replace selection with formatted image
+        ed.executeEdits('formatAsImage', [
+          {
+            range: selection,
+            text: markdownImage,
+            forceMoveMarkers: true,
+          },
+        ]);
+      },
+    });
+    disposables.push(formatAsImageActionDisposable);
   }
 
   // Focus/blur handlers for state persistence

@@ -484,6 +484,7 @@ export default {
     copyPath: 'نسخ المسار',
     revealInSidebar: 'إظهار في الشريط الجانبي',
     insertImage: 'إدراج صورة',
+    formatAsImage: 'تنسيق كصورة',
   },
 
   // Status bar

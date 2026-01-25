@@ -486,6 +486,7 @@ export default {
     copyPath: 'Pfad Kopieren',
     revealInSidebar: 'In Seitenleiste Anzeigen',
     insertImage: 'Bild Einfügen',
+    formatAsImage: 'Als Bild Formatieren',
   },
 
   // Status bar

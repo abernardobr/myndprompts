@@ -508,13 +508,21 @@ interface IFileInfo {
 }
 
 /**
- * Get project files (prompts) from the current project
+ * Get project files from the current project (all file types)
  */
 async function getProjectFiles(
   projectPath: string,
   query: string
-): Promise<{ fileName: string; fullPath: string; relativePath: string; normalizedName: string }[]> {
-  if (!window?.fileSystemAPI) {
+): Promise<
+  {
+    fileName: string;
+    fullPath: string;
+    relativePath: string;
+    normalizedName: string;
+    extension: string;
+  }[]
+> {
+  if (window?.fileSystemAPI === undefined) {
     return [];
   }
 
@@ -524,8 +532,6 @@ async function getProjectFiles(
 
     return files
       .filter((file) => {
-        // Only include markdown files (prompts)
-        if (file.extension !== '.md') return false;
         // Filter by query if provided
         if (queryLower === '') return true;
         return (
@@ -538,6 +544,7 @@ async function getProjectFiles(
         fullPath: file.path,
         relativePath: file.path.replace(projectPath, '').replace(/^[/\\]/, ''),
         normalizedName: file.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
+        extension: file.extension,
       }));
   } catch {
     return [];
@@ -712,17 +719,42 @@ export function registerUserSnippetsProvider(): monaco.IDisposable {
             for (const file of projectFiles) {
               if (!seenPaths.has(file.fullPath)) {
                 seenPaths.add(file.fullPath);
+
+                // Determine file type label based on extension
+                let typeLabel = '📄 File';
+                let docLabel = 'File from library';
+                if (file.extension === '.md') {
+                  typeLabel = '📝 Prompt';
+                  docLabel = 'Prompt from library';
+                } else if (
+                  ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'].includes(
+                    file.extension
+                  )
+                ) {
+                  typeLabel = '🖼️ Image';
+                  docLabel = 'Image from library';
+                } else if (['.mp4', '.webm', '.mov', '.avi'].includes(file.extension)) {
+                  typeLabel = '🎬 Video';
+                  docLabel = 'Video from library';
+                } else if (['.mp3', '.wav', '.ogg', '.m4a'].includes(file.extension)) {
+                  typeLabel = '🎵 Audio';
+                  docLabel = 'Audio from library';
+                } else if (['.pdf'].includes(file.extension)) {
+                  typeLabel = '📕 PDF';
+                  docLabel = 'PDF from library';
+                }
+
                 suggestions.push({
                   label: {
                     label: file.fileName,
-                    description: '📁 Prompt',
+                    description: typeLabel,
                     detail: file.relativePath,
                   },
                   kind: monaco.languages.CompletionItemKind.File,
                   insertText: file.fullPath,
                   detail: file.relativePath,
                   documentation: {
-                    value: `**Prompt from library:**\n\`${file.relativePath}\`\n\n*Full path:* \`${file.fullPath}\``,
+                    value: `**${docLabel}:**\n\`${file.relativePath}\`\n\n*Full path:* \`${file.fullPath}\``,
                   },
                   range,
                   // sortText starting with '1' puts library files before external files

@@ -401,7 +401,7 @@ onUnmounted(() => {
   }
 }
 
-// Markdown body styles
+// Markdown body styles - use :deep() for v-html content
 .markdown-body {
   color: var(--text-color, #d4d4d4);
   font-size: 14px;
@@ -409,12 +409,12 @@ onUnmounted(() => {
   word-wrap: break-word;
 
   // Headings
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
+  :deep(h1),
+  :deep(h2),
+  :deep(h3),
+  :deep(h4),
+  :deep(h5),
+  :deep(h6) {
     margin-top: 24px;
     margin-bottom: 16px;
     font-weight: 600;
@@ -422,40 +422,36 @@ onUnmounted(() => {
     color: var(--heading-color, #ffffff);
   }
 
-  h1 {
-    font-size: 2em;
-    padding-bottom: 0.3em;
-    border-bottom: 1px solid var(--border-color, #3c3c3c);
+  :deep(h1) {
+    font-size: 1.6em;
   }
 
-  h2 {
-    font-size: 1.5em;
-    padding-bottom: 0.3em;
-    border-bottom: 1px solid var(--border-color, #3c3c3c);
+  :deep(h2) {
+    font-size: 1.4em;
   }
 
-  h3 {
-    font-size: 1.25em;
+  :deep(h3) {
+    font-size: 1.2em;
   }
-  h4 {
+  :deep(h4) {
+    font-size: 1.1em;
+  }
+  :deep(h5) {
     font-size: 1em;
   }
-  h5 {
-    font-size: 0.875em;
-  }
-  h6 {
-    font-size: 0.85em;
+  :deep(h6) {
+    font-size: 0.95em;
     color: var(--muted-color, #858585);
   }
 
   // Paragraphs
-  p {
+  :deep(p) {
     margin-top: 0;
     margin-bottom: 16px;
   }
 
   // Links
-  a {
+  :deep(a) {
     color: var(--link-color, #4fc3f7);
     text-decoration: none;
 
@@ -465,23 +461,23 @@ onUnmounted(() => {
   }
 
   // Lists
-  ul,
-  ol {
+  :deep(ul),
+  :deep(ol) {
     margin-top: 0;
     margin-bottom: 16px;
     padding-left: 2em;
   }
 
-  li {
+  :deep(li) {
     margin-bottom: 4px;
   }
 
-  li + li {
+  :deep(li + li) {
     margin-top: 4px;
   }
 
   // Code
-  code {
+  :deep(code) {
     padding: 0.2em 0.4em;
     margin: 0;
     font-size: 85%;
@@ -490,7 +486,7 @@ onUnmounted(() => {
     font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
   }
 
-  pre {
+  :deep(pre) {
     padding: 16px;
     overflow: auto;
     font-size: 85%;
@@ -508,7 +504,7 @@ onUnmounted(() => {
   }
 
   // Blockquotes
-  blockquote {
+  :deep(blockquote) {
     margin: 0 0 16px 0;
     padding: 0 1em;
     color: var(--muted-color, #858585);
@@ -516,7 +512,7 @@ onUnmounted(() => {
   }
 
   // Horizontal rule
-  hr {
+  :deep(hr) {
     height: 1px;
     margin: 24px 0;
     background-color: var(--border-color, #3c3c3c);
@@ -524,7 +520,7 @@ onUnmounted(() => {
   }
 
   // Tables
-  table {
+  :deep(table) {
     display: block;
     width: 100%;
     overflow: auto;

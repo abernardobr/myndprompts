@@ -486,6 +486,7 @@ export default {
     copyPath: 'Copia Percorso',
     revealInSidebar: 'Mostra nella Barra Laterale',
     insertImage: 'Inserisci Immagine',
+    formatAsImage: 'Formatta come Immagine',
   },
 
   // Status bar
