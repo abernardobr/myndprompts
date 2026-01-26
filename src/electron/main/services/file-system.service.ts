@@ -181,6 +181,48 @@ export class FileSystemService {
   }
 
   /**
+   * Export a file to a user-selected absolute path outside the base directory.
+   * This method bypasses the normal path traversal check since the path is
+   * explicitly chosen by the user via the system file dialog.
+   * Only use this for export operations where the user has selected the destination.
+   */
+  async exportFile(
+    absolutePath: string,
+    content: string,
+    options?: IWriteFileOptions
+  ): Promise<IFileOperationResult> {
+    try {
+      // Basic security checks - no null bytes allowed
+      if (absolutePath.includes('\0')) {
+        throw new Error('Invalid path: contains null bytes');
+      }
+
+      // Ensure it's an absolute path
+      if (!path.isAbsolute(absolutePath)) {
+        throw new Error('Export path must be absolute');
+      }
+
+      const normalizedPath = path.normalize(absolutePath);
+      const encoding = options?.encoding ?? 'utf-8';
+
+      // Create parent directories if requested
+      if (options?.createDirectories) {
+        const dirPath = path.dirname(normalizedPath);
+        await fs.mkdir(dirPath, { recursive: true });
+      }
+
+      await fs.writeFile(normalizedPath, content, { encoding });
+      return { success: true, path: normalizedPath };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        path: absolutePath,
+      };
+    }
+  }
+
+  /**
    * Write binary file content to a directory (for drag-and-drop without file path)
    * @param destDir - Destination directory path
    * @param fileName - Name of the file to create

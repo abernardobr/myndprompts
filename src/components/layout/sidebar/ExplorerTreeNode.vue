@@ -60,6 +60,7 @@ interface Emits {
   (e: 'git-commit', filePath: string): void;
   (e: 'git-discard', filePath: string): void;
   (e: 'git-history', filePath: string): void;
+  (e: 'export-library', projectPath: string): void;
 }
 
 const props = defineProps<Props>();
@@ -119,6 +120,12 @@ function handleAddFile() {
 function handleAddFolder() {
   if (props.node.filePath) {
     emit('add-folder-to-directory', props.node.filePath);
+  }
+}
+
+function handleExportLibrary() {
+  if (props.node.filePath && props.node.isProject) {
+    emit('export-library', props.node.filePath);
   }
 }
 
@@ -187,6 +194,10 @@ function forwardAddFileToDirectory(dirPath: string) {
 
 function forwardAddFolderToDirectory(dirPath: string) {
   emit('add-folder-to-directory', dirPath);
+}
+
+function forwardExportLibrary(projectPath: string) {
+  emit('export-library', projectPath);
 }
 
 function forwardDragStart(event: DragEvent, node: ITreeNode) {
@@ -323,6 +334,20 @@ function forwardGitHistory(filePath: string) {
             </q-item-section>
             <q-item-section>{{ t('explorer.addFolder') }}</q-item-section>
           </q-item>
+          <q-item
+            v-if="node.isProject"
+            v-close-popup
+            clickable
+            @click="handleExportLibrary"
+          >
+            <q-item-section avatar>
+              <q-icon
+                name="file_download"
+                size="20px"
+              />
+            </q-item-section>
+            <q-item-section>{{ t('explorer.exportLibrary') }}</q-item-section>
+          </q-item>
           <q-separator />
           <q-item
             v-close-popup
@@ -379,6 +404,7 @@ function forwardGitHistory(filePath: string) {
         @open-new-directory-dialog="forwardOpenNewDirectoryDialog"
         @add-file-to-directory="forwardAddFileToDirectory"
         @add-folder-to-directory="forwardAddFolderToDirectory"
+        @export-library="forwardExportLibrary"
         @drag-start="forwardDragStart"
         @drag-end="forwardDragEnd"
         @drag-over="forwardDragOver"

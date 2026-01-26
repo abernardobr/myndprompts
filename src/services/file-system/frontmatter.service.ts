@@ -66,6 +66,7 @@ export class FrontmatterService {
       description: metadata.description,
       category: metadata.category,
       tags: metadata.tags ?? [],
+      language: metadata.language,
       aiProvider: metadata.aiProvider,
       isFavorite: metadata.isFavorite ?? false,
       isPinned: metadata.isPinned ?? false,

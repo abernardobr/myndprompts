@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n';
 
 interface Props {
   modelValue: boolean;
+  isLibrary?: boolean;
 }
 
 interface Emits {
@@ -92,7 +93,11 @@ function handleKeydown(event: KeyboardEvent): void {
       @keydown="handleKeydown"
     >
       <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">{{ t('dialogs.newProject.title') }}</div>
+        <div class="text-h6">
+          {{
+            props.isLibrary ? t('dialogs.newProjectLibrary.title') : t('dialogs.newProject.title')
+          }}
+        </div>
         <q-space />
         <q-btn
           v-close-popup

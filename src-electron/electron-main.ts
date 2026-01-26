@@ -401,6 +401,13 @@ ipcMain.handle(
   }
 );
 
+ipcMain.handle(
+  'fs:export-file',
+  async (_event, absolutePath: string, content: string, options?: IWriteFileOptions) => {
+    return fileSystemService.exportFile(absolutePath, content, options);
+  }
+);
+
 ipcMain.handle('fs:delete-file', async (_event, filePath: string) => {
   return fileSystemService.deleteFile(filePath);
 });

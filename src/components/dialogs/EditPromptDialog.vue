@@ -2,7 +2,7 @@
 /**
  * EditPromptDialog Component
  *
- * Dialog for editing prompt properties (name and category).
+ * Dialog for editing prompt properties (name, category, tags, and language).
  * Replaces the simple rename functionality for prompts.
  */
 
@@ -14,11 +14,13 @@ interface Props {
   modelValue: boolean;
   currentName: string;
   currentCategory?: string;
+  currentTags?: string[];
+  currentLanguage?: string;
 }
 
 interface Emits {
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'save', data: { name: string; category?: string }): void;
+  (e: 'save', data: { name: string; category?: string; tags?: string[]; language?: string }): void;
 }
 
 const props = defineProps<Props>();
@@ -29,9 +31,23 @@ const { t } = useI18n({ useScope: 'global' });
 // Settings store for categories
 const settingsStore = useSettingsStore();
 
+// Language options
+const languageOptions = [
+  { label: 'English', value: 'en' },
+  { label: 'Portuguese', value: 'pt' },
+  { label: 'Spanish', value: 'es' },
+  { label: 'French', value: 'fr' },
+  { label: 'German', value: 'de' },
+  { label: 'Italian', value: 'it' },
+  { label: 'Arabic', value: 'ar' },
+];
+
 // Form state
 const name = ref('');
 const category = ref<string | null>(null);
+const tags = ref<string[]>([]);
+const language = ref<string | null>(null);
+const newTag = ref('');
 const nameInput = ref<HTMLInputElement | null>(null);
 
 // Validation
@@ -50,7 +66,11 @@ const isValid = computed(() => !nameError.value);
 const hasChanges = computed(() => {
   const nameChanged = name.value.trim() !== props.currentName;
   const categoryChanged = (category.value ?? '') !== (props.currentCategory ?? '');
-  return nameChanged || categoryChanged;
+  const currentTagsStr = [...(props.currentTags ?? [])].sort().join(',');
+  const newTagsStr = [...tags.value].sort().join(',');
+  const tagsChanged = currentTagsStr !== newTagsStr;
+  const languageChanged = (language.value ?? '') !== (props.currentLanguage ?? '');
+  return nameChanged || categoryChanged || tagsChanged || languageChanged;
 });
 
 // Categories from settings store
@@ -70,6 +90,9 @@ watch(
     if (isOpen) {
       name.value = props.currentName;
       category.value = props.currentCategory ?? null;
+      tags.value = [...(props.currentTags ?? [])];
+      language.value = props.currentLanguage ?? null;
+      newTag.value = '';
       // Focus and select input after dialog opens
       setTimeout(() => {
         nameInput.value?.focus();
@@ -89,8 +112,32 @@ function handleSave(): void {
   emit('save', {
     name: name.value.trim(),
     category: category.value ?? undefined,
+    tags: tags.value.length > 0 ? tags.value : undefined,
+    language: language.value ?? undefined,
   });
   emit('update:modelValue', false);
+}
+
+// Add a tag
+function addTag(): void {
+  const tag = newTag.value.trim();
+  if (tag && !tags.value.includes(tag)) {
+    tags.value.push(tag);
+    newTag.value = '';
+  }
+}
+
+// Remove a tag
+function removeTag(index: number): void {
+  tags.value.splice(index, 1);
+}
+
+// Handle tag input keydown
+function handleTagKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Enter' || event.key === ',') {
+    event.preventDefault();
+    addTag();
+  }
 }
 
 function handleKeydown(event: KeyboardEvent): void {
@@ -145,7 +192,56 @@ function handleKeydown(event: KeyboardEvent): void {
           emit-value
           map-options
           clearable
+          class="q-mb-md"
           data-testid="edit-prompt-category-select"
+        />
+
+        <!-- Tags Input -->
+        <div class="q-mb-md">
+          <div class="text-body2 q-mb-xs">{{ t('dialogs.editPrompt.tags') }}</div>
+          <div class="tags-container q-mb-sm">
+            <q-chip
+              v-for="(tag, index) in tags"
+              :key="index"
+              removable
+              color="primary"
+              text-color="white"
+              size="sm"
+              @remove="removeTag(index)"
+            >
+              {{ tag }}
+            </q-chip>
+          </div>
+          <q-input
+            v-model="newTag"
+            :placeholder="t('dialogs.editPrompt.tagsPlaceholder')"
+            outlined
+            dense
+            @keydown="handleTagKeydown"
+          >
+            <template #append>
+              <q-btn
+                flat
+                round
+                dense
+                icon="add"
+                :disable="!newTag.trim()"
+                @click="addTag"
+              />
+            </template>
+          </q-input>
+        </div>
+
+        <!-- Language Select -->
+        <q-select
+          v-model="language"
+          :options="languageOptions"
+          :label="t('dialogs.editPrompt.language')"
+          outlined
+          emit-value
+          map-options
+          clearable
+          data-testid="edit-prompt-language-select"
         />
       </q-card-section>
 
@@ -177,5 +273,12 @@ function handleKeydown(event: KeyboardEvent): void {
 .edit-prompt-dialog {
   min-width: 400px;
   max-width: 500px;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 32px;
 }
 </style>

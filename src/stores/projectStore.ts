@@ -147,6 +147,46 @@ export const useProjectStore = defineStore('projects', () => {
   }
 
   /**
+   * Library directory names for project library creation
+   */
+  const LIBRARY_DIRECTORIES = ['Personas', 'Templates', 'Text Snippets', 'Code Snippets'];
+
+  /**
+   * Create a new project library with predefined directories
+   */
+  async function createProjectLibrary(name: string, description?: string): Promise<IProject> {
+    if (!isElectron()) {
+      throw new Error('Creating projects is only available in the desktop app');
+    }
+
+    try {
+      isLoading.value = true;
+      error.value = null;
+
+      // Create the main project directory
+      const folderPath = await fileService.createProjectDirectory(name);
+
+      // Create predefined subdirectories for library types
+      for (const dirName of LIBRARY_DIRECTORIES) {
+        await fileService.createNestedDirectory(folderPath, dirName);
+      }
+
+      // Create the project entry in IndexedDB
+      const project = await projectRepository.createProject(folderPath, name, description);
+
+      // Refresh projects list
+      await refreshProjects();
+
+      return project;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to create project library';
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
    * Delete a project
    */
   async function deleteProject(folderPath: string, deleteFiles: boolean = true): Promise<void> {
@@ -521,6 +561,7 @@ export const useProjectStore = defineStore('projects', () => {
     initialize,
     refreshProjects,
     createProject,
+    createProjectLibrary,
     deleteProject,
     renameProject,
     updateProjectMetadata,

@@ -36,6 +36,7 @@ import GitHistoryDialog from '@/components/dialogs/GitHistoryDialog.vue';
 import BranchDialog from '@/components/dialogs/BranchDialog.vue';
 import FileSyncDialog from '@/components/dialogs/FileSyncDialog.vue';
 import PluginContentSelectorDialog from '@/components/dialogs/PluginContentSelectorDialog.vue';
+import ExportLibraryDialog from '@/components/dialogs/ExportLibraryDialog.vue';
 import type { PluginType } from '@/services/storage/entities';
 import ExplorerTreeNode from '@/components/layout/sidebar/ExplorerTreeNode.vue';
 import {
@@ -71,7 +72,10 @@ const isElectron = computed(() => typeof window !== 'undefined' && !!window.file
 const showNewSnippetDialog = ref(false);
 const showNewPromptDialog = ref(false);
 const showNewProjectDialog = ref(false);
+const showNewProjectLibraryDialog = ref(false);
 const showNewDirectoryDialog = ref(false);
+const showExportLibraryDialog = ref(false);
+const exportLibraryProjectPath = ref('');
 const showDeleteConfirmDialog = ref(false);
 const showRenameDialog = ref(false);
 const showEditPromptDialog = ref(false);
@@ -96,6 +100,8 @@ const editPromptTarget = ref<{
   node: ITreeNode;
   currentName: string;
   currentCategory?: string;
+  currentTags?: string[];
+  currentLanguage?: string;
 } | null>(null);
 const deleteTarget = ref<{
   node: ITreeNode;
@@ -157,6 +163,8 @@ interface ITreeNode {
   isDraggable?: boolean;
   isDropTarget?: boolean;
   category?: string;
+  tags?: string[];
+  language?: string;
 }
 
 // Prompts directory path
@@ -268,6 +276,8 @@ function buildPromptsFolder(prompts: IPromptFile[]): ITreeNode {
       filePath: prompt.filePath,
       isDraggable: true,
       category: prompt.metadata.category,
+      tags: prompt.metadata.tags,
+      language: prompt.metadata.language,
     });
   }
 
@@ -350,6 +360,8 @@ function buildDirectoryChildren(
       depth,
       isDraggable: true,
       category: prompt.metadata.category,
+      tags: prompt.metadata.tags,
+      language: prompt.metadata.language,
     });
   }
 
@@ -869,24 +881,40 @@ function openEditPromptDialog(node: ITreeNode): void {
     node,
     currentName: node.label,
     currentCategory: node.category,
+    currentTags: node.tags,
+    currentLanguage: node.language,
   };
   showEditPromptDialog.value = true;
 }
 
 // Handle edit prompt save
-async function handleEditPromptSave(data: { name: string; category?: string }): Promise<void> {
+async function handleEditPromptSave(data: {
+  name: string;
+  category?: string;
+  tags?: string[];
+  language?: string;
+}): Promise<void> {
   if (!editPromptTarget.value) return;
-  const { node, currentName, currentCategory } = editPromptTarget.value;
+  const { node, currentName, currentCategory, currentTags, currentLanguage } =
+    editPromptTarget.value;
   const filePath = node.filePath;
   if (!filePath) return;
 
   try {
     const nameChanged = data.name !== currentName;
     const categoryChanged = (data.category ?? '') !== (currentCategory ?? '');
+    const currentTagsStr = (currentTags ?? []).sort().join(',');
+    const newTagsStr = (data.tags ?? []).sort().join(',');
+    const tagsChanged = currentTagsStr !== newTagsStr;
+    const languageChanged = (data.language ?? '') !== (currentLanguage ?? '');
 
-    // Update category if changed
-    if (categoryChanged) {
-      await promptStore.updatePromptMetadata(filePath, { category: data.category });
+    // Update metadata if changed (category, tags, language)
+    if (categoryChanged || tagsChanged || languageChanged) {
+      await promptStore.updatePromptMetadata(filePath, {
+        category: data.category,
+        tags: data.tags ?? [],
+        language: data.language,
+      });
     }
 
     // Rename if name changed
@@ -895,7 +923,7 @@ async function handleEditPromptSave(data: { name: string; category?: string }): 
     }
 
     // Refresh if anything changed
-    if (nameChanged || categoryChanged) {
+    if (nameChanged || categoryChanged || tagsChanged || languageChanged) {
       await promptStore.refreshAllPrompts();
       // Refresh recent files list (for welcome screen)
       await promptStore.refreshRecentFiles();
@@ -982,6 +1010,192 @@ async function handleCreateProject(data: { name: string; description?: string })
   } catch (err) {
     console.error('Failed to create project:', err);
     showError('Failed to create project');
+  }
+}
+
+// Handle new project library creation (with predefined directories)
+async function handleCreateProjectLibrary(data: {
+  name: string;
+  description?: string;
+}): Promise<void> {
+  try {
+    const project = await projectStore.createProjectLibrary(data.name, data.description);
+
+    // Expand prompts and the new project
+    expandedFolders.value.add('prompts');
+    expandedFolders.value.add(project.folderPath);
+    expandedFolders.value = new Set(expandedFolders.value);
+  } catch (err) {
+    console.error('Failed to create project library:', err);
+    showError('Failed to create project library');
+  }
+}
+
+// Open export library dialog
+function openExportLibraryDialog(projectPath: string): void {
+  exportLibraryProjectPath.value = projectPath;
+  showExportLibraryDialog.value = true;
+}
+
+// Map directory names to library item types
+const DIRECTORY_TO_TYPE_MAP: Record<string, string> = {
+  Personas: 'persona',
+  Templates: 'templates',
+  'Text Snippets': 'text_snippets',
+  'Code Snippets': 'code_snippets',
+  Snippets: 'text_snippets', // Default to text_snippets for generic Snippets folder
+};
+
+// Handle export library
+async function handleExportLibrary(data: {
+  name: string;
+  description: string;
+  language: string;
+  destinationFolder: string;
+}): Promise<void> {
+  const fsApi = window.fileSystemAPI;
+  if (!fsApi) {
+    showError('File system API not available');
+    return;
+  }
+
+  try {
+    // Get all files from the project recursively
+    const files = await fsApi.listFilesRecursive(exportLibraryProjectPath.value);
+
+    // Filter to only .md files
+    const mdFiles = files.filter(
+      (file) => !file.isDirectory && file.extension.toLowerCase() === '.md'
+    );
+
+    if (mdFiles.length === 0) {
+      $q.notify({
+        type: 'warning',
+        message: t('dialogs.exportLibrary.noFilesFound'),
+        position: 'top',
+        timeout: 3000,
+      });
+      return;
+    }
+
+    // Build the library items
+    const items: Array<{
+      title: string;
+      description: string;
+      content: string;
+      language: string;
+      tags: string[];
+      type: string;
+    }> = [];
+
+    for (const file of mdFiles) {
+      // Read file content
+      const content = await fsApi.readFile(file.path);
+      if (!content) continue;
+
+      // Determine the type based on parent directory
+      const pathParts = file.path.split('/');
+      const projectIndex = pathParts.findIndex((part) =>
+        exportLibraryProjectPath.value.endsWith(part)
+      );
+      // Get the first directory after the project
+      const typeDir =
+        projectIndex >= 0 && projectIndex + 1 < pathParts.length ? pathParts[projectIndex + 1] : '';
+      const itemType =
+        typeDir && typeDir in DIRECTORY_TO_TYPE_MAP ? DIRECTORY_TO_TYPE_MAP[typeDir] : 'templates';
+
+      // Parse frontmatter if present
+      let title = file.name.replace(/\.md$/i, '');
+      let description = '';
+      let tags: string[] = [];
+      let itemContent = content;
+
+      if (content.startsWith('---')) {
+        try {
+          const endIndex = content.indexOf('---', 3);
+          if (endIndex > 3) {
+            const frontmatter = content.slice(3, endIndex);
+            const lines = frontmatter.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('title:')) {
+                title = line
+                  .replace('title:', '')
+                  .trim()
+                  .replace(/^["']|["']$/g, '');
+              } else if (line.startsWith('description:')) {
+                description = line
+                  .replace('description:', '')
+                  .trim()
+                  .replace(/^["']|["']$/g, '');
+              } else if (line.startsWith('name:')) {
+                title = line
+                  .replace('name:', '')
+                  .trim()
+                  .replace(/^["']|["']$/g, '');
+              } else if (line.startsWith('tags:')) {
+                // Try to parse tags (might be on same line or following lines)
+                const tagStr = line.replace('tags:', '').trim();
+                if (tagStr.startsWith('[')) {
+                  // Inline array format
+                  tags = tagStr
+                    .replace(/[[\]]/g, '')
+                    .split(',')
+                    .map((t) => t.trim().replace(/^["']|["']$/g, ''))
+                    .filter(Boolean);
+                }
+              }
+            }
+            itemContent = content.slice(endIndex + 3).trim();
+          }
+        } catch {
+          // If parsing fails, use the whole content
+          itemContent = content;
+        }
+      }
+
+      items.push({
+        title,
+        description,
+        content: itemContent,
+        language: data.language,
+        tags,
+        type: itemType,
+      });
+    }
+
+    // Generate unique ID for the library
+    const libraryId = crypto.randomUUID();
+
+    // Build the library JSON
+    const library = {
+      id: libraryId,
+      name: data.name,
+      description: data.description,
+      version: '1.0.0',
+      tags: [data.name],
+      items,
+    };
+
+    // Build file path from destination folder and name
+    const fileName = `${data.name.replace(/\s+/g, '-').toLowerCase()}.json`;
+    const filePath = await fsApi.joinPath(data.destinationFolder, fileName);
+
+    // Write the file using exportFile to allow writing outside base directory
+    const writeResult = await fsApi.exportFile(filePath, JSON.stringify(library, null, 2));
+
+    if (writeResult.success) {
+      $q.notify({
+        type: 'positive',
+        message: t('dialogs.exportLibrary.success', { count: items.length }),
+        position: 'top',
+        timeout: 3000,
+      });
+    } else {
+      showError(writeResult.error ?? 'Failed to save library');
+    }
+  } catch (err) {
+    console.error('Failed to export library:', err);
+    showError('Failed to export library');
   }
 }
 
@@ -2168,6 +2382,20 @@ watch([() => allPrompts.value.length, () => allProjects.value.length], () => {
               </q-item-section>
               <q-item-section>{{ t('explorer.newProject') }}</q-item-section>
             </q-item>
+            <q-item
+              v-close-popup
+              clickable
+              data-testid="new-project-library-btn"
+              @click="showNewProjectLibraryDialog = true"
+            >
+              <q-item-section avatar>
+                <q-icon
+                  name="library_books"
+                  size="20px"
+                />
+              </q-item-section>
+              <q-item-section>{{ t('explorer.newProjectLibrary') }}</q-item-section>
+            </q-item>
             <q-separator />
             <q-item
               v-close-popup
@@ -2296,6 +2524,20 @@ watch([() => allPrompts.value.length, () => allProjects.value.length], () => {
                       />
                     </q-item-section>
                     <q-item-section>{{ t('explorer.newProject') }}</q-item-section>
+                  </q-item>
+                  <q-item
+                    v-if="folder.id === 'prompts'"
+                    v-close-popup
+                    clickable
+                    @click="showNewProjectLibraryDialog = true"
+                  >
+                    <q-item-section avatar>
+                      <q-icon
+                        name="library_books"
+                        size="20px"
+                      />
+                    </q-item-section>
+                    <q-item-section>{{ t('explorer.newProjectLibrary') }}</q-item-section>
                   </q-item>
                   <q-item
                     v-if="folder.id === 'prompts'"
@@ -2508,6 +2750,22 @@ watch([() => allPrompts.value.length, () => allProjects.value.length], () => {
                           />
                         </q-item-section>
                         <q-item-section>{{ t('explorer.addFolder') }}</q-item-section>
+                      </q-item>
+
+                      <!-- Export Library for projects -->
+                      <q-item
+                        v-if="child.type === 'project'"
+                        v-close-popup
+                        clickable
+                        @click="openExportLibraryDialog(child.filePath!)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon
+                            name="file_download"
+                            size="20px"
+                          />
+                        </q-item-section>
+                        <q-item-section>{{ t('explorer.exportLibrary') }}</q-item-section>
                       </q-item>
 
                       <!-- Git submenu for projects -->
@@ -2847,6 +3105,7 @@ watch([() => allPrompts.value.length, () => allProjects.value.length], () => {
                         @open-new-directory-dialog="openNewDirectoryDialog"
                         @add-file-to-directory="addFileToDirectory"
                         @add-folder-to-directory="addFolderToDirectory"
+                        @export-library="openExportLibraryDialog"
                         @drag-start="handleDragStart"
                         @drag-end="handleDragEnd"
                         @drag-over="handleDragOver"
@@ -3353,6 +3612,12 @@ watch([() => allPrompts.value.length, () => allProjects.value.length], () => {
       @create="handleCreateProject"
     />
 
+    <NewProjectDialog
+      v-model="showNewProjectLibraryDialog"
+      is-library
+      @create="handleCreateProjectLibrary"
+    />
+
     <NewDirectoryDialog
       v-model="showNewDirectoryDialog"
       :parent-path="newDirectoryParent?.path ?? ''"
@@ -3389,6 +3654,8 @@ watch([() => allPrompts.value.length, () => allProjects.value.length], () => {
       v-model="showEditPromptDialog"
       :current-name="editPromptTarget?.currentName ?? ''"
       :current-category="editPromptTarget?.currentCategory"
+      :current-tags="editPromptTarget?.currentTags"
+      :current-language="editPromptTarget?.currentLanguage"
       @save="handleEditPromptSave"
     />
 
@@ -3427,6 +3694,13 @@ watch([() => allPrompts.value.length, () => allProjects.value.length], () => {
       :plugin-type="pluginContentDialogType"
       :target-directory="pluginContentDialogTarget"
       @added="onPluginContentAdded"
+    />
+
+    <!-- Export Library Dialog -->
+    <ExportLibraryDialog
+      v-model="showExportLibraryDialog"
+      :project-path="exportLibraryProjectPath"
+      @export="handleExportLibrary"
     />
   </div>
 </template>

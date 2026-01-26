@@ -110,6 +110,11 @@ export interface FileSystemAPI {
     content: string,
     options?: IWriteFileOptions
   ) => Promise<IFileOperationResult>;
+  exportFile: (
+    absolutePath: string,
+    content: string,
+    options?: IWriteFileOptions
+  ) => Promise<IFileOperationResult>;
   deleteFile: (filePath: string) => Promise<IFileOperationResult>;
   copyFile: (source: string, destination: string) => Promise<IFileOperationResult>;
   copyFileToDirectory: (
@@ -305,6 +310,13 @@ const fileSystemApi: FileSystemAPI = {
     ipcRenderer.invoke(
       'fs:write-file',
       filePath,
+      content,
+      options
+    ) as Promise<IFileOperationResult>,
+  exportFile: (absolutePath, content, options) =>
+    ipcRenderer.invoke(
+      'fs:export-file',
+      absolutePath,
       content,
       options
     ) as Promise<IFileOperationResult>,

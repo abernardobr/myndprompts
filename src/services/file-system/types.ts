@@ -31,6 +31,7 @@ export interface IPromptMetadata {
   description?: string;
   category?: string;
   tags: string[];
+  language?: string;
   aiProvider?: 'anthropic' | 'openai' | 'google' | 'xai' | 'ollama';
   isFavorite: boolean;
   isPinned: boolean;
