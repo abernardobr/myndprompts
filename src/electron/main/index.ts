@@ -18,6 +18,7 @@ import { getGitService } from './services/git.service';
 import { getFileIndexerService } from './services/file-indexer.service';
 import { getUpdateService } from './services/update.service';
 import { getExportImportService } from './services/export-import.service';
+import { getStorageMigrationService } from './services/storage-migration.service';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
@@ -390,6 +391,10 @@ ipcMain.handle('fs:get-config', () => {
 
 ipcMain.handle('fs:initialize-directories', async () => {
   await fileSystemService.initializeDirectories();
+});
+
+ipcMain.handle('fs:is-path-allowed', (_event, filePath: string) => {
+  return fileSystemService.isPathAllowed(filePath);
 });
 
 // Basic file operations
@@ -811,6 +816,71 @@ ipcMain.handle('fs:import-data', async (_event, zipPath: string, options?: IImpo
 ipcMain.handle('fs:validate-export', async (_event, zipPath: string) => {
   const exportImportService = getExportImportService();
   return exportImportService.validateExport(zipPath);
+});
+
+// ================================
+// Storage Migration IPC Handlers
+// ================================
+
+ipcMain.handle('fs:select-migration-folder', async () => {
+  if (!mainWindow) {
+    return { cancelled: true, path: null };
+  }
+
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Select New Storage Location',
+    buttonLabel: 'Select Folder',
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { cancelled: true, path: null };
+  }
+  return { cancelled: false, path: result.filePaths[0] };
+});
+
+ipcMain.handle('fs:validate-migration-destination', async (_event, destPath: string) => {
+  const migrationService = getStorageMigrationService(fileSystemService);
+  return migrationService.validateDestination(destPath);
+});
+
+ipcMain.handle('fs:calculate-migration-plan', async () => {
+  const migrationService = getStorageMigrationService(fileSystemService);
+  const sourcePath = fileSystemService.getBasePath();
+  return migrationService.calculateMigrationPlan(sourcePath);
+});
+
+ipcMain.handle('fs:start-migration', async (event, destPath: string) => {
+  const migrationService = getStorageMigrationService(fileSystemService);
+  const sourcePath = fileSystemService.getBasePath();
+
+  return migrationService.startMigration(sourcePath, destPath, (progress) => {
+    // Send progress to renderer
+    event.sender.send('fs:migration-progress', progress);
+  });
+});
+
+ipcMain.handle('fs:cancel-migration', () => {
+  const migrationService = getStorageMigrationService(fileSystemService);
+  migrationService.cancelMigration();
+  return { cancelled: true };
+});
+
+ipcMain.handle('fs:verify-migration', async (_event, destPath: string) => {
+  const migrationService = getStorageMigrationService(fileSystemService);
+  const sourcePath = fileSystemService.getBasePath();
+  return migrationService.verifyMigration(sourcePath, destPath);
+});
+
+ipcMain.handle('fs:cleanup-old-storage', async (_event, sourcePath: string) => {
+  const migrationService = getStorageMigrationService(fileSystemService);
+  await migrationService.cleanupSource(sourcePath);
+  return { success: true };
+});
+
+ipcMain.handle('fs:rollback-migration', async () => {
+  const migrationService = getStorageMigrationService(fileSystemService);
+  return migrationService.rollbackMigration();
 });
 
 // Security: Prevent new window creation

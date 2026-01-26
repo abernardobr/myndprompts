@@ -213,6 +213,96 @@ export class ProjectRepository extends BaseRepository<IProject, string> {
   }
 
   /**
+   * Migrate project paths to the new storage location
+   * This handles the case where storage location has changed by updating paths
+   * instead of removing the projects
+   * @returns Object with migrated count and removed count (only removed if not found in new location)
+   */
+  async migrateProjectPaths(): Promise<{ migrated: number; removed: number }> {
+    // Only works in Electron environment
+    if (!window?.fileSystemAPI) {
+      return { migrated: 0, removed: 0 };
+    }
+
+    const allProjects = await this.getAllProjects();
+    const config = await window.fileSystemAPI.getConfig();
+    const currentPromptsDir = config.promptsDir;
+
+    let migrated = 0;
+    let removed = 0;
+
+    for (const project of allProjects) {
+      try {
+        // Check if the path is within the current base directory
+        const isPathAllowed = await window.fileSystemAPI.isPathAllowed(project.folderPath);
+        if (isPathAllowed) {
+          // Path is valid, no migration needed
+          continue;
+        }
+
+        // Path is outside the current storage location - try to migrate
+        // Extract the relative path after "/prompts/"
+        const promptsIndex = project.folderPath.lastIndexOf('/prompts/');
+        if (promptsIndex === -1) {
+          // Can't determine relative path, remove the project
+          console.warn(`Cannot migrate project (no /prompts/ in path): ${project.folderPath}`);
+          await this.delete(project.folderPath);
+          removed++;
+          continue;
+        }
+
+        // Get the relative path (everything after "/prompts/")
+        const relativePath = project.folderPath.substring(promptsIndex + '/prompts/'.length);
+        const newPath = `${currentPromptsDir}/${relativePath}`;
+
+        // Check if the new path exists
+        const newPathExists = await window.fileSystemAPI.directoryExists(newPath);
+        if (newPathExists) {
+          // Migrate the project to the new path
+          console.log(`Migrating project from ${project.folderPath} to ${newPath}`);
+
+          // Delete old entry (since folderPath is the primary key)
+          await this.delete(project.folderPath);
+
+          // Create new entry with updated path
+          const migratedProject: IProject = {
+            ...project,
+            folderPath: newPath,
+            updatedAt: new Date(),
+          };
+          await this.upsert(migratedProject);
+          migrated++;
+        } else {
+          // New path doesn't exist, remove the project entry
+          console.warn(
+            `Project directory not found in new location, removing: ${project.folderPath}`
+          );
+          await this.delete(project.folderPath);
+          removed++;
+        }
+      } catch (err) {
+        // If we can't migrate, log and remove
+        console.error(`Failed to migrate project ${project.folderPath}:`, err);
+        await this.delete(project.folderPath);
+        removed++;
+      }
+    }
+
+    return { migrated, removed };
+  }
+
+  /**
+   * Clear all projects from IndexedDB
+   * Used when storage location changes and all paths become invalid
+   */
+  async clearAll(): Promise<void> {
+    const allProjects = await this.getAllProjects();
+    for (const project of allProjects) {
+      await this.delete(project.folderPath);
+    }
+  }
+
+  /**
    * Reset singleton instance (for testing)
    */
   static resetInstance(): void {

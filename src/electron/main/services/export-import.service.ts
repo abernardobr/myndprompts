@@ -48,7 +48,18 @@ const STORAGE_DIRS = {
   PERSONAS: 'personas',
   TEMPLATES: 'templates',
   PROJECTS: 'projects',
+  BACKUPS: 'backups',
 } as const;
+
+// Map directory names to export types
+const DIR_TYPE_MAP: Record<string, ExportFileType> = {
+  [STORAGE_DIRS.PROMPTS]: 'prompt',
+  [STORAGE_DIRS.SNIPPETS]: 'snippet',
+  [STORAGE_DIRS.PERSONAS]: 'persona',
+  [STORAGE_DIRS.TEMPLATES]: 'template',
+  [STORAGE_DIRS.PROJECTS]: 'project',
+  [STORAGE_DIRS.BACKUPS]: 'other',
+};
 
 /**
  * Service for export/import operations in the main process
@@ -502,34 +513,72 @@ export class ExportImportService {
   }
 
   /**
-   * Read all files from storage directories
+   * Read all files from storage directory (entire storage)
    */
   private async readAllStorageFiles(
     options: Required<IExportOptions>
   ): Promise<IExportFileEntry[]> {
     const files: IExportFileEntry[] = [];
 
-    const dirsToProcess: { dir: string; type: ExportFileType; include: boolean }[] = [
-      { dir: STORAGE_DIRS.PROMPTS, type: 'prompt', include: options.includePrompts },
-      { dir: STORAGE_DIRS.SNIPPETS, type: 'snippet', include: options.includeSnippets },
-      { dir: STORAGE_DIRS.PERSONAS, type: 'persona', include: options.includePersonas },
-      { dir: STORAGE_DIRS.TEMPLATES, type: 'template', include: options.includeTemplates },
-      { dir: STORAGE_DIRS.PROJECTS, type: 'project', include: options.includeProjects },
-    ];
+    try {
+      const entries = await fs.readdir(this.basePath, { withFileTypes: true });
 
-    for (const { dir, type, include } of dirsToProcess) {
-      if (!include) continue;
+      for (const entry of entries) {
+        const entryPath = path.join(this.basePath, entry.name);
 
-      const dirPath = path.join(this.basePath, dir);
-      const dirExists = await this.directoryExists(dirPath);
+        if (entry.isDirectory()) {
+          // Determine the type based on directory name
+          const type = DIR_TYPE_MAP[entry.name] ?? 'other';
 
-      if (!dirExists) continue;
+          // Check if this directory type should be included
+          const shouldInclude = this.shouldIncludeDirectory(entry.name, options);
+          if (!shouldInclude) continue;
 
-      const dirFiles = await this.readDirectoryRecursive(dirPath, dir, type, options);
-      files.push(...dirFiles);
+          // Read all files from this directory recursively
+          const dirFiles = await this.readDirectoryRecursive(entryPath, entry.name, type, options);
+          files.push(...dirFiles);
+        } else {
+          // Include root-level files as 'other' type
+          const stats = await fs.stat(entryPath);
+          const fileEntry: IExportFileEntry = {
+            relativePath: entry.name,
+            type: 'other',
+            size: stats.size,
+          };
+
+          if (options.generateChecksums) {
+            fileEntry.checksum = await this.calculateChecksum(entryPath);
+          }
+
+          files.push(fileEntry);
+        }
+      }
+    } catch (error) {
+      console.error('[ExportImportService] Error reading storage directory:', error);
     }
 
     return files;
+  }
+
+  /**
+   * Determine if a directory should be included based on options
+   */
+  private shouldIncludeDirectory(dirName: string, options: Required<IExportOptions>): boolean {
+    switch (dirName) {
+      case STORAGE_DIRS.PROMPTS:
+        return options.includePrompts;
+      case STORAGE_DIRS.SNIPPETS:
+        return options.includeSnippets;
+      case STORAGE_DIRS.PERSONAS:
+        return options.includePersonas;
+      case STORAGE_DIRS.TEMPLATES:
+        return options.includeTemplates;
+      case STORAGE_DIRS.PROJECTS:
+        return options.includeProjects;
+      default:
+        // Include all other directories (backups, custom dirs, etc.)
+        return true;
+    }
   }
 
   /**
@@ -595,6 +644,7 @@ export class ExportImportService {
    * Generate the export manifest
    */
   private generateManifest(files: IExportFileEntry[]): IExportManifest {
+    const otherCount = files.filter((f) => f.type === 'other').length;
     const statistics: IExportStatistics = {
       totalFiles: files.length,
       prompts: files.filter((f) => f.type === 'prompt').length,
@@ -602,6 +652,7 @@ export class ExportImportService {
       personas: files.filter((f) => f.type === 'persona').length,
       templates: files.filter((f) => f.type === 'template').length,
       projects: files.filter((f) => f.type === 'project').length,
+      ...(otherCount > 0 && { other: otherCount }),
     };
 
     return {
@@ -906,6 +957,9 @@ export class ExportImportService {
         break;
       case 'project':
         stats.projects++;
+        break;
+      case 'other':
+        stats.other = (stats.other ?? 0) + 1;
         break;
     }
   }

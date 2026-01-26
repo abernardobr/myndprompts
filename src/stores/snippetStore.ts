@@ -442,6 +442,15 @@ export const useSnippetStore = defineStore('snippets', () => {
   }
 
   /**
+   * Clear all caches (snippet cache, all snippets list)
+   * Used when storage location changes and all paths become invalid
+   */
+  function clearAllCaches(): void {
+    snippetCache.value = new Map();
+    allSnippets.value = [];
+  }
+
+  /**
    * Initialize default personas
    * Creates a set of useful starter personas if they don't already exist.
    * This function is idempotent - it only creates personas that don't exist yet.
@@ -767,6 +776,7 @@ You transform raw data into actionable insights that inform strategy and improve
     getSnippetsByType,
     updateSnippetMetadata,
     clearError,
+    clearAllCaches,
     initializePersonas,
   };
 });

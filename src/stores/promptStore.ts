@@ -155,8 +155,13 @@ export const usePromptStore = defineStore('prompts', () => {
    */
   async function refreshRecentFiles(): Promise<void> {
     try {
-      // Clean up files that no longer exist on disk
-      await recentFilesRepository.removeNonExistentFiles();
+      // Migrate file paths to new storage location and clean up files that no longer exist
+      const migrationResult = await recentFilesRepository.migrateFilePaths();
+      if (migrationResult.migrated > 0 || migrationResult.removed > 0) {
+        console.log(
+          `Recent files migration: ${migrationResult.migrated} migrated, ${migrationResult.removed} removed`
+        );
+      }
       recentFiles.value = await recentFilesRepository.getRecentFiles(10);
     } catch (err) {
       console.error('Failed to refresh recent files:', err);
@@ -744,6 +749,25 @@ export const usePromptStore = defineStore('prompts', () => {
     error.value = null;
   }
 
+  /**
+   * Clear all caches (prompt cache, file cache, all prompts list)
+   * Used when storage location changes and all paths become invalid
+   */
+  function clearAllCaches(): void {
+    promptCache.value = new Map();
+    fileCache.value = new Map();
+    allPrompts.value = [];
+  }
+
+  /**
+   * Clear all recent files
+   * Used when storage location changes and all paths become invalid
+   */
+  async function clearAllRecentFiles(): Promise<void> {
+    await recentFilesRepository.clearAll();
+    recentFiles.value = [];
+  }
+
   return {
     // State
     isInitialized,
@@ -778,6 +802,8 @@ export const usePromptStore = defineStore('prompts', () => {
     updatePromptMetadata,
     unloadPrompt,
     clearError,
+    clearAllCaches,
+    clearAllRecentFiles,
 
     // Generic file operations
     loadFile,

@@ -48,6 +48,18 @@ export const useProjectStore = defineStore('projects', () => {
       isLoading.value = true;
       error.value = null;
 
+      // First, migrate any projects with paths from old storage location
+      // This handles the case where storage location has changed since last startup
+      const migrationResult = await projectRepository.migrateProjectPaths();
+      if (migrationResult.migrated > 0 || migrationResult.removed > 0) {
+        console.log(
+          `Project path migration: ${migrationResult.migrated} migrated, ${migrationResult.removed} removed (not found in new location)`
+        );
+        // Clear caches since paths have changed
+        clearTreeCache();
+        expandedDirectories.value = new Set();
+      }
+
       await refreshProjects();
 
       isInitialized.value = true;

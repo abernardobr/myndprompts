@@ -80,6 +80,77 @@ export interface IIndexProgress {
   error?: string;
 }
 
+// Storage Migration types
+export interface IMigrationProgress {
+  phase: 'validating' | 'planning' | 'copying' | 'verifying' | 'completing';
+  totalFiles: number;
+  copiedFiles: number;
+  totalBytes: number;
+  copiedBytes: number;
+  currentFile: string;
+  currentDirectory: string;
+  canCancel: boolean;
+}
+
+export interface IMigrationValidation {
+  valid: boolean;
+  error?: string;
+  availableSpace?: number;
+}
+
+export interface IMigrationDirectoryPlan {
+  name: string;
+  fileCount: number;
+  size: number;
+}
+
+export interface IMigrationPlan {
+  directories: IMigrationDirectoryPlan[];
+  totalFiles: number;
+  totalSize: number;
+}
+
+export interface IMigrationResult {
+  success: boolean;
+  cancelled?: boolean;
+  sourcePath: string;
+  destinationPath: string;
+  filesCopied: number;
+  bytesCopied: number;
+  duration: number;
+  errors: string[];
+}
+
+export interface IMigrationVerification {
+  verified: boolean;
+  discrepancies: string[];
+}
+
+export interface IMigrationFolderSelection {
+  cancelled: boolean;
+  path: string | null;
+}
+
+export interface IRollbackResult {
+  success: boolean;
+  error?: string;
+  filesRemoved: number;
+}
+
+// Migration error codes
+export type MigrationErrorCode =
+  | 'VALIDATION_FAILED'
+  | 'DISK_FULL'
+  | 'PERMISSION_DENIED'
+  | 'FILE_IN_USE'
+  | 'COPY_FAILED'
+  | 'VERIFICATION_FAILED'
+  | 'DATABASE_UPDATE_FAILED'
+  | 'CANCELLED'
+  | 'ROLLBACK_FAILED'
+  | 'MANIFEST_ERROR'
+  | 'UNKNOWN';
+
 // Type definitions for exposed API
 export interface ElectronAPI {
   // App info
@@ -101,6 +172,7 @@ export interface FileSystemAPI {
   getBasePath: () => Promise<string>;
   getConfig: () => Promise<IFileStorageConfig>;
   initializeDirectories: () => Promise<void>;
+  isPathAllowed: (filePath: string) => Promise<boolean>;
 
   // Basic file operations
   readFile: (filePath: string, options?: IReadFileOptions) => Promise<string>;
@@ -176,6 +248,17 @@ export interface FileSystemAPI {
   onExportImportProgress: (
     callback: (progress: IExportProgress | IImportProgress) => void
   ) => () => void;
+
+  // Storage Migration
+  selectMigrationFolder: () => Promise<IMigrationFolderSelection>;
+  validateMigrationDestination: (destPath: string) => Promise<IMigrationValidation>;
+  calculateMigrationPlan: () => Promise<IMigrationPlan>;
+  startMigration: (destPath: string) => Promise<IMigrationResult>;
+  cancelMigration: () => Promise<{ cancelled: boolean }>;
+  verifyMigration: (destPath: string) => Promise<IMigrationVerification>;
+  cleanupOldStorage: (sourcePath: string) => Promise<{ success: boolean }>;
+  rollbackMigration: () => Promise<IRollbackResult>;
+  onMigrationProgress: (callback: (progress: IMigrationProgress) => void) => () => void;
 
   // Utility for drag-and-drop (synchronous, runs in preload context)
   getPathForFile: (file: File) => string;
@@ -300,6 +383,8 @@ const fileSystemApi: FileSystemAPI = {
   getBasePath: () => ipcRenderer.invoke('fs:get-base-path') as Promise<string>,
   getConfig: () => ipcRenderer.invoke('fs:get-config') as Promise<IFileStorageConfig>,
   initializeDirectories: () => ipcRenderer.invoke('fs:initialize-directories') as Promise<void>,
+  isPathAllowed: (filePath) =>
+    ipcRenderer.invoke('fs:is-path-allowed', filePath) as Promise<boolean>,
 
   // Basic file operations
   readFile: (filePath, options) =>
@@ -439,6 +524,36 @@ const fileSystemApi: FileSystemAPI = {
     // Return cleanup function
     return () => {
       ipcRenderer.removeListener('export-import:progress', handler);
+    };
+  },
+
+  // Storage Migration
+  selectMigrationFolder: () =>
+    ipcRenderer.invoke('fs:select-migration-folder') as Promise<IMigrationFolderSelection>,
+  validateMigrationDestination: (destPath) =>
+    ipcRenderer.invoke(
+      'fs:validate-migration-destination',
+      destPath
+    ) as Promise<IMigrationValidation>,
+  calculateMigrationPlan: () =>
+    ipcRenderer.invoke('fs:calculate-migration-plan') as Promise<IMigrationPlan>,
+  startMigration: (destPath) =>
+    ipcRenderer.invoke('fs:start-migration', destPath) as Promise<IMigrationResult>,
+  cancelMigration: () =>
+    ipcRenderer.invoke('fs:cancel-migration') as Promise<{ cancelled: boolean }>,
+  verifyMigration: (destPath) =>
+    ipcRenderer.invoke('fs:verify-migration', destPath) as Promise<IMigrationVerification>,
+  cleanupOldStorage: (sourcePath) =>
+    ipcRenderer.invoke('fs:cleanup-old-storage', sourcePath) as Promise<{ success: boolean }>,
+  rollbackMigration: () => ipcRenderer.invoke('fs:rollback-migration') as Promise<IRollbackResult>,
+  onMigrationProgress: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, progress: IMigrationProgress): void => {
+      callback(progress);
+    };
+    ipcRenderer.on('fs:migration-progress', handler);
+    // Return cleanup function
+    return () => {
+      ipcRenderer.removeListener('fs:migration-progress', handler);
     };
   },
 

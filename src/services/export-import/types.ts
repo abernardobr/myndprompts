@@ -125,6 +125,9 @@ export interface IExportStatistics {
 
   /** Number of project files/configs */
   projects: number;
+
+  /** Number of other files (backups, etc.) */
+  other?: number;
 }
 
 /**

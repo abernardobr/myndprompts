@@ -178,36 +178,74 @@ export const useUIStore = defineStore('ui', () => {
 
         // Restore tabs (without content, just references)
         if (savedState.openTabs.length > 0) {
-          openTabs.value = savedState.openTabs.map((filePath) => {
-            // Detect file category from extension
-            const fileCategory = getFileCategory(filePath);
-            const mimeType = getMimeType(filePath);
-            const fileName = getBasename(filePath) || filePath;
-            return {
-              id: filePath,
-              filePath,
-              fileName,
-              title: fileName.replace(/\.md$/, ''),
-              isDirty: false,
-              isPinned: false,
-              fileCategory,
-              mimeType,
-            };
-          });
-          activeTabId.value = savedState.activeTab ?? savedState.openTabs[0];
-        }
+          // Migrate tab paths to new storage location if needed
+          // This handles the case where storage location was changed
+          let migratedTabs: string[] = savedState.openTabs;
+          let hadMigration = false;
 
-        // Restore split pane configuration
-        if (savedState.editorSplit && savedState.editorSplit.panes.length > 0) {
-          splitDirection.value = savedState.editorSplit.direction;
-          activePaneId.value = savedState.editorSplit.activePaneId;
-          editorPanes.value = savedState.editorSplit.panes.map((paneConfig) => ({
-            id: paneConfig.id,
-            tabs: paneConfig.tabs.map((filePath) => {
-              // Find tab in openTabs or create new one
-              const existingTab = openTabs.value.find((t) => t.filePath === filePath);
-              if (existingTab) return existingTab;
-              // Detect file category from extension for new tabs
+          if (window?.fileSystemAPI) {
+            try {
+              const config = await window.fileSystemAPI.getConfig();
+              const currentPromptsDir = config.promptsDir;
+              const newTabs: string[] = [];
+
+              for (const filePath of savedState.openTabs) {
+                const isPathAllowed = await window.fileSystemAPI.isPathAllowed(filePath);
+
+                if (isPathAllowed) {
+                  // Path is valid, check if file exists
+                  const exists = await window.fileSystemAPI.fileExists(filePath);
+                  if (exists) {
+                    newTabs.push(filePath);
+                  } else {
+                    console.warn(`Tab file no longer exists, removing: ${filePath}`);
+                    hadMigration = true;
+                  }
+                } else {
+                  // Path is outside current storage - try to migrate
+                  const promptsIndex = filePath.lastIndexOf('/prompts/');
+                  if (promptsIndex === -1) {
+                    console.warn(`Cannot migrate tab (no /prompts/ in path): ${filePath}`);
+                    hadMigration = true;
+                    continue;
+                  }
+
+                  const relativePath = filePath.substring(promptsIndex + '/prompts/'.length);
+                  const newPath = `${currentPromptsDir}/${relativePath}`;
+
+                  const newPathExists = await window.fileSystemAPI.fileExists(newPath);
+                  if (newPathExists) {
+                    console.log(`Migrating tab from ${filePath} to ${newPath}`);
+                    newTabs.push(newPath);
+                    hadMigration = true;
+                  } else {
+                    console.warn(`Tab file not found in new location, removing: ${filePath}`);
+                    hadMigration = true;
+                  }
+                }
+              }
+
+              migratedTabs = newTabs;
+            } catch (err) {
+              console.error('Tab migration failed:', err);
+              migratedTabs = [];
+              hadMigration = true;
+            }
+          }
+
+          if (migratedTabs.length === 0) {
+            // No valid tabs after migration
+            openTabs.value = [];
+            activeTabId.value = undefined;
+            editorPanes.value = [];
+            activePaneId.value = undefined;
+            if (hadMigration) {
+              void saveState();
+            }
+          } else {
+            // Restore tabs with migrated paths
+            openTabs.value = migratedTabs.map((filePath) => {
+              // Detect file category from extension
               const fileCategory = getFileCategory(filePath);
               const mimeType = getMimeType(filePath);
               const fileName = getBasename(filePath) || filePath;
@@ -221,21 +259,79 @@ export const useUIStore = defineStore('ui', () => {
                 fileCategory,
                 mimeType,
               };
-            }),
-            activeTabId: paneConfig.activeTab,
-            size: paneConfig.size,
-          }));
-        } else if (openTabs.value.length > 0) {
-          // Create default single pane if no split config but has tabs
-          const defaultPaneId = generatePaneId();
-          editorPanes.value = [
-            {
-              id: defaultPaneId,
-              tabs: [...openTabs.value],
-              activeTabId: activeTabId.value,
-            },
-          ];
-          activePaneId.value = defaultPaneId;
+            });
+            // Create mapping from old paths to new paths for migration
+            const pathMigrationMap = new Map<string, string>();
+            savedState.openTabs.forEach((oldPath, index) => {
+              if (migratedTabs[index] !== undefined) {
+                // Find the corresponding migrated path
+                // Since we preserved order for valid tabs, we can build the map
+              }
+            });
+            // Build map by matching relative paths
+            for (const oldPath of savedState.openTabs) {
+              const oldPromptsIdx = oldPath.lastIndexOf('/prompts/');
+              if (oldPromptsIdx !== -1) {
+                const oldRelative = oldPath.substring(oldPromptsIdx);
+                for (const newPath of migratedTabs) {
+                  if (newPath.endsWith(oldRelative.substring('/prompts'.length))) {
+                    pathMigrationMap.set(oldPath, newPath);
+                    break;
+                  }
+                }
+              }
+            }
+
+            // Set active tab (migrate if needed)
+            const savedActiveTab = savedState.activeTab ?? savedState.openTabs[0] ?? '';
+            const migratedActiveTab = savedActiveTab
+              ? (pathMigrationMap.get(savedActiveTab) ?? savedActiveTab)
+              : '';
+            activeTabId.value =
+              migratedActiveTab && migratedTabs.includes(migratedActiveTab)
+                ? migratedActiveTab
+                : migratedTabs[0];
+
+            // Restore split pane configuration
+            if (savedState.editorSplit && savedState.editorSplit.panes.length > 0) {
+              splitDirection.value = savedState.editorSplit.direction;
+              activePaneId.value = savedState.editorSplit.activePaneId;
+              editorPanes.value = savedState.editorSplit.panes
+                .map((paneConfig) => ({
+                  id: paneConfig.id,
+                  tabs: paneConfig.tabs
+                    .map((oldFilePath) => {
+                      // Migrate the path if needed
+                      const filePath = pathMigrationMap.get(oldFilePath) ?? oldFilePath;
+                      // Find tab in openTabs or skip if not found
+                      const existingTab = openTabs.value.find((t) => t.filePath === filePath);
+                      return existingTab;
+                    })
+                    .filter((tab): tab is NonNullable<typeof tab> => tab !== undefined),
+                  activeTabId: paneConfig.activeTab
+                    ? (pathMigrationMap.get(paneConfig.activeTab) ?? paneConfig.activeTab)
+                    : undefined,
+                  size: paneConfig.size,
+                }))
+                .filter((pane) => pane.tabs.length > 0);
+            } else if (openTabs.value.length > 0) {
+              // Create default single pane if no split config but has tabs
+              const defaultPaneId = generatePaneId();
+              editorPanes.value = [
+                {
+                  id: defaultPaneId,
+                  tabs: [...openTabs.value],
+                  activeTabId: activeTabId.value,
+                },
+              ];
+              activePaneId.value = defaultPaneId;
+            }
+
+            // Save migrated state if paths were changed
+            if (hadMigration) {
+              void saveState();
+            }
+          }
         }
       }
 
@@ -426,6 +522,9 @@ export const useUIStore = defineStore('ui', () => {
   function closeAllTabs(): void {
     openTabs.value = [];
     activeTabId.value = undefined;
+    // Also clear editor panes
+    editorPanes.value = [];
+    activePaneId.value = undefined;
     void saveState();
   }
 

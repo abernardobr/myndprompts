@@ -161,34 +161,89 @@ export class RecentFilesRepository extends BaseRepository<IRecentFile, string> {
   }
 
   /**
-   * Remove files that no longer exist on the file system
+   * Clear all recent files (including pinned)
+   * Used when storage location changes and all paths become invalid
    */
-  async removeNonExistentFiles(): Promise<number> {
+  async clearAll(): Promise<void> {
+    const allFiles = await this.getAll();
+    const ids = allFiles.map((f) => f.id);
+    if (ids.length > 0) {
+      await this.deleteMany(ids);
+    }
+  }
+
+  /**
+   * Migrate file paths to the new storage location and remove files that no longer exist
+   * This handles the case where storage location has changed by updating paths
+   * @returns Object with migrated count and removed count
+   */
+  async migrateFilePaths(): Promise<{ migrated: number; removed: number }> {
     // Only works in Electron environment
     if (!window?.fileSystemAPI) {
-      return 0;
+      return { migrated: 0, removed: 0 };
     }
 
     const allFiles = await this.getAll();
-    const idsToRemove: string[] = [];
+    const config = await window.fileSystemAPI.getConfig();
+    const currentPromptsDir = config.promptsDir;
+
+    let migrated = 0;
+    let removed = 0;
 
     for (const file of allFiles) {
       try {
-        const exists = await window.fileSystemAPI.fileExists(file.filePath);
-        if (!exists) {
-          idsToRemove.push(file.id);
+        // First check if the path is within the current base directory
+        const isPathAllowed = await window.fileSystemAPI.isPathAllowed(file.filePath);
+        if (isPathAllowed) {
+          // Path is valid, check if file still exists
+          const exists = await window.fileSystemAPI.fileExists(file.filePath);
+          if (!exists) {
+            await this.delete(file.id);
+            removed++;
+          }
+          continue;
         }
-      } catch {
-        // If we can't check, assume it doesn't exist
-        idsToRemove.push(file.id);
+
+        // Path is outside the current storage location - try to migrate
+        // Extract the relative path after "/prompts/"
+        const promptsIndex = file.filePath.lastIndexOf('/prompts/');
+        if (promptsIndex === -1) {
+          // Can't determine relative path, remove the entry
+          console.warn(`Cannot migrate recent file (no /prompts/ in path): ${file.filePath}`);
+          await this.delete(file.id);
+          removed++;
+          continue;
+        }
+
+        // Get the relative path (everything after "/prompts/")
+        const relativePath = file.filePath.substring(promptsIndex + '/prompts/'.length);
+        const newPath = `${currentPromptsDir}/${relativePath}`;
+
+        // Check if the new path exists
+        const newPathExists = await window.fileSystemAPI.fileExists(newPath);
+        if (newPathExists) {
+          // Migrate the file entry to the new path
+          console.log(`Migrating recent file from ${file.filePath} to ${newPath}`);
+          await this.update(file.id, {
+            filePath: newPath,
+            lastOpenedAt: file.lastOpenedAt, // Keep the same last opened time
+          });
+          migrated++;
+        } else {
+          // New path doesn't exist, remove the entry
+          console.warn(`Recent file not found in new location, removing: ${file.filePath}`);
+          await this.delete(file.id);
+          removed++;
+        }
+      } catch (err) {
+        // If we can't migrate, log and remove
+        console.error(`Failed to migrate recent file ${file.filePath}:`, err);
+        await this.delete(file.id);
+        removed++;
       }
     }
 
-    if (idsToRemove.length > 0) {
-      await this.deleteMany(idsToRemove);
-    }
-
-    return idsToRemove.length;
+    return { migrated, removed };
   }
 
   /**

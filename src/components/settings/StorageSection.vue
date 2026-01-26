@@ -11,26 +11,34 @@ import { useI18n } from 'vue-i18n';
 import { useQuasar } from 'quasar';
 import { usePromptStore } from '@/stores/promptStore';
 import { useSnippetStore } from '@/stores/snippetStore';
+import { useUIStore } from '@/stores/uiStore';
 import type {
   IExportProgress,
   IImportProgress,
   ExportImportErrorCode,
 } from '@/services/export-import/types';
+import MoveStorageDialog from '@/components/dialogs/MoveStorageDialog.vue';
 
 const { t } = useI18n({ useScope: 'global' });
 const $q = useQuasar();
 const promptStore = usePromptStore();
 const snippetStore = useSnippetStore();
+const uiStore = useUIStore();
 
 // Check if running in Electron
 const isElectron = computed((): boolean => window?.fileSystemAPI !== undefined);
 
-// Storage path
+// Storage path (display version with ~ for home dir)
 const storagePath = ref('~/.myndprompt');
+// Full storage path for file operations
+const fullStoragePath = ref('');
 
 // Loading states
 const isExporting = ref(false);
 const isImporting = ref(false);
+
+// Move storage dialog
+const showMoveDialog = ref(false);
 
 // Progress tracking
 const progress = ref<IExportProgress | IImportProgress | null>(null);
@@ -86,9 +94,13 @@ onMounted(async () => {
   if (isElectron.value && window.fileSystemAPI !== undefined) {
     try {
       const basePath = await window.fileSystemAPI.getBasePath();
+      // Store full path for file operations
+      fullStoragePath.value = basePath;
       // Replace home directory with ~ for display
+      // Supports macOS (/Users/), Windows (C:\Users\), and Linux (/home/)
       storagePath.value = basePath
         .replace(/^\/Users\/[^/]+/, '~')
+        .replace(/^\/home\/[^/]+/, '~')
         .replace(/^C:\\Users\\[^\\]+/, '~');
     } catch {
       // Keep default
@@ -108,6 +120,23 @@ onUnmounted(() => {
     unsubscribeProgress = null;
   }
 });
+
+/**
+ * Open storage folder in system file explorer
+ */
+async function openStorageInExplorer(): Promise<void> {
+  if (!window.externalAppsAPI || !fullStoragePath.value) return;
+
+  try {
+    // Use openWithDefault to open the directory in the file manager
+    const result = await window.externalAppsAPI.openWithDefault(fullStoragePath.value);
+    if (!result.success) {
+      console.error('Failed to open storage folder:', result.error);
+    }
+  } catch (err) {
+    console.error('Failed to open storage folder:', err);
+  }
+}
 
 /**
  * Handle export button click
@@ -243,6 +272,43 @@ async function handleImport(): Promise<void> {
     progress.value = null;
   }
 }
+
+/**
+ * Handle migration complete event from MoveStorageDialog
+ */
+async function handleMigrationComplete(newPath: string): Promise<void> {
+  // Update full path for file operations
+  fullStoragePath.value = newPath;
+  // Update displayed path (replace home directory with ~ for display)
+  // Supports macOS (/Users/), Windows (C:\Users\), and Linux (/home/)
+  storagePath.value = newPath
+    .replace(/^\/Users\/[^/]+/, '~')
+    .replace(/^\/home\/[^/]+/, '~')
+    .replace(/^C:\\Users\\[^\\]+/, '~');
+
+  // IMPORTANT: Clear all state that contains old absolute paths
+  // Open tabs have file paths from the old storage location
+  uiStore.closeAllTabs();
+
+  // Clear all caches that are keyed by old absolute file paths
+  promptStore.clearAllCaches();
+  snippetStore.clearAllCaches();
+
+  // Clear recent files (they all point to old storage location)
+  await promptStore.clearAllRecentFiles();
+
+  // Refresh stores to load data from new location
+  await promptStore.refreshAllPrompts();
+  await snippetStore.refreshAllSnippets();
+
+  // Show success notification
+  $q.notify({
+    type: 'positive',
+    message: t('settings.storage.moveStorage.successNotification'),
+    position: 'bottom',
+    timeout: 3000,
+  });
+}
 </script>
 
 <template>
@@ -268,8 +334,17 @@ async function handleImport(): Promise<void> {
         <div class="storage-section__label">
           {{ t('settingsPanel.storageLocation') }}
         </div>
-        <div class="storage-section__value">
+        <div class="storage-section__value storage-section__value--with-action">
           <code class="storage-section__path">{{ storagePath }}</code>
+          <q-btn
+            flat
+            dense
+            round
+            size="sm"
+            icon="folder_open"
+            :title="t('settings.storage.openInExplorer')"
+            @click="openStorageInExplorer"
+          />
         </div>
         <div class="storage-section__hint text-caption text-grey">
           {{ t('settings.storage.locationHint') }}
@@ -367,6 +442,30 @@ async function handleImport(): Promise<void> {
           </div>
         </div>
       </div>
+
+      <!-- Move Storage Section -->
+      <div class="storage-section__row">
+        <div class="storage-section__label">
+          {{ t('settings.storage.moveStorage.sectionTitle') }}
+        </div>
+        <div class="storage-section__hint text-caption text-grey q-mb-sm">
+          {{ t('settings.storage.moveStorage.sectionDescription') }}
+        </div>
+        <q-btn
+          flat
+          no-caps
+          icon="drive_file_move"
+          :label="t('settings.storage.moveStorage.button')"
+          :disable="isExporting || isImporting"
+          @click="showMoveDialog = true"
+        />
+      </div>
+
+      <!-- Move Storage Dialog -->
+      <MoveStorageDialog
+        v-model="showMoveDialog"
+        @migration-complete="handleMigrationComplete"
+      />
     </template>
   </div>
 </template>
@@ -399,6 +498,12 @@ async function handleImport(): Promise<void> {
 
   &__value {
     margin-bottom: 4px;
+
+    &--with-action {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
   }
 
   &__path {

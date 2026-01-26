@@ -21,3 +21,12 @@ export { FileIndexRepository, getFileIndexRepository } from './file-index.reposi
 
 // Plugin marketplace repositories
 export { PluginRepository, getPluginRepository } from './plugin.repository';
+
+// Migration repository
+export {
+  MigrationRepository,
+  getMigrationRepository,
+  type IMigrationPathUpdateResult,
+  type IPathVerificationResult,
+  type ITableUpdateResult,
+} from './migration.repository';

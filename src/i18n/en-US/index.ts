@@ -288,6 +288,7 @@ export default {
 
       // Location
       locationHint: 'All your prompts, snippets, and settings are stored in this location.',
+      openInExplorer: 'Open in file explorer',
 
       // Export section
       exportTitle: 'Export Data',
@@ -342,6 +343,107 @@ export default {
         extracting: 'Extracting',
         validating: 'Validating',
         copying: 'Copying files',
+      },
+
+      // Move Storage
+      moveStorage: {
+        // Section in StorageSection.vue
+        sectionTitle: 'Move Storage',
+        sectionDescription:
+          'Move your prompts, snippets, and other data to a different location on your computer.',
+        button: 'Move Storage Location',
+        successNotification: 'Storage moved successfully',
+
+        // MoveStorageDialog
+        title: 'Move Storage',
+        description:
+          'Move all your data to a new location. This will copy all files and update the configuration.',
+        currentLocation: 'Current Location',
+        newLocation: 'New Location',
+        noFolderSelected: 'No folder selected',
+        selectFolder: 'Select Folder',
+        validDestination: 'Valid destination',
+        available: 'available',
+        confirmTitle: 'Confirm Migration',
+        confirmMessage: 'The following data will be moved to the new location:',
+        migrationPlan: 'Migration Plan',
+        totalFiles: 'Total Files',
+        totalSize: 'Total Size',
+        directories: 'Directories',
+        warningMessage:
+          'This operation cannot be undone automatically. Make sure you have a backup of your data.',
+        progressTitle: 'Moving Storage',
+        fileProgress: '{copied} of {total} files',
+        bytesProgress: '{copied} of {total}',
+        copyingDirectory: 'Copying: {directory}',
+        completeTitle: 'Migration Complete',
+        completeMessage: 'Your storage has been successfully moved to the new location.',
+        summary: 'Summary',
+        filesCopied: 'Files Copied',
+        dataCopied: 'Data Copied',
+        duration: 'Duration',
+        newStoragePath: 'New Storage Path',
+        cleanupTitle: 'Clean Up',
+        cleanupMessage: 'Would you like to delete the files from the old location?',
+        deleteOldFiles: 'Delete Old Files',
+        keepOldFiles: 'Keep Old Files',
+        errorTitle: 'Migration Failed',
+        errorMessage: 'An error occurred during the migration process.',
+        errorDetails: 'Error Details',
+        cancel: 'Cancel',
+        back: 'Back',
+        next: 'Next',
+        startMigration: 'Start Migration',
+        close: 'Close',
+        retry: 'Retry',
+        errorNotification: 'Storage migration failed',
+        cancelled: 'Migration cancelled',
+        cleanupSuccess: 'Old storage files deleted successfully',
+        cleanupError: 'Failed to delete old storage files',
+        destinationNotEmpty: 'Destination folder must be empty',
+        destinationInsideSource: 'Destination cannot be inside the current storage',
+        noWritePermission: 'No write permission for the selected folder',
+        notEnoughSpace: 'Not enough disk space available',
+
+        // Phase labels
+        phase: {
+          validating: 'Validating...',
+          planning: 'Planning migration...',
+          copying: 'Copying files...',
+          verifying: 'Verifying...',
+          completing: 'Completing...',
+        },
+
+        // Additional UI elements
+        currentFile: 'Current File',
+        move: 'Move Storage',
+        successMessage: 'Your storage has been successfully moved to the new location.',
+        verificationSuccess: 'All files verified successfully',
+        verificationWarning: 'Some files could not be verified',
+        cleanupWarning: 'This action cannot be undone',
+        deleteOldStorage: 'Delete Old Storage',
+        keepOldStorage: 'Keep Old Files',
+        partialMigration:
+          'Your original files are still in the source location. You can retry the migration or keep them as backup.',
+        partialMigrationInfo: '{copied} files were copied before the error occurred.',
+
+        // Rollback
+        rollbackTitle: 'Rollback Migration',
+        rollbackDescription:
+          'Remove the partially copied files from the destination. Your original files in the source location will remain intact.',
+        rollbackButton: 'Rollback Changes',
+        rollbackSuccess: 'Rollback complete. {count} files removed.',
+        rollbackError: 'Failed to rollback migration',
+
+        // Error codes
+        errors: {
+          diskFull: 'Disk Full',
+          permissionDenied: 'Permission Denied',
+          fileInUse: 'File In Use',
+          validationFailed: 'Validation Failed',
+          copyFailed: 'Copy Failed',
+          verificationFailed: 'Verification Failed',
+        },
       },
     },
   },
