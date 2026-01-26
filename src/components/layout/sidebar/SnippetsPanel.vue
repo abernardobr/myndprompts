@@ -473,15 +473,22 @@ async function handleCreateSnippet(data: {
   language: string | null;
 }): Promise<void> {
   try {
-    await snippetStore.createSnippet(
+    const snippet = await snippetStore.createSnippet(
       data.name,
       data.type,
       '',
       data.tags,
       data.language ?? undefined
     );
-    // If a description was provided, update the snippet
-    // This would require loading and updating the metadata
+
+    // Open the new snippet in the editor
+    uiStore.openTab({
+      filePath: snippet.filePath,
+      fileName: snippet.fileName,
+      title: snippet.metadata.name,
+      isDirty: false,
+      isPinned: false,
+    });
   } catch (err) {
     console.error('Failed to create snippet:', err);
   }

@@ -8,6 +8,8 @@
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useQuasar } from 'quasar';
+import { useProjectStore } from '@/stores/projectStore';
 
 // Define the tree node interface inline to avoid circular imports
 interface ITreeNode {
@@ -67,6 +69,8 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const { t } = useI18n({ useScope: 'global' });
+const $q = useQuasar();
+const projectStore = useProjectStore();
 
 const isDirectory = computed(
   () => props.node.type === 'directory' || props.node.type === 'project'
@@ -127,6 +131,66 @@ function handleExportLibrary() {
   if (props.node.filePath && props.node.isProject) {
     emit('export-library', props.node.filePath);
   }
+}
+
+/**
+ * Copy text to clipboard with notification
+ */
+async function copyToClipboard(text: string, messageKey: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    $q.notify({
+      type: 'positive',
+      message: t(messageKey),
+      position: 'bottom',
+      timeout: 1500,
+    });
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: t('tabBar.copyPath.error'),
+      position: 'bottom',
+      timeout: 2000,
+    });
+  }
+}
+
+/**
+ * Copy the absolute path
+ */
+function copyAbsolutePath(): void {
+  if (props.node.filePath) {
+    void copyToClipboard(props.node.filePath, 'tabBar.copyPath.absoluteCopied');
+  }
+}
+
+/**
+ * Copy just the label (filename or directory name)
+ */
+function copyFilename(): void {
+  void copyToClipboard(props.node.label, 'tabBar.copyPath.filenameCopied');
+}
+
+/**
+ * Copy the relative path from the project root
+ */
+function copyRelativePath(): void {
+  if (!props.node.filePath) return;
+  const project = projectStore.getProjectForPath(props.node.filePath);
+  if (project) {
+    const relativePath = props.node.filePath.replace(project.folderPath, '').replace(/^[/\\]/, '');
+    void copyToClipboard(relativePath, 'tabBar.copyPath.relativeCopied');
+  } else {
+    void copyToClipboard(props.node.label, 'tabBar.copyPath.filenameCopied');
+  }
+}
+
+/**
+ * Check if node is inside a project
+ */
+function isInProject(): boolean {
+  if (!props.node.filePath) return false;
+  return projectStore.getProjectForPath(props.node.filePath) !== null;
 }
 
 function handleDragStart(event: DragEvent) {
@@ -349,6 +413,70 @@ function forwardGitHistory(filePath: string) {
             <q-item-section>{{ t('explorer.exportLibrary') }}</q-item-section>
           </q-item>
           <q-separator />
+          <!-- Copy Path submenu -->
+          <q-item clickable>
+            <q-item-section avatar>
+              <q-icon
+                name="content_copy"
+                size="20px"
+              />
+            </q-item-section>
+            <q-item-section>{{ t('tabBar.copyPath.label') }}</q-item-section>
+            <q-item-section side>
+              <q-icon name="keyboard_arrow_right" />
+            </q-item-section>
+            <q-menu
+              anchor="top end"
+              self="top start"
+            >
+              <q-list
+                dense
+                style="min-width: 180px"
+              >
+                <q-item
+                  v-close-popup
+                  clickable
+                  @click="copyAbsolutePath"
+                >
+                  <q-item-section avatar>
+                    <q-icon
+                      name="folder"
+                      size="xs"
+                    />
+                  </q-item-section>
+                  <q-item-section>{{ t('tabBar.copyPath.absolute') }}</q-item-section>
+                </q-item>
+                <q-item
+                  v-close-popup
+                  clickable
+                  @click="copyFilename"
+                >
+                  <q-item-section avatar>
+                    <q-icon
+                      name="insert_drive_file"
+                      size="xs"
+                    />
+                  </q-item-section>
+                  <q-item-section>{{ t('tabBar.copyPath.filename') }}</q-item-section>
+                </q-item>
+                <q-item
+                  v-if="isInProject()"
+                  v-close-popup
+                  clickable
+                  @click="copyRelativePath"
+                >
+                  <q-item-section avatar>
+                    <q-icon
+                      name="subdirectory_arrow_right"
+                      size="xs"
+                    />
+                  </q-item-section>
+                  <q-item-section>{{ t('tabBar.copyPath.relative') }}</q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-item>
+          <q-separator />
           <q-item
             v-close-popup
             clickable
@@ -507,6 +635,71 @@ function forwardGitHistory(filePath: string) {
               />
             </q-item-section>
             <q-item-section>{{ t('common.rename') }}</q-item-section>
+          </q-item>
+
+          <!-- Copy Path submenu -->
+          <q-separator />
+          <q-item clickable>
+            <q-item-section avatar>
+              <q-icon
+                name="content_copy"
+                size="20px"
+              />
+            </q-item-section>
+            <q-item-section>{{ t('tabBar.copyPath.label') }}</q-item-section>
+            <q-item-section side>
+              <q-icon name="keyboard_arrow_right" />
+            </q-item-section>
+            <q-menu
+              anchor="top end"
+              self="top start"
+            >
+              <q-list
+                dense
+                style="min-width: 180px"
+              >
+                <q-item
+                  v-close-popup
+                  clickable
+                  @click="copyAbsolutePath"
+                >
+                  <q-item-section avatar>
+                    <q-icon
+                      name="folder"
+                      size="xs"
+                    />
+                  </q-item-section>
+                  <q-item-section>{{ t('tabBar.copyPath.absolute') }}</q-item-section>
+                </q-item>
+                <q-item
+                  v-close-popup
+                  clickable
+                  @click="copyFilename"
+                >
+                  <q-item-section avatar>
+                    <q-icon
+                      name="insert_drive_file"
+                      size="xs"
+                    />
+                  </q-item-section>
+                  <q-item-section>{{ t('tabBar.copyPath.filename') }}</q-item-section>
+                </q-item>
+                <q-item
+                  v-if="isInProject()"
+                  v-close-popup
+                  clickable
+                  @click="copyRelativePath"
+                >
+                  <q-item-section avatar>
+                    <q-icon
+                      name="subdirectory_arrow_right"
+                      size="xs"
+                    />
+                  </q-item-section>
+                  <q-item-section>{{ t('tabBar.copyPath.relative') }}</q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
           </q-item>
 
           <!-- Git submenu for files in projects -->

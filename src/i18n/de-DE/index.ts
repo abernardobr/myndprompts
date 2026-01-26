@@ -498,6 +498,8 @@ export default {
       title: 'Willkommen bei MyndPrompts',
       description:
         'Sehen Sie sich diese Tutorial-Videos an, um zu lernen, wie Sie MyndPrompts optimal nutzen können.',
+      watchOnYouTube: 'Tutorial-Videos ansehen',
+      clickToOpen: 'Klicken Sie, um auf YouTube zu öffnen',
       dontShowAgain: 'Beim Start nicht mehr anzeigen',
       close: 'Schließen',
     },
@@ -582,6 +584,25 @@ export default {
     revealInSidebar: 'In Seitenleiste Anzeigen',
     insertImage: 'Bild Einfügen',
     formatAsImage: 'Als Bild Formatieren',
+  },
+
+  // Tab bar
+  tabBar: {
+    close: 'Schließen',
+    closeOthers: 'Andere Schließen',
+    closeAll: 'Alle Schließen',
+    pinTab: 'Tab Anheften',
+    unpinTab: 'Tab Lösen',
+    copyPath: {
+      label: 'Pfad Kopieren',
+      absolute: 'Absoluter Pfad',
+      filename: 'Dateiname',
+      relative: 'Relativer Pfad',
+      absoluteCopied: 'Absoluter Pfad in die Zwischenablage kopiert',
+      filenameCopied: 'Dateiname in die Zwischenablage kopiert',
+      relativeCopied: 'Relativer Pfad in die Zwischenablage kopiert',
+      error: 'Fehler beim Kopieren in die Zwischenablage',
+    },
   },
 
   // Status bar

@@ -490,6 +490,8 @@ export default {
     help: {
       title: 'مرحباً بك في MyndPrompts',
       description: 'شاهد هذه الفيديوهات التعليمية لتتعلم كيفية الاستفادة القصوى من MyndPrompts.',
+      watchOnYouTube: 'شاهد مقاطع الفيديو التعليمية',
+      clickToOpen: 'انقر لفتح في YouTube',
       dontShowAgain: 'لا تظهر هذا عند بدء التشغيل',
       close: 'إغلاق',
     },
@@ -574,6 +576,25 @@ export default {
     revealInSidebar: 'إظهار في الشريط الجانبي',
     insertImage: 'إدراج صورة',
     formatAsImage: 'تنسيق كصورة',
+  },
+
+  // Tab bar
+  tabBar: {
+    close: 'إغلاق',
+    closeOthers: 'إغلاق الأخرى',
+    closeAll: 'إغلاق الكل',
+    pinTab: 'تثبيت علامة التبويب',
+    unpinTab: 'إلغاء تثبيت علامة التبويب',
+    copyPath: {
+      label: 'نسخ المسار',
+      absolute: 'المسار المطلق',
+      filename: 'اسم الملف',
+      relative: 'المسار النسبي',
+      absoluteCopied: 'تم نسخ المسار المطلق إلى الحافظة',
+      filenameCopied: 'تم نسخ اسم الملف إلى الحافظة',
+      relativeCopied: 'تم نسخ المسار النسبي إلى الحافظة',
+      error: 'فشل النسخ إلى الحافظة',
+    },
   },
 
   // Status bar

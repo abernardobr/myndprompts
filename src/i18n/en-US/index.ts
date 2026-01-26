@@ -516,6 +516,8 @@ export default {
     help: {
       title: 'Welcome to MyndPrompts',
       description: 'Watch these tutorial videos to learn how to get the most out of MyndPrompts.',
+      watchOnYouTube: 'Watch Tutorial Videos',
+      clickToOpen: 'Click to open in YouTube',
       dontShowAgain: "Don't show this on startup",
       close: 'Close',
     },
@@ -600,6 +602,25 @@ export default {
     revealInSidebar: 'Reveal in Sidebar',
     insertImage: 'Insert Image',
     formatAsImage: 'Format as Image',
+  },
+
+  // Tab bar
+  tabBar: {
+    close: 'Close',
+    closeOthers: 'Close Others',
+    closeAll: 'Close All',
+    pinTab: 'Pin Tab',
+    unpinTab: 'Unpin Tab',
+    copyPath: {
+      label: 'Copy Path',
+      absolute: 'Absolute Path',
+      filename: 'Filename',
+      relative: 'Relative Path',
+      absoluteCopied: 'Absolute path copied to clipboard',
+      filenameCopied: 'Filename copied to clipboard',
+      relativeCopied: 'Relative path copied to clipboard',
+      error: 'Failed to copy to clipboard',
+    },
   },
 
   // Status bar

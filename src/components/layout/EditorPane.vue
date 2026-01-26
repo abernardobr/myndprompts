@@ -8,9 +8,11 @@
 
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { useUIStore, type IEditorPane, type IOpenTab } from '@/stores/uiStore';
+import { useProjectStore } from '@/stores/projectStore';
 import { usePrompts } from '@/composables/usePrompts';
 import { useAutoSave } from '@/composables/useAutoSave';
 import { useQuasar } from 'quasar';
+import { useI18n } from 'vue-i18n';
 import MonacoEditor from '@/components/editor/MonacoEditor.vue';
 import MarkdownPreview from '@/components/editor/MarkdownPreview.vue';
 import FileViewer from '@/components/viewers/FileViewer.vue';
@@ -38,7 +40,9 @@ const emit = defineEmits<{
 }>();
 
 const $q = useQuasar();
+const { t } = useI18n({ useScope: 'global' });
 const uiStore = useUIStore();
+const projectStore = useProjectStore();
 const prompts = usePrompts();
 
 // Helper to save any file type
@@ -189,6 +193,62 @@ function showError(message: string): void {
     position: 'top',
     timeout: 4000,
   });
+}
+
+/**
+ * Copy text to clipboard with notification
+ */
+async function copyToClipboard(text: string, messageKey: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    $q.notify({
+      type: 'positive',
+      message: t(messageKey),
+      position: 'bottom',
+      timeout: 1500,
+    });
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: t('tabBar.copyPath.error'),
+      position: 'bottom',
+      timeout: 2000,
+    });
+  }
+}
+
+/**
+ * Copy the absolute file path
+ */
+function copyAbsolutePath(tab: IOpenTab): void {
+  void copyToClipboard(tab.filePath, 'tabBar.copyPath.absoluteCopied');
+}
+
+/**
+ * Copy just the filename
+ */
+function copyFilename(tab: IOpenTab): void {
+  void copyToClipboard(tab.fileName, 'tabBar.copyPath.filenameCopied');
+}
+
+/**
+ * Copy the relative path from the project root
+ */
+function copyRelativePath(tab: IOpenTab): void {
+  const project = projectStore.getProjectForPath(tab.filePath);
+  if (project) {
+    const relativePath = tab.filePath.replace(project.folderPath, '').replace(/^[/\\]/, '');
+    void copyToClipboard(relativePath, 'tabBar.copyPath.relativeCopied');
+  } else {
+    void copyToClipboard(tab.fileName, 'tabBar.copyPath.filenameCopied');
+  }
+}
+
+/**
+ * Check if a tab's file is inside a project
+ */
+function isInProject(tab: IOpenTab): boolean {
+  return projectStore.getProjectForPath(tab.filePath) !== null;
 }
 
 // Load content when active tab changes
@@ -456,7 +516,7 @@ onMounted(() => {
                 clickable
                 @click="closeTab(tab.id, $event)"
               >
-                <q-item-section>Close</q-item-section>
+                <q-item-section>{{ t('tabBar.close') }}</q-item-section>
                 <q-item-section side>
                   <span class="text-grey-6 text-caption">Ctrl+W</span>
                 </q-item-section>
@@ -466,14 +526,14 @@ onMounted(() => {
                 clickable
                 @click="closeOtherTabs(tab.id)"
               >
-                <q-item-section>Close Others</q-item-section>
+                <q-item-section>{{ t('tabBar.closeOthers') }}</q-item-section>
               </q-item>
               <q-item
                 v-close-popup
                 clickable
                 @click="closeAllTabs"
               >
-                <q-item-section>Close All</q-item-section>
+                <q-item-section>{{ t('tabBar.closeAll') }}</q-item-section>
               </q-item>
               <q-separator />
               <q-item
@@ -482,7 +542,7 @@ onMounted(() => {
                 clickable
                 @click="pinTab(tab.id)"
               >
-                <q-item-section>Pin Tab</q-item-section>
+                <q-item-section>{{ t('tabBar.pinTab') }}</q-item-section>
               </q-item>
               <q-item
                 v-else
@@ -490,7 +550,65 @@ onMounted(() => {
                 clickable
                 @click="unpinTab(tab.id)"
               >
-                <q-item-section>Unpin Tab</q-item-section>
+                <q-item-section>{{ t('tabBar.unpinTab') }}</q-item-section>
+              </q-item>
+              <q-separator />
+              <!-- Copy Path submenu -->
+              <q-item clickable>
+                <q-item-section>{{ t('tabBar.copyPath.label') }}</q-item-section>
+                <q-item-section side>
+                  <q-icon name="keyboard_arrow_right" />
+                </q-item-section>
+                <q-menu
+                  anchor="top end"
+                  self="top start"
+                >
+                  <q-list
+                    dense
+                    style="min-width: 180px"
+                  >
+                    <q-item
+                      v-close-popup
+                      clickable
+                      @click="copyAbsolutePath(tab)"
+                    >
+                      <q-item-section avatar>
+                        <q-icon
+                          name="folder"
+                          size="xs"
+                        />
+                      </q-item-section>
+                      <q-item-section>{{ t('tabBar.copyPath.absolute') }}</q-item-section>
+                    </q-item>
+                    <q-item
+                      v-close-popup
+                      clickable
+                      @click="copyFilename(tab)"
+                    >
+                      <q-item-section avatar>
+                        <q-icon
+                          name="insert_drive_file"
+                          size="xs"
+                        />
+                      </q-item-section>
+                      <q-item-section>{{ t('tabBar.copyPath.filename') }}</q-item-section>
+                    </q-item>
+                    <q-item
+                      v-if="isInProject(tab)"
+                      v-close-popup
+                      clickable
+                      @click="copyRelativePath(tab)"
+                    >
+                      <q-item-section avatar>
+                        <q-icon
+                          name="subdirectory_arrow_right"
+                          size="xs"
+                        />
+                      </q-item-section>
+                      <q-item-section>{{ t('tabBar.copyPath.relative') }}</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
               </q-item>
               <q-separator />
               <q-item

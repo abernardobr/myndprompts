@@ -25,6 +25,10 @@ const { t } = useI18n({ useScope: 'global' });
 
 const dontShowAgain = ref(false);
 
+// YouTube playlist URL
+const YOUTUBE_PLAYLIST_URL =
+  'https://www.youtube.com/playlist?list=PLoX2c-TEp-0aAcL1cyq0TV5tsEQJ_VNCd';
+
 // Load saved preference when dialog opens
 watch(
   () => props.modelValue,
@@ -50,6 +54,10 @@ async function handleDontShowChange(value: boolean): Promise<void> {
   dontShowAgain.value = value;
   const configRepository = getConfigRepository();
   await configRepository.set(ConfigKeys.HELP_DIALOG_DONT_SHOW, value);
+}
+
+function openYouTubePlaylist(): void {
+  void window.updateAPI?.openDownloadPage(YOUTUBE_PLAYLIST_URL);
 }
 </script>
 
@@ -86,26 +94,22 @@ async function handleDontShowChange(value: boolean): Promise<void> {
           {{ t('dialogs.help.description') }}
         </p>
 
-        <!-- YouTube Embed -->
-        <div class="help-dialog__video-container">
-          <iframe
-            width="560"
-            height="315"
-            src="https://www.youtube.com/embed/videoseries?si=8N4-LxVDBN2q2PWZ&list=PLoX2c-TEp-0aAcL1cyq0TV5tsEQJ_VNCd"
-            title="MyndPrompts Help Videos"
-            frameborder="0"
-            allow="
-              accelerometer;
-              autoplay;
-              clipboard-write;
-              encrypted-media;
-              gyroscope;
-              picture-in-picture;
-              web-share;
-            "
-            referrerpolicy="strict-origin-when-cross-origin"
-            allowfullscreen
-          />
+        <!-- YouTube Playlist Link -->
+        <div
+          class="help-dialog__video-container"
+          @click="openYouTubePlaylist"
+        >
+          <div class="help-dialog__video-overlay">
+            <q-icon
+              name="smart_display"
+              size="64px"
+              color="red"
+            />
+            <div class="help-dialog__video-text">
+              <span class="text-h6">{{ t('dialogs.help.watchOnYouTube') }}</span>
+              <span class="text-caption text-grey-5">{{ t('dialogs.help.clickToOpen') }}</span>
+            </div>
+          </div>
         </div>
       </q-card-section>
 
@@ -131,26 +135,50 @@ async function handleDontShowChange(value: boolean): Promise<void> {
 
 <style lang="scss" scoped>
 .help-dialog {
-  min-width: 620px;
-  max-width: 700px;
+  min-width: 520px;
+  max-width: 600px;
 
   &__video-container {
     position: relative;
     width: 100%;
-    padding-bottom: 56.25%; /* 16:9 aspect ratio */
-    height: 0;
+    height: 180px;
     overflow: hidden;
     border-radius: 8px;
-    background-color: #000;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    cursor: pointer;
+    transition: all 0.2s ease;
 
-    iframe {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
+    &:hover {
+      transform: scale(1.02);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     }
+
+    &:hover .help-dialog__video-overlay {
+      background: rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  &__video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    transition: background 0.2s ease;
+  }
+
+  &__video-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: white;
   }
 
   &__actions {

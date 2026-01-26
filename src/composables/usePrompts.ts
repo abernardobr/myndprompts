@@ -10,12 +10,16 @@
 
 import { computed, onMounted, onUnmounted } from 'vue';
 import { usePromptStore } from '@/stores/promptStore';
+import { useSnippetStore } from '@/stores/snippetStore';
 import { useUIStore } from '@/stores/uiStore';
+import { getPromptFileService } from '@/services/file-system';
 import type { IPromptFile } from '@/services/file-system/types';
 
 export function usePrompts() {
   const promptStore = usePromptStore();
+  const snippetStore = useSnippetStore();
   const uiStore = useUIStore();
+  const promptFileService = getPromptFileService();
 
   // State
   const isLoading = computed(() => promptStore.isLoading);
@@ -114,6 +118,11 @@ export function usePrompts() {
 
     await promptStore.savePrompt(activeTab.filePath);
     uiStore.setTabDirty(activeTab.id, false);
+
+    // If this is a snippet file, refresh the snippet store to update autocomplete
+    if (promptFileService.isSnippetFile(activeTab.filePath)) {
+      await snippetStore.refreshAllSnippets();
+    }
   }
 
   /**
@@ -126,6 +135,11 @@ export function usePrompts() {
     const tab = uiStore.openTabs.find((t) => t.filePath === filePath);
     if (tab) {
       uiStore.setTabDirty(tab.id, false);
+    }
+
+    // If this is a snippet file, refresh the snippet store to update autocomplete
+    if (promptFileService.isSnippetFile(filePath)) {
+      await snippetStore.refreshAllSnippets();
     }
   }
 

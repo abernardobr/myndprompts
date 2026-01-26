@@ -498,6 +498,8 @@ export default {
       title: 'Bienvenue sur MyndPrompts',
       description:
         'Regardez ces vidéos tutorielles pour apprendre à tirer le meilleur parti de MyndPrompts.',
+      watchOnYouTube: 'Regarder les Vidéos Tutorielles',
+      clickToOpen: 'Cliquez pour ouvrir sur YouTube',
       dontShowAgain: 'Ne plus afficher au démarrage',
       close: 'Fermer',
     },
@@ -582,6 +584,25 @@ export default {
     revealInSidebar: 'Révéler dans la Barre Latérale',
     insertImage: 'Insérer une Image',
     formatAsImage: 'Formater en Image',
+  },
+
+  // Tab bar
+  tabBar: {
+    close: 'Fermer',
+    closeOthers: 'Fermer les Autres',
+    closeAll: 'Fermer Tout',
+    pinTab: "Épingler l'Onglet",
+    unpinTab: "Désépingler l'Onglet",
+    copyPath: {
+      label: 'Copier le Chemin',
+      absolute: 'Chemin Absolu',
+      filename: 'Nom du Fichier',
+      relative: 'Chemin Relatif',
+      absoluteCopied: 'Chemin absolu copié dans le presse-papiers',
+      filenameCopied: 'Nom du fichier copié dans le presse-papiers',
+      relativeCopied: 'Chemin relatif copié dans le presse-papiers',
+      error: 'Échec de la copie dans le presse-papiers',
+    },
   },
 
   // Status bar
