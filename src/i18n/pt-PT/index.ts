@@ -932,4 +932,81 @@ export default {
     networkError: 'Falha ao ligar ao marketplace de bibliotecas.',
     fetchError: 'Falha ao carregar bibliotecas. Tente novamente.',
   },
+
+  // AI Integration
+  ai: {
+    title: 'Integração com IA',
+    description:
+      'Gerencie os seus modelos de IA. Adicione modelos de diferentes fornecedores e selecione um predefinido para funcionalidades inteligentes.',
+    providers: {
+      anthropic: 'Anthropic (Claude)',
+      openai: 'OpenAI',
+      google: 'Google (Gemini)',
+      groq: 'Groq',
+      ollama: 'Ollama (Local)',
+    },
+    status: {
+      configured: 'Configurado',
+      notConfigured: 'Não configurado',
+    },
+    fields: {
+      apiKey: 'Chave de API',
+      apiKeyPlaceholder: 'Introduza a sua chave de API...',
+      apiKeyMasked: '••••••••••••••••',
+      baseUrl: 'URL Base',
+      baseUrlPlaceholder: 'http://localhost:11434',
+    },
+    actions: {
+      saveKey: 'Guardar Chave',
+      deleteKey: 'Eliminar Chave',
+    },
+    messages: {
+      keySaved: 'Chave de API guardada com segurança',
+      keyDeleted: 'Chave de API eliminada',
+      keySaveError: 'Falha ao guardar chave de API',
+      keyDeleteError: 'Falha ao eliminar chave de API',
+      baseUrlUpdated: 'URL base atualizado',
+      encryptionUnavailable:
+        'Encriptação segura não disponível neste sistema. As chaves serão armazenadas com codificação básica.',
+      deleteKeyConfirm:
+        'Tem a certeza de que pretende eliminar esta chave de API? Esta ação não pode ser desfeita.',
+      noApiKeyRequired:
+        'Nenhuma chave de API necessária. Certifique-se de que o serviço está a executar localmente.',
+      ollamaHint:
+        'Certifique-se de que o Ollama está a executar neste endereço. Predefinição: http://localhost:11434',
+    },
+    wizard: {
+      title: 'Adicionar Modelo',
+      step1Title: 'Selecionar Fornecedor',
+      step1Description: 'Escolha um fornecedor de IA para adicionar um modelo.',
+      step2Title: 'Chave de API',
+      step2Description: 'Configure a autenticação para o fornecedor selecionado.',
+      step3Title: 'Selecionar Modelo',
+      step3Description: 'Escolha um modelo para adicionar à sua lista.',
+      keyAlreadyConfigured: 'Chave de API já configurada',
+      changeKey: 'Alterar Chave',
+      saveAndContinue: 'Guardar e Continuar',
+      fetchingModels: 'A obter modelos disponíveis...',
+      fetchError: 'Falha ao obter modelos. Verifique a sua chave de API e tente novamente.',
+      noModelsFound: 'Nenhum modelo encontrado para este fornecedor.',
+      alreadyAdded: 'Já adicionado',
+      addModel: 'Adicionar',
+      addAnother: 'Adicionar Outro',
+      done: 'Concluído',
+      searchModels: 'Pesquisar modelos...',
+      baseUrlLabel: 'URL Base do Ollama',
+    },
+    models: {
+      title: 'Modelos',
+      empty: 'Nenhum modelo configurado ainda. Clique em "Adicionar Modelo" para começar.',
+      setDefault: 'Definir como Predefinido',
+      remove: 'Remover Modelo',
+      removeConfirm: 'Tem a certeza de que pretende remover este modelo?',
+      default: 'Predefinido',
+      addModel: 'Adicionar Modelo',
+      modelAdded: 'Modelo adicionado com sucesso',
+      modelRemoved: 'Modelo removido',
+      defaultSet: 'Modelo predefinido atualizado',
+    },
+  },
 };

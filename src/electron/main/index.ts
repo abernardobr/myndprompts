@@ -19,6 +19,8 @@ import { getFileIndexerService } from './services/file-indexer.service';
 import { getUpdateService } from './services/update.service';
 import { getExportImportService } from './services/export-import.service';
 import { getStorageMigrationService } from './services/storage-migration.service';
+import { getSecureStorageService } from './services/secure-storage.service';
+import { getAIModelFetcherService } from './services/ai-model-fetcher.service';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
@@ -53,13 +55,13 @@ function createApplicationMenu(): void {
               {
                 label: 'Settings',
                 accelerator: 'Cmd+,',
-                click: () => {
+                click: (): void => {
                   mainWindow?.webContents.send('menu:settings');
                 },
               },
               {
                 label: 'Check for Updates...',
-                click: () => {
+                click: (): void => {
                   mainWindow?.webContents.send('menu:check-for-updates');
                 },
               },
@@ -83,14 +85,14 @@ function createApplicationMenu(): void {
         {
           label: 'New Prompt',
           accelerator: isMac ? 'Cmd+N' : 'Ctrl+N',
-          click: () => {
+          click: (): void => {
             mainWindow?.webContents.send('menu:new-prompt');
           },
         },
         {
           label: 'Open...',
           accelerator: isMac ? 'Cmd+O' : 'Ctrl+O',
-          click: () => {
+          click: (): void => {
             mainWindow?.webContents.send('menu:open');
           },
         },
@@ -98,7 +100,7 @@ function createApplicationMenu(): void {
         {
           label: 'Save',
           accelerator: isMac ? 'Cmd+S' : 'Ctrl+S',
-          click: () => {
+          click: (): void => {
             mainWindow?.webContents.send('menu:save');
           },
         },
@@ -169,27 +171,27 @@ function createApplicationMenu(): void {
       submenu: [
         {
           label: 'Check for Updates...',
-          click: () => {
+          click: (): void => {
             mainWindow?.webContents.send('menu:check-for-updates');
           },
         },
         { type: 'separator' as const },
         {
           label: 'Open Help',
-          click: () => {
+          click: (): void => {
             mainWindow?.webContents.send('menu:help');
           },
         },
         {
           label: 'MyndPrompts Documentation',
-          click: () => {
+          click: (): void => {
             void shell.openExternal('https://github.com/myndprompts/myndprompts');
           },
         },
         { type: 'separator' as const },
         {
           label: 'Report Issue',
-          click: () => {
+          click: (): void => {
             void shell.openExternal('https://github.com/myndprompts/myndprompts/issues');
           },
         },
@@ -517,7 +519,8 @@ ipcMain.handle('fs:get-directory-name', (_event, filePath: string) => {
 ipcMain.handle(
   'fs:list-markdown-files',
   async (_event, dirPath: string, patternString?: string) => {
-    const pattern = patternString ? new RegExp(patternString) : undefined;
+    const pattern =
+      patternString !== undefined && patternString !== '' ? new RegExp(patternString) : undefined;
     return fileSystemService.listMarkdownFiles(dirPath, pattern);
   }
 );
@@ -881,6 +884,42 @@ ipcMain.handle('fs:cleanup-old-storage', async (_event, sourcePath: string) => {
 ipcMain.handle('fs:rollback-migration', async () => {
   const migrationService = getStorageMigrationService(fileSystemService);
   return migrationService.rollbackMigration();
+});
+
+// ================================
+// Secure Storage IPC Handlers (AI API Keys)
+// ================================
+
+ipcMain.handle('secure-storage:save-api-key', (_event, provider: string, key: string): void => {
+  const secureStorage = getSecureStorageService();
+  secureStorage.saveApiKey(provider, key);
+});
+
+ipcMain.handle('secure-storage:get-api-key', (_event, provider: string): string | null => {
+  const secureStorage = getSecureStorageService();
+  return secureStorage.getApiKey(provider);
+});
+
+ipcMain.handle('secure-storage:delete-api-key', (_event, provider: string): boolean => {
+  const secureStorage = getSecureStorageService();
+  return secureStorage.deleteApiKey(provider);
+});
+
+ipcMain.handle('secure-storage:has-api-key', (_event, provider: string): boolean => {
+  const secureStorage = getSecureStorageService();
+  return secureStorage.hasApiKey(provider);
+});
+
+// ================================
+// AI Models IPC Handlers
+// ================================
+
+ipcMain.handle('ai-models:fetch', async (_event, provider: string, baseUrl?: string) => {
+  const fetcher = getAIModelFetcherService();
+  return fetcher.fetchModels(
+    provider as import('../../services/storage/entities').AIProviderType,
+    baseUrl
+  );
 });
 
 // Security: Prevent new window creation

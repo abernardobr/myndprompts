@@ -49,49 +49,12 @@ export class AIProvidersRepository extends BaseRepository<IAIProviderConfig, str
   }
 
   /**
-   * Get all enabled providers
-   */
-  async getEnabledProviders(): Promise<IAIProviderConfig[]> {
-    return this.filter((p) => p.isEnabled);
-  }
-
-  /**
-   * Enable a provider
-   */
-  async enableProvider(provider: AIProviderType): Promise<void> {
-    const config = await this.getByProvider(provider);
-    if (config) {
-      await this.update(config.id, { isEnabled: true });
-    }
-  }
-
-  /**
-   * Disable a provider
-   */
-  async disableProvider(provider: AIProviderType): Promise<void> {
-    const config = await this.getByProvider(provider);
-    if (config) {
-      await this.update(config.id, { isEnabled: false });
-    }
-  }
-
-  /**
    * Set API key presence flag
    */
   async setHasApiKey(provider: AIProviderType, hasKey: boolean): Promise<void> {
     const config = await this.getByProvider(provider);
     if (config) {
       await this.update(config.id, { hasApiKey: hasKey });
-    }
-  }
-
-  /**
-   * Update default model for a provider
-   */
-  async setDefaultModel(provider: AIProviderType, model: string): Promise<void> {
-    const config = await this.getByProvider(provider);
-    if (config) {
-      await this.update(config.id, { defaultModel: model });
     }
   }
 
@@ -106,37 +69,10 @@ export class AIProvidersRepository extends BaseRepository<IAIProviderConfig, str
   }
 
   /**
-   * Record last usage of a provider
-   */
-  async recordUsage(provider: AIProviderType): Promise<void> {
-    const config = await this.getByProvider(provider);
-    if (config) {
-      await this.update(config.id, { lastUsedAt: new Date() });
-    }
-  }
-
-  /**
    * Get providers with API keys configured
    */
   async getConfiguredProviders(): Promise<IAIProviderConfig[]> {
     return this.filter((p) => p.hasApiKey);
-  }
-
-  /**
-   * Get provider configuration summary
-   */
-  async getProvidersSummary(): Promise<{
-    total: number;
-    enabled: number;
-    configured: number;
-  }> {
-    const all = await this.getAll();
-
-    return {
-      total: all.length,
-      enabled: all.filter((p) => p.isEnabled).length,
-      configured: all.filter((p) => p.hasApiKey).length,
-    };
   }
 
   /**

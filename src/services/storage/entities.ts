@@ -10,9 +10,17 @@
  * 6. Sync status tracking
  * 7. Git status tracking
  * 8. AI provider configuration
+ * 9. Chat sessions, messages, and memory snapshots
  *
  * NOTE: Prompts and snippets are stored as files, not in IndexedDB
  */
+
+import type {
+  MemoryStrategy,
+  IMemoryConfig,
+  ITokenUsage,
+  IChatMessageMetadata,
+} from '../chat/types';
 
 /**
  * User authentication state
@@ -149,12 +157,101 @@ export interface IAIProviderConfig {
   provider: AIProviderType;
   hasApiKey: boolean;
   baseUrl?: string;
+  // Legacy fields kept for migration compatibility
   defaultModel?: string;
-  isEnabled: boolean;
+  isEnabled?: boolean;
   lastUsedAt?: Date;
 }
 
-export type AIProviderType = 'anthropic' | 'openai' | 'google' | 'xai' | 'ollama';
+export type AIProviderType = 'anthropic' | 'openai' | 'google' | 'groq' | 'ollama';
+
+/**
+ * A model that the user has added to their configured list
+ */
+export interface IConfiguredModel {
+  id: string;
+  provider: AIProviderType;
+  modelId: string;
+  modelName: string;
+  isDefault: boolean;
+  addedAt: Date;
+}
+
+// ================================
+// Chat Entities
+// ================================
+
+/**
+ * Chat session record
+ */
+export interface IChatSession {
+  id: string;
+  title: string;
+  provider: AIProviderType;
+  modelId: string;
+  memoryStrategy: MemoryStrategy;
+  memoryConfig: IMemoryConfig;
+  createdAt: Date;
+  updatedAt: Date;
+  lastMessageAt: Date;
+  messageCount: number;
+  tokenUsage: ITokenUsage;
+  isArchived: boolean;
+}
+
+/**
+ * Chat message record
+ */
+export interface IChatMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  thinkingContent?: string;
+  parentMessageId?: string;
+  branchIndex: number;
+  tokenUsage?: ITokenUsage;
+  metadata?: IChatMessageMetadata;
+  createdAt: Date;
+}
+
+/**
+ * Serialized memory state snapshot for a session
+ */
+export interface IMemorySnapshot {
+  id: string;
+  sessionId: string;
+  strategy: MemoryStrategy;
+  serializedState: string;
+  createdAt: Date;
+}
+
+/**
+ * PDF document reference attached to a chat session
+ */
+export interface IPDFDocument {
+  id: string;
+  sessionId: string;
+  filePath: string;
+  fileName: string;
+  pageCount: number;
+  addedAt: Date;
+}
+
+/**
+ * PDF annotation within a document
+ */
+export interface IPDFAnnotation {
+  id: string;
+  documentId: string;
+  sessionId: string;
+  pageNumber: number;
+  type: 'highlight' | 'note' | 'bookmark';
+  content?: string;
+  position: { x: number; y: number; width: number; height: number };
+  color?: string;
+  createdAt: Date;
+}
 
 /**
  * Plugin types
@@ -259,32 +356,22 @@ export const DEFAULT_AI_PROVIDERS: Omit<IAIProviderConfig, 'id'>[] = [
   {
     provider: 'anthropic',
     hasApiKey: false,
-    defaultModel: 'claude-sonnet-4-20250514',
-    isEnabled: false,
   },
   {
     provider: 'openai',
     hasApiKey: false,
-    defaultModel: 'gpt-4o',
-    isEnabled: false,
   },
   {
     provider: 'google',
     hasApiKey: false,
-    defaultModel: 'gemini-2.0-flash',
-    isEnabled: false,
   },
   {
-    provider: 'xai',
+    provider: 'groq',
     hasApiKey: false,
-    defaultModel: 'grok-2',
-    isEnabled: false,
   },
   {
     provider: 'ollama',
     hasApiKey: false,
     baseUrl: 'http://localhost:11434',
-    defaultModel: 'llama3.2',
-    isEnabled: false,
   },
 ];

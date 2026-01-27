@@ -924,4 +924,83 @@ export default {
     networkError: 'Verbindung zum Bibliothek-Marketplace fehlgeschlagen.',
     fetchError: 'Bibliotheken konnten nicht geladen werden. Bitte versuchen Sie es erneut.',
   },
+
+  // AI Integration
+  ai: {
+    title: 'KI-Integration',
+    description:
+      'Verwalten Sie Ihre KI-Modelle. Fügen Sie Modelle verschiedener Anbieter hinzu und wählen Sie ein Standardmodell für intelligente Funktionen.',
+    providers: {
+      anthropic: 'Anthropic (Claude)',
+      openai: 'OpenAI',
+      google: 'Google (Gemini)',
+      groq: 'Groq',
+      ollama: 'Ollama (Lokal)',
+    },
+    status: {
+      configured: 'Konfiguriert',
+      notConfigured: 'Nicht konfiguriert',
+    },
+    fields: {
+      apiKey: 'API-Schlüssel',
+      apiKeyPlaceholder: 'API-Schlüssel eingeben...',
+      apiKeyMasked: '••••••••••••••••',
+      baseUrl: 'Basis-URL',
+      baseUrlPlaceholder: 'http://localhost:11434',
+    },
+    actions: {
+      saveKey: 'Schlüssel speichern',
+      deleteKey: 'Schlüssel löschen',
+    },
+    messages: {
+      keySaved: 'API-Schlüssel sicher gespeichert',
+      keyDeleted: 'API-Schlüssel gelöscht',
+      keySaveError: 'Fehler beim Speichern des API-Schlüssels',
+      keyDeleteError: 'Fehler beim Löschen des API-Schlüssels',
+      baseUrlUpdated: 'Basis-URL aktualisiert',
+      encryptionUnavailable:
+        'Sichere Verschlüsselung ist auf diesem System nicht verfügbar. Schlüssel werden mit einfacher Codierung gespeichert.',
+      deleteKeyConfirm:
+        'Sind Sie sicher, dass Sie diesen API-Schlüssel löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.',
+      noApiKeyRequired:
+        'Kein API-Schlüssel erforderlich. Stellen Sie sicher, dass der Dienst lokal läuft.',
+      ollamaHint:
+        'Stellen Sie sicher, dass Ollama unter dieser Adresse läuft. Standard: http://localhost:11434',
+    },
+    wizard: {
+      title: 'Modell hinzufügen',
+      step1Title: 'Anbieter auswählen',
+      step1Description: 'Wählen Sie einen KI-Anbieter, um ein Modell hinzuzufügen.',
+      step2Title: 'API-Schlüssel',
+      step2Description: 'Konfigurieren Sie die Authentifizierung für den ausgewählten Anbieter.',
+      step3Title: 'Modell auswählen',
+      step3Description: 'Wählen Sie ein Modell, das Ihrer Liste hinzugefügt werden soll.',
+      keyAlreadyConfigured: 'API-Schlüssel bereits konfiguriert',
+      changeKey: 'Schlüssel ändern',
+      saveAndContinue: 'Speichern und Fortfahren',
+      fetchingModels: 'Verfügbare Modelle werden abgerufen...',
+      fetchError:
+        'Fehler beim Abrufen der Modelle. Überprüfen Sie Ihren API-Schlüssel und versuchen Sie es erneut.',
+      noModelsFound: 'Keine Modelle für diesen Anbieter gefunden.',
+      alreadyAdded: 'Bereits hinzugefügt',
+      addModel: 'Hinzufügen',
+      addAnother: 'Weiteres hinzufügen',
+      done: 'Fertig',
+      searchModels: 'Modelle suchen...',
+      baseUrlLabel: 'Ollama Basis-URL',
+    },
+    models: {
+      title: 'Modelle',
+      empty:
+        'Noch keine Modelle konfiguriert. Klicken Sie auf "Modell hinzufügen", um zu beginnen.',
+      setDefault: 'Als Standard festlegen',
+      remove: 'Modell entfernen',
+      removeConfirm: 'Sind Sie sicher, dass Sie dieses Modell entfernen möchten?',
+      default: 'Standard',
+      addModel: 'Modell hinzufügen',
+      modelAdded: 'Modell erfolgreich hinzugefügt',
+      modelRemoved: 'Modell entfernt',
+      defaultSet: 'Standardmodell aktualisiert',
+    },
+  },
 };

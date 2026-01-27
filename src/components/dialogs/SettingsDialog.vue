@@ -17,6 +17,7 @@ import { useI18n } from 'vue-i18n';
 import CategoryListEditor from '@/components/settings/CategoryListEditor.vue';
 import FileSyncSection from '@/components/settings/FileSyncSection.vue';
 import StorageSection from '@/components/settings/StorageSection.vue';
+import AIIntegrationSection from '@/components/settings/AIIntegrationSection.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -94,6 +95,11 @@ const categories = computed<ICategory[]>(() => [
     id: 'categories',
     label: t('settingsPanel.promptCategories'),
     icon: 'category',
+  },
+  {
+    id: 'aiIntegration',
+    label: t('ai.title'),
+    icon: 'smart_toy',
   },
   {
     id: 'fileSync',
@@ -408,6 +414,14 @@ watch(isOpen, (open) => {
                     {{ t('settingsPanel.promptCategories') }}
                   </div>
                   <CategoryListEditor />
+                </div>
+              </template>
+
+              <!-- AI Integration -->
+              <template v-if="selectedCategory === 'aiIntegration'">
+                <div class="settings-dialog__section">
+                  <div class="settings-dialog__section-title">{{ t('ai.title') }}</div>
+                  <AIIntegrationSection />
                 </div>
               </template>
 

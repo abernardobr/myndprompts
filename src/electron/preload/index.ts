@@ -281,6 +281,14 @@ export interface MenuAPI {
   onHelp: (callback: () => void) => () => void;
 }
 
+// Secure Storage API
+export interface SecureStorageAPI {
+  saveApiKey: (provider: string, key: string) => Promise<void>;
+  getApiKey: (provider: string) => Promise<string | null>;
+  deleteApiKey: (provider: string) => Promise<boolean>;
+  hasApiKey: (provider: string) => Promise<boolean>;
+}
+
 // Update API
 export interface IUpdateInfo {
   currentVersion: string;
@@ -480,7 +488,7 @@ const fileSystemApi: FileSystemAPI = {
 
   // Events from main process
   onFileChange: (callback) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: IFileWatcherEvent) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: IFileWatcherEvent): void => {
       callback(data);
     };
     ipcRenderer.on('fs:file-change', handler);
@@ -646,36 +654,59 @@ const gitApi: GitAPI = {
 };
 
 const menuApi: MenuAPI = {
-  onSettings: (callback) => {
-    const handler = () => callback();
+  onSettings: (callback): (() => void) => {
+    const handler = (): void => callback();
     ipcRenderer.on('menu:settings', handler);
-    return () => ipcRenderer.removeListener('menu:settings', handler);
+    return (): void => {
+      ipcRenderer.removeListener('menu:settings', handler);
+    };
   },
-  onNewPrompt: (callback) => {
-    const handler = () => callback();
+  onNewPrompt: (callback): (() => void) => {
+    const handler = (): void => callback();
     ipcRenderer.on('menu:new-prompt', handler);
-    return () => ipcRenderer.removeListener('menu:new-prompt', handler);
+    return (): void => {
+      ipcRenderer.removeListener('menu:new-prompt', handler);
+    };
   },
-  onOpen: (callback) => {
-    const handler = () => callback();
+  onOpen: (callback): (() => void) => {
+    const handler = (): void => callback();
     ipcRenderer.on('menu:open', handler);
-    return () => ipcRenderer.removeListener('menu:open', handler);
+    return (): void => {
+      ipcRenderer.removeListener('menu:open', handler);
+    };
   },
-  onSave: (callback) => {
-    const handler = () => callback();
+  onSave: (callback): (() => void) => {
+    const handler = (): void => callback();
     ipcRenderer.on('menu:save', handler);
-    return () => ipcRenderer.removeListener('menu:save', handler);
+    return (): void => {
+      ipcRenderer.removeListener('menu:save', handler);
+    };
   },
-  onCheckForUpdates: (callback) => {
-    const handler = () => callback();
+  onCheckForUpdates: (callback): (() => void) => {
+    const handler = (): void => callback();
     ipcRenderer.on('menu:check-for-updates', handler);
-    return () => ipcRenderer.removeListener('menu:check-for-updates', handler);
+    return (): void => {
+      ipcRenderer.removeListener('menu:check-for-updates', handler);
+    };
   },
-  onHelp: (callback) => {
-    const handler = () => callback();
+  onHelp: (callback): (() => void) => {
+    const handler = (): void => callback();
     ipcRenderer.on('menu:help', handler);
-    return () => ipcRenderer.removeListener('menu:help', handler);
+    return (): void => {
+      ipcRenderer.removeListener('menu:help', handler);
+    };
   },
+};
+
+const secureStorageApi: SecureStorageAPI = {
+  saveApiKey: (provider, key) =>
+    ipcRenderer.invoke('secure-storage:save-api-key', provider, key) as Promise<void>,
+  getApiKey: (provider) =>
+    ipcRenderer.invoke('secure-storage:get-api-key', provider) as Promise<string | null>,
+  deleteApiKey: (provider) =>
+    ipcRenderer.invoke('secure-storage:delete-api-key', provider) as Promise<boolean>,
+  hasApiKey: (provider) =>
+    ipcRenderer.invoke('secure-storage:has-api-key', provider) as Promise<boolean>,
 };
 
 const updateApi: UpdateAPI = {
@@ -686,12 +717,35 @@ const updateApi: UpdateAPI = {
   openDownloadPage: (url) => ipcRenderer.invoke('update:open-download-page', url) as Promise<void>,
 };
 
+// AI Models API
+export interface AIModelsAPI {
+  fetchModels: (
+    provider: string,
+    baseUrl?: string
+  ) => Promise<{
+    success: boolean;
+    models: Array<{ id: string; name: string; provider: string }>;
+    error?: string;
+  }>;
+}
+
+const aiModelsApi: AIModelsAPI = {
+  fetchModels: (provider, baseUrl) =>
+    ipcRenderer.invoke('ai-models:fetch', provider, baseUrl) as Promise<{
+      success: boolean;
+      models: Array<{ id: string; name: string; provider: string }>;
+      error?: string;
+    }>,
+};
+
 contextBridge.exposeInMainWorld('electronAPI', electronApi);
 contextBridge.exposeInMainWorld('fileSystemAPI', fileSystemApi);
 contextBridge.exposeInMainWorld('externalAppsAPI', externalAppsApi);
 contextBridge.exposeInMainWorld('gitAPI', gitApi);
 contextBridge.exposeInMainWorld('menuAPI', menuApi);
 contextBridge.exposeInMainWorld('updateAPI', updateApi);
+contextBridge.exposeInMainWorld('secureStorageAPI', secureStorageApi);
+contextBridge.exposeInMainWorld('aiModelsAPI', aiModelsApi);
 
 // Type augmentation for window object
 declare global {
@@ -702,5 +756,7 @@ declare global {
     gitAPI: GitAPI;
     menuAPI: MenuAPI;
     updateAPI: UpdateAPI;
+    secureStorageAPI: SecureStorageAPI;
+    aiModelsAPI: AIModelsAPI;
   }
 }
