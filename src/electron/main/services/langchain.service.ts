@@ -17,10 +17,11 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatGroq } from '@langchain/groq';
 import { ChatOllama } from '@langchain/ollama';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
+import type { BaseMessage } from '@langchain/core/messages';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { BufferMemory, ConversationSummaryBufferMemory } from 'langchain/memory';
-import { ChatMessageHistory } from 'langchain/stores/message/in_memory';
+import { InMemoryChatMessageHistory } from '@langchain/core/chat_history';
 
+import * as fs from 'fs';
 import { getSecureStorageService } from './secure-storage.service';
 import type { AIProviderType } from '../../../services/storage/entities';
 import type {
@@ -32,6 +33,7 @@ import type {
   IChatInitResult,
   IChatStreamRequest,
   IChatSwitchModelRequest,
+  IContextFile,
 } from '../../../services/chat/types';
 
 // ================================
@@ -40,7 +42,9 @@ import type {
 
 interface ISessionState {
   model: BaseChatModel;
-  memory: BufferMemory | ConversationSummaryBufferMemory;
+  chatHistory: InMemoryChatMessageHistory;
+  memoryStrategy: MemoryStrategy;
+  memoryConfig: IMemoryConfig;
   abortController?: AbortController;
   provider: AIProviderType;
   modelId: string;
@@ -86,11 +90,12 @@ export class LangChainService {
     const config = request.memoryConfig ?? { windowSize: 10 };
 
     const model = this.createModel(request.provider, request.modelId);
-    const memory = this.createMemory(strategy, config, model);
 
     this.sessions.set(sessionId, {
       model,
-      memory,
+      chatHistory: new InMemoryChatMessageHistory(),
+      memoryStrategy: strategy,
+      memoryConfig: config,
       provider: request.provider,
       modelId: request.modelId,
       webContents,
@@ -113,10 +118,11 @@ export class LangChainService {
     // Auto-create session if it doesn't exist yet
     if (session === undefined) {
       const model = this.createModel(request.provider, request.modelId);
-      const memory = this.createMemory(request.memoryStrategy, request.memoryConfig, model);
       session = {
         model,
-        memory,
+        chatHistory: new InMemoryChatMessageHistory(),
+        memoryStrategy: request.memoryStrategy,
+        memoryConfig: request.memoryConfig,
         provider: request.provider,
         modelId: request.modelId,
         webContents,
@@ -139,7 +145,12 @@ export class LangChainService {
 
     try {
       // Build messages array
-      const messages = await this.buildMessages(session, request.message, request.systemPrompt);
+      const messages = await this.buildMessages(
+        session,
+        request.message,
+        request.systemPrompt,
+        request.contextFiles
+      );
 
       console.log(`[LangChain] Streaming message in session ${request.sessionId}`);
 
@@ -194,9 +205,9 @@ export class LangChainService {
         }
       }
 
-      // Save to memory
-      await session.memory.chatHistory.addMessage(new HumanMessage(request.message));
-      await session.memory.chatHistory.addMessage(new AIMessage(fullText));
+      // Save to chat history
+      await session.chatHistory.addMessage(new HumanMessage(request.message));
+      await session.chatHistory.addMessage(new AIMessage(fullText));
 
       const duration = Date.now() - startTime;
       const totalTokens = promptTokens + completionTokens;
@@ -227,13 +238,15 @@ export class LangChainService {
         `[LangChain] Stream completed for session ${request.sessionId} (${totalTokens} tokens, ${duration}ms)`
       );
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown streaming error';
-
       if (abortController.signal.aborted) {
         console.log(`[LangChain] Stream aborted for session ${request.sessionId}`);
-      } else {
-        console.error(`[LangChain] Stream error for session ${request.sessionId}:`, err);
+        return;
       }
+
+      console.error(`[LangChain] Stream error for session ${request.sessionId}:`, err);
+
+      // Extract a user-friendly error message from API errors
+      const errorMessage = this.extractErrorMessage(err);
 
       webContents.send('chat:stream-error', {
         messageId,
@@ -277,28 +290,15 @@ export class LangChainService {
   /**
    * Change the memory strategy for an existing session.
    */
-  async setMemoryStrategy(
-    sessionId: string,
-    strategy: MemoryStrategy,
-    config: IMemoryConfig
-  ): Promise<void> {
+  setMemoryStrategy(sessionId: string, strategy: MemoryStrategy, config: IMemoryConfig): void {
     const session = this.sessions.get(sessionId);
     if (session === undefined) {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    // Retrieve existing messages from current memory
-    const existingMessages = await session.memory.chatHistory.getMessages();
-
-    // Create new memory with the new strategy
-    const newMemory = this.createMemory(strategy, config, session.model);
-
-    // Migrate existing messages to the new memory
-    for (const msg of existingMessages) {
-      await newMemory.chatHistory.addMessage(msg);
-    }
-
-    session.memory = newMemory;
+    // Update strategy and config — chat history is preserved as-is
+    session.memoryStrategy = strategy;
+    session.memoryConfig = config;
 
     console.log(`[LangChain] Changed memory strategy for session ${sessionId} to ${strategy}`);
   }
@@ -345,13 +345,13 @@ export class LangChainService {
       case 'google':
         return new ChatGoogleGenerativeAI({
           apiKey: apiKey ?? undefined,
-          modelName: modelId,
+          model: modelId,
         });
 
       case 'groq':
         return new ChatGroq({
           apiKey: apiKey ?? undefined,
-          modelName: modelId,
+          model: modelId,
         });
 
       case 'ollama':
@@ -366,61 +366,14 @@ export class LangChainService {
   }
 
   /**
-   * Create a memory instance for the given strategy.
-   */
-  private createMemory(
-    strategy: MemoryStrategy,
-    config: IMemoryConfig,
-    model: BaseChatModel
-  ): BufferMemory | ConversationSummaryBufferMemory {
-    const chatHistory = new ChatMessageHistory();
-
-    switch (strategy) {
-      case 'buffer':
-        return new BufferMemory({
-          chatHistory,
-          returnMessages: true,
-        });
-
-      case 'buffer-window':
-        return new BufferMemory({
-          chatHistory,
-          returnMessages: true,
-          // BufferWindowMemory is handled by limiting messages in buildMessages
-        });
-
-      case 'summary':
-      case 'summary-buffer':
-        return new ConversationSummaryBufferMemory({
-          llm: model,
-          chatHistory,
-          returnMessages: true,
-          maxTokenLimit: config.maxTokens ?? 2000,
-        });
-
-      case 'vector':
-        // Vector memory requires additional setup; fall back to buffer-window
-        console.warn('[LangChain] Vector memory not yet implemented, using buffer-window');
-        return new BufferMemory({
-          chatHistory,
-          returnMessages: true,
-        });
-
-      default:
-        return new BufferMemory({
-          chatHistory,
-          returnMessages: true,
-        });
-    }
-  }
-
-  /**
-   * Build the messages array for a model call, applying the memory strategy.
+   * Build the messages array for a model call, applying the memory strategy
+   * to limit context window as needed.
    */
   private async buildMessages(
     session: ISessionState,
     userMessage: string,
-    systemPrompt?: string
+    systemPrompt?: string,
+    contextFiles?: IContextFile[]
   ): Promise<Array<HumanMessage | SystemMessage | AIMessage>> {
     const messages: Array<HumanMessage | SystemMessage | AIMessage> = [];
 
@@ -429,14 +382,87 @@ export class LangChainService {
       messages.push(new SystemMessage(systemPrompt));
     }
 
-    // Get history from memory
-    const historyMessages = await session.memory.chatHistory.getMessages();
+    // Add file context if provided
+    if (contextFiles && contextFiles.length > 0) {
+      const fileContextParts: string[] = [];
+      for (const file of contextFiles) {
+        try {
+          const content = fs.readFileSync(file.filePath, 'utf-8');
+          fileContextParts.push(`--- ${file.fileName} ---\n${content}\n---`);
+        } catch (err) {
+          console.warn(`[LangChain] Failed to read context file: ${file.filePath}`, err);
+        }
+      }
+      if (fileContextParts.length > 0) {
+        messages.push(
+          new SystemMessage(
+            `The user has attached the following files as context:\n\n${fileContextParts.join('\n\n')}`
+          )
+        );
+      }
+    }
+
+    // Get history from chat history store
+    let historyMessages: BaseMessage[] = await session.chatHistory.getMessages();
+
+    // Apply windowing based on memory strategy
+    historyMessages = this.applyMemoryWindow(
+      historyMessages,
+      session.memoryStrategy,
+      session.memoryConfig
+    );
+
     messages.push(...(historyMessages as Array<HumanMessage | AIMessage>));
 
     // Add the current user message
     messages.push(new HumanMessage(userMessage));
 
     return messages;
+  }
+
+  /**
+   * Apply memory windowing strategy to limit the number of history messages.
+   */
+  private applyMemoryWindow(
+    messages: BaseMessage[],
+    strategy: MemoryStrategy,
+    config: IMemoryConfig
+  ): BaseMessage[] {
+    switch (strategy) {
+      case 'buffer':
+        // Full buffer — return all messages
+        return messages;
+
+      case 'buffer-window': {
+        // Keep only the last N message pairs (windowSize * 2 for human+AI pairs)
+        const windowSize = config.windowSize ?? 10;
+        const maxMessages = windowSize * 2;
+        if (messages.length > maxMessages) {
+          return messages.slice(-maxMessages);
+        }
+        return messages;
+      }
+
+      case 'summary':
+      case 'summary-buffer': {
+        // For now, treat like buffer-window with maxTokens as a rough message limit
+        const maxTokens = config.maxTokens ?? 2000;
+        // Rough heuristic: ~4 chars per token, limit message count accordingly
+        const approxMaxMessages = Math.max(4, Math.floor(maxTokens / 100));
+        if (messages.length > approxMaxMessages) {
+          return messages.slice(-approxMaxMessages);
+        }
+        return messages;
+      }
+
+      case 'vector':
+        // Vector memory not yet implemented — fall back to buffer-window
+        console.warn('[LangChain] Vector memory not yet implemented, using buffer-window');
+        return messages.length > 20 ? messages.slice(-20) : messages;
+
+      default:
+        return messages;
+    }
   }
 
   /**
@@ -480,6 +506,33 @@ export class LangChainService {
   private getApiKey(provider: AIProviderType): string | null {
     if (provider === 'ollama') return null; // Ollama doesn't need a key
     return getSecureStorageService().getApiKey(provider);
+  }
+
+  /**
+   * Extract a user-friendly error message from API errors.
+   */
+  private extractErrorMessage(err: unknown): string {
+    if (!(err instanceof Error)) return 'Unknown streaming error';
+
+    // Many LLM SDK errors have a nested error object with a message
+    const errObj = err as Record<string, unknown>;
+    if (errObj.error !== undefined && typeof errObj.error === 'object' && errObj.error !== null) {
+      const nested = errObj.error as Record<string, unknown>;
+      if (nested.error !== undefined && typeof nested.error === 'object' && nested.error !== null) {
+        const innerMsg = (nested.error as Record<string, unknown>).message;
+        if (typeof innerMsg === 'string') return innerMsg;
+      }
+      const nestedMsg = nested.message;
+      if (typeof nestedMsg === 'string') return nestedMsg;
+    }
+
+    // Try status code prefix for context
+    const status = errObj.status;
+    if (typeof status === 'number') {
+      return `API error (${String(status)}): ${err.message}`;
+    }
+
+    return err.message;
   }
 
   static resetInstance(): void {

@@ -717,6 +717,54 @@ const updateApi: UpdateAPI = {
   openDownloadPage: (url) => ipcRenderer.invoke('update:open-download-page', url) as Promise<void>,
 };
 
+// Chat API
+export interface ChatAPI {
+  initSession: (request: {
+    sessionId?: string;
+    provider: string;
+    modelId: string;
+    title?: string;
+    memoryStrategy?: string;
+    memoryConfig?: Record<string, unknown>;
+  }) => Promise<{ sessionId: string; resumed: boolean }>;
+
+  streamMessage: (request: {
+    sessionId: string;
+    message: string;
+    provider: string;
+    modelId: string;
+    memoryStrategy: string;
+    memoryConfig: Record<string, unknown>;
+    parentMessageId?: string;
+    systemPrompt?: string;
+    contextFiles?: Array<{ filePath: string; fileName: string }>;
+  }) => Promise<void>;
+
+  stopStream: (sessionId: string) => Promise<void>;
+
+  switchModel: (request: { sessionId: string; provider: string; modelId: string }) => Promise<void>;
+
+  setMemoryStrategy: (
+    sessionId: string,
+    strategy: string,
+    config: Record<string, unknown>
+  ) => Promise<void>;
+
+  // Streaming event listeners (return cleanup function)
+  onStreamToken: (callback: (data: { token: string; messageId: string }) => void) => () => void;
+  onStreamThinking: (callback: (data: { text: string; messageId: string }) => void) => () => void;
+  onStreamEnd: (
+    callback: (data: {
+      messageId: string;
+      fullText: string;
+      thinkingText?: string;
+      usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+      metadata: Record<string, unknown>;
+    }) => void
+  ) => () => void;
+  onStreamError: (callback: (data: { messageId: string; error: string }) => void) => () => void;
+}
+
 // AI Models API
 export interface AIModelsAPI {
   fetchModels: (
@@ -728,6 +776,74 @@ export interface AIModelsAPI {
     error?: string;
   }>;
 }
+
+const chatApi: ChatAPI = {
+  initSession: (request) =>
+    ipcRenderer.invoke('chat:init-session', request) as Promise<{
+      sessionId: string;
+      resumed: boolean;
+    }>,
+  streamMessage: (request) => ipcRenderer.invoke('chat:stream-message', request) as Promise<void>,
+  stopStream: (sessionId) => ipcRenderer.invoke('chat:stop-stream', sessionId) as Promise<void>,
+  switchModel: (request) => ipcRenderer.invoke('chat:switch-model', request) as Promise<void>,
+  setMemoryStrategy: (sessionId, strategy, config) =>
+    ipcRenderer.invoke('chat:set-memory-strategy', sessionId, strategy, config) as Promise<void>,
+
+  onStreamToken: (callback) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { token: string; messageId: string }
+    ): void => {
+      callback(data);
+    };
+    ipcRenderer.on('chat:stream-token', handler);
+    return () => {
+      ipcRenderer.removeListener('chat:stream-token', handler);
+    };
+  },
+  onStreamThinking: (callback) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { text: string; messageId: string }
+    ): void => {
+      callback(data);
+    };
+    ipcRenderer.on('chat:stream-thinking', handler);
+    return () => {
+      ipcRenderer.removeListener('chat:stream-thinking', handler);
+    };
+  },
+  onStreamEnd: (callback) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: {
+        messageId: string;
+        fullText: string;
+        thinkingText?: string;
+        usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+        metadata: Record<string, unknown>;
+      }
+    ): void => {
+      callback(data);
+    };
+    ipcRenderer.on('chat:stream-end', handler);
+    return () => {
+      ipcRenderer.removeListener('chat:stream-end', handler);
+    };
+  },
+  onStreamError: (callback) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { messageId: string; error: string }
+    ): void => {
+      callback(data);
+    };
+    ipcRenderer.on('chat:stream-error', handler);
+    return () => {
+      ipcRenderer.removeListener('chat:stream-error', handler);
+    };
+  },
+};
 
 const aiModelsApi: AIModelsAPI = {
   fetchModels: (provider, baseUrl) =>
@@ -745,6 +861,7 @@ contextBridge.exposeInMainWorld('gitAPI', gitApi);
 contextBridge.exposeInMainWorld('menuAPI', menuApi);
 contextBridge.exposeInMainWorld('updateAPI', updateApi);
 contextBridge.exposeInMainWorld('secureStorageAPI', secureStorageApi);
+contextBridge.exposeInMainWorld('chatAPI', chatApi);
 contextBridge.exposeInMainWorld('aiModelsAPI', aiModelsApi);
 
 // Type augmentation for window object
@@ -757,6 +874,7 @@ declare global {
     menuAPI: MenuAPI;
     updateAPI: UpdateAPI;
     secureStorageAPI: SecureStorageAPI;
+    chatAPI: ChatAPI;
     aiModelsAPI: AIModelsAPI;
   }
 }

@@ -1,0 +1,228 @@
+/**
+ * Shared Markdown Body Styles
+ *
+ * Use via @mixin markdown-body-styles inside a scoped parent selector.
+ * All rules use :deep() so they penetrate v-html content while staying
+ * scoped to the including component.
+ *
+ * Usage:
+ *   .my-container {
+ *     @include markdown-body-styles;
+ *   }
+ */
+
+@mixin markdown-body-styles {
+  color: var(--md-text-color, #d4d4d4);
+  font-size: 14px;
+  line-height: 1.6;
+  word-wrap: break-word;
+
+  // Headings
+  :deep(h1),
+  :deep(h2),
+  :deep(h3),
+  :deep(h4),
+  :deep(h5),
+  :deep(h6) {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--md-heading-color, #ffffff);
+  }
+
+  :deep(h1) {
+    font-size: 1.6em;
+  }
+
+  :deep(h2) {
+    font-size: 1.4em;
+  }
+
+  :deep(h3) {
+    font-size: 1.2em;
+  }
+
+  :deep(h4) {
+    font-size: 1.1em;
+  }
+
+  :deep(h5) {
+    font-size: 1em;
+  }
+
+  :deep(h6) {
+    font-size: 0.95em;
+    color: var(--md-muted-color, #858585);
+  }
+
+  // Paragraphs
+  :deep(p) {
+    margin-top: 0;
+    margin-bottom: 16px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  // Links
+  :deep(a) {
+    color: var(--md-link-color, #4fc3f7);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  // Lists
+  :deep(ul),
+  :deep(ol) {
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-left: 2em;
+  }
+
+  :deep(li) {
+    margin-bottom: 4px;
+  }
+
+  :deep(li + li) {
+    margin-top: 4px;
+  }
+
+  // Inline code
+  :deep(code) {
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    background-color: var(--md-code-bg, #2d2d2d);
+    border-radius: 4px;
+    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  }
+
+  // Code blocks
+  :deep(pre) {
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    background-color: var(--md-code-block-bg, #1e1e1e);
+    border-radius: 6px;
+    border: 1px solid var(--md-border-color, #3c3c3c);
+
+    code {
+      padding: 0;
+      background-color: transparent;
+      border-radius: 0;
+      font-size: 100%;
+    }
+  }
+
+  // Blockquotes
+  :deep(blockquote) {
+    margin: 0 0 16px 0;
+    padding: 0 1em;
+    color: var(--md-muted-color, #858585);
+    border-left: 4px solid var(--md-border-color, #3c3c3c);
+  }
+
+  // Horizontal rule
+  :deep(hr) {
+    height: 1px;
+    margin: 24px 0;
+    background-color: var(--md-border-color, #3c3c3c);
+    border: none;
+  }
+
+  // Tables
+  :deep(table) {
+    display: block;
+    width: 100%;
+    overflow: auto;
+    margin-bottom: 16px;
+    border-collapse: collapse;
+
+    th,
+    td {
+      padding: 8px 16px;
+      border: 1px solid var(--md-border-color, #3c3c3c);
+    }
+
+    th {
+      font-weight: 600;
+      background-color: var(--md-table-header-bg, #2d2d2d);
+    }
+
+    tr:nth-child(even) {
+      background-color: var(--md-table-row-bg, #252526);
+    }
+  }
+
+  // Images
+  :deep(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 8px 0;
+  }
+
+  // Task lists
+  :deep(.task-list-item) {
+    list-style-type: none;
+    margin-left: -1.5em;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding-left: 0;
+    margin-bottom: 8px;
+  }
+
+  :deep(.task-list-item__text) {
+    flex: 1;
+    line-height: 1.5;
+    padding-top: 1px;
+  }
+
+  :deep(.markdown-checkbox) {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    min-height: 18px;
+    margin-top: 2px;
+    accent-color: var(--md-link-color, #4fc3f7);
+    flex-shrink: 0;
+  }
+
+  :deep(.markdown-checkbox:hover) {
+    transform: scale(1.1);
+  }
+}
+
+// Theme variable presets — include inside a parent selector that
+// sits under .body--light or .body--dark.
+@mixin markdown-body-light-vars {
+  --md-text-color: #24292e;
+  --md-heading-color: #24292e;
+  --md-border-color: #e1e4e8;
+  --md-muted-color: #6a737d;
+  --md-link-color: #0366d6;
+  --md-code-bg: #f6f8fa;
+  --md-code-block-bg: #f6f8fa;
+  --md-table-header-bg: #f6f8fa;
+  --md-table-row-bg: #fafbfc;
+}
+
+@mixin markdown-body-dark-vars {
+  --md-text-color: #d4d4d4;
+  --md-heading-color: #ffffff;
+  --md-border-color: #3c3c3c;
+  --md-muted-color: #858585;
+  --md-link-color: #4fc3f7;
+  --md-code-bg: #2d2d2d;
+  --md-code-block-bg: #1e1e1e;
+  --md-table-header-bg: #2d2d2d;
+  --md-table-row-bg: #252526;
+}

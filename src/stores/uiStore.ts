@@ -25,7 +25,7 @@ export type ActivityView = 'explorer' | 'search' | 'snippets' | 'favorites' | 'g
 /**
  * Panel tab types
  */
-export type PanelTab = 'output' | 'problems' | 'gitChanges' | 'aiChat';
+export type PanelTab = 'aiChat';
 
 /**
  * Theme options
@@ -90,11 +90,12 @@ export const useUIStore = defineStore('ui', () => {
   const sidebarCollapsed = ref(DEFAULT_UI_STATE.sidebarCollapsed);
   const panelHeight = ref(DEFAULT_UI_STATE.panelHeight);
   const panelCollapsed = ref(DEFAULT_UI_STATE.panelCollapsed);
+  const panelMaximized = ref(false);
   const activityBarWidth = ref(48); // Fixed width for activity bar
 
   // Active views
   const activeActivity = ref<ActivityView>('explorer');
-  const activePanel = ref<PanelTab>('output');
+  const activePanel = ref<PanelTab>('aiChat');
 
   // Theme
   const theme = ref<Theme>(DEFAULT_UI_STATE.theme as Theme);
@@ -425,6 +426,10 @@ export const useUIStore = defineStore('ui', () => {
   function setPanelCollapsed(collapsed: boolean): void {
     panelCollapsed.value = collapsed;
     void saveState();
+  }
+
+  function togglePanelMaximized(): void {
+    panelMaximized.value = !panelMaximized.value;
   }
 
   function setActivePanel(panel: PanelTab): void {
@@ -982,6 +987,7 @@ export const useUIStore = defineStore('ui', () => {
     sidebarCollapsed,
     panelHeight,
     panelCollapsed,
+    panelMaximized,
     activityBarWidth,
     activeActivity,
     activePanel,
@@ -1016,6 +1022,7 @@ export const useUIStore = defineStore('ui', () => {
     togglePanel,
     setPanelHeight,
     setPanelCollapsed,
+    togglePanelMaximized,
     setActivePanel,
     openTab,
     closeTab,

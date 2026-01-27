@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 import { useQuasar } from 'quasar';
 import { useAIProviderStore } from '@/stores/aiProviderStore';
 import { AI_PROVIDER_META, AI_PROVIDER_ORDER } from '@/constants/ai-providers';
+import type { MemoryStrategy } from '@/services/chat/types';
 import ConfiguredModelsList from '@/components/settings/ConfiguredModelsList.vue';
 import AddModelWizard from '@/components/dialogs/AddModelDialog.vue';
 
@@ -60,6 +61,39 @@ async function saveApiKey(provider: string): Promise<void> {
     $q.notify({ type: 'negative', message: t('ai.messages.keySaveError') });
   } finally {
     savingKeys.value[provider] = false;
+  }
+}
+
+// Chat defaults – memory strategy options
+interface StrategyOption {
+  label: string;
+  value: MemoryStrategy;
+}
+
+const memoryStrategies: StrategyOption[] = [
+  { value: 'buffer', label: 'chat.memory.buffer' },
+  { value: 'buffer-window', label: 'chat.memory.bufferWindow' },
+  { value: 'summary', label: 'chat.memory.summary' },
+  { value: 'summary-buffer', label: 'chat.memory.summaryBuffer' },
+  { value: 'vector', label: 'chat.memory.vector' },
+];
+
+const showWindowSize = (s: MemoryStrategy) => s === 'buffer-window' || s === 'summary-buffer';
+const showMaxTokens = (s: MemoryStrategy) => s === 'summary' || s === 'summary-buffer';
+
+function onDefaultStrategyChange(value: MemoryStrategy): void {
+  aiStore.updateChatDefaults({ memoryStrategy: value });
+}
+
+function onDefaultWindowSizeChange(value: number | null): void {
+  if (value !== null && value > 0) {
+    aiStore.updateChatDefaults({ windowSize: value });
+  }
+}
+
+function onDefaultMaxTokensChange(value: number | null): void {
+  if (value !== null && value > 0) {
+    aiStore.updateChatDefaults({ maxTokens: value });
   }
 }
 
@@ -123,6 +157,54 @@ function deleteApiKey(provider: string): void {
       </div>
 
       <ConfiguredModelsList />
+
+      <!-- Chat Defaults section -->
+      <div class="ai-integration-section__defaults q-mt-lg">
+        <span class="ai-integration-section__subtitle">{{ t('ai.chatDefaults.title') }}</span>
+        <p class="ai-integration-section__defaults-desc">
+          {{ t('ai.chatDefaults.description') }}
+        </p>
+        <div class="ai-integration-section__defaults-form">
+          <q-select
+            :model-value="aiStore.chatDefaults.memoryStrategy"
+            :options="memoryStrategies"
+            option-value="value"
+            :option-label="(opt: StrategyOption) => t(opt.label)"
+            emit-value
+            map-options
+            dense
+            outlined
+            :label="t('chat.memory.title')"
+            class="ai-integration-section__defaults-select"
+            @update:model-value="onDefaultStrategyChange"
+          />
+          <q-input
+            v-if="showWindowSize(aiStore.chatDefaults.memoryStrategy)"
+            :model-value="aiStore.chatDefaults.windowSize"
+            type="number"
+            dense
+            outlined
+            :min="1"
+            :max="100"
+            :label="t('chat.memory.windowSizeLabel')"
+            class="ai-integration-section__defaults-input"
+            @update:model-value="onDefaultWindowSizeChange"
+          />
+          <q-input
+            v-if="showMaxTokens(aiStore.chatDefaults.memoryStrategy)"
+            :model-value="aiStore.chatDefaults.maxTokens"
+            type="number"
+            dense
+            outlined
+            :min="100"
+            :max="128000"
+            :step="500"
+            :label="t('chat.memory.maxTokensLabel')"
+            class="ai-integration-section__defaults-input"
+            @update:model-value="onDefaultMaxTokensChange"
+          />
+        </div>
+      </div>
 
       <!-- API Keys section (collapsible) -->
       <q-expansion-item
@@ -307,6 +389,35 @@ function deleteApiKey(provider: string): void {
     gap: 6px;
     font-size: 12px;
     color: var(--hint-color, #858585);
+  }
+
+  &__defaults {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__defaults-desc {
+    font-size: 12px;
+    color: var(--desc-color, #999999);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  &__defaults-form {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  &__defaults-select {
+    min-width: 180px;
+    max-width: 220px;
+  }
+
+  &__defaults-input {
+    width: 120px;
   }
 }
 

@@ -51,6 +51,13 @@ function handleActivityClick(activity: ActivityView): void {
 function isActive(activity: ActivityView): boolean {
   return activeActivity.value === activity && !uiStore.sidebarCollapsed;
 }
+
+function handleChatClick(): void {
+  uiStore.setActivePanel('aiChat');
+  if (uiStore.panelCollapsed) {
+    uiStore.setPanelCollapsed(false);
+  }
+}
 </script>
 
 <template>
@@ -104,8 +111,33 @@ function isActive(activity: ActivityView): boolean {
       </q-btn>
     </div>
 
-    <!-- Bottom section with library and settings -->
+    <!-- Bottom section with chat, library and settings -->
     <div class="activity-bar__bottom">
+      <!-- AI Chat button -->
+      <q-btn
+        flat
+        dense
+        square
+        icon="chat"
+        :class="[
+          'activity-bar__item',
+          {
+            'activity-bar__item--active':
+              !uiStore.panelCollapsed && uiStore.activePanel === 'aiChat',
+          },
+        ]"
+        data-testid="activity-chat"
+        @click="handleChatClick"
+      >
+        <q-tooltip
+          anchor="center right"
+          self="center left"
+          :offset="[10, 0]"
+        >
+          AI Chat
+          <span class="text-grey-5 q-ml-sm">Ctrl+Shift+C</span>
+        </q-tooltip>
+      </q-btn>
       <!-- Library button -->
       <q-btn
         flat

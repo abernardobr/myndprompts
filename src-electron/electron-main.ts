@@ -19,6 +19,8 @@ import { getExportImportService } from '../src/electron/main/services/export-imp
 import { getStorageMigrationService } from '../src/electron/main/services/storage-migration.service';
 import { getSecureStorageService } from '../src/electron/main/services/secure-storage.service';
 import { getAIModelFetcherService } from '../src/electron/main/services/ai-model-fetcher.service';
+import { getLangChainService } from '../src/electron/main/services/langchain.service';
+import type { MemoryStrategy, IMemoryConfig } from '../src/services/chat/types';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
@@ -917,3 +919,41 @@ ipcMain.handle('ai-models:fetch', async (_event, provider: string, baseUrl?: str
     baseUrl
   );
 });
+
+// ================================
+// Chat IPC Handlers
+// ================================
+
+ipcMain.handle('chat:init-session', async (event, request) => {
+  const langchain = getLangChainService();
+  const webContents = event.sender;
+  return langchain.initSession(request, webContents);
+});
+
+ipcMain.handle('chat:stream-message', async (event, request) => {
+  const langchain = getLangChainService();
+  const webContents = event.sender;
+  await langchain.streamMessage(request, webContents);
+});
+
+ipcMain.handle('chat:stop-stream', async (_event, sessionId: string) => {
+  const langchain = getLangChainService();
+  langchain.stopStream(sessionId);
+});
+
+ipcMain.handle('chat:switch-model', async (_event, request) => {
+  const langchain = getLangChainService();
+  await langchain.switchModel(request);
+});
+
+ipcMain.handle(
+  'chat:set-memory-strategy',
+  async (_event, sessionId: string, strategy: string, config: unknown) => {
+    const langchain = getLangChainService();
+    await langchain.setMemoryStrategy(
+      sessionId,
+      strategy as MemoryStrategy,
+      config as IMemoryConfig
+    );
+  }
+);

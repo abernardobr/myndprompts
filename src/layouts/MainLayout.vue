@@ -38,6 +38,7 @@ const isMac = computed(() => appStore.isMac);
 // Computed layout values
 const sidebarCollapsed = computed(() => uiStore.sidebarCollapsed);
 const panelCollapsed = computed(() => uiStore.panelCollapsed);
+const panelMaximized = computed(() => uiStore.panelMaximized);
 const panelHeight = computed(() => uiStore.panelHeight);
 const sidebarWidth = computed(() => uiStore.sidebarWidth);
 
@@ -51,6 +52,7 @@ const sidebarSize = computed(() => {
 
 const panelSize = computed(() => {
   if (panelCollapsed.value) return 0;
+  if (panelMaximized.value) return 85;
   // Convert pixel height to percentage
   return Math.min(50, Math.max(15, (panelHeight.value / 600) * 100));
 });
@@ -205,7 +207,7 @@ onUnmounted(() => {
             v-if="!panelCollapsed"
             :size="panelSize"
             :min-size="15"
-            :max-size="50"
+            :max-size="panelMaximized ? 90 : 50"
             class="main-layout__panel-pane"
           >
             <BottomPanel />

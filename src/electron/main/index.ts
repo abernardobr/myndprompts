@@ -21,6 +21,14 @@ import { getExportImportService } from './services/export-import.service';
 import { getStorageMigrationService } from './services/storage-migration.service';
 import { getSecureStorageService } from './services/secure-storage.service';
 import { getAIModelFetcherService } from './services/ai-model-fetcher.service';
+import { getLangChainService } from './services/langchain.service';
+import type {
+  MemoryStrategy,
+  IMemoryConfig,
+  IChatInitRequest,
+  IChatStreamRequest,
+  IChatSwitchModelRequest,
+} from '../../services/chat/types';
 import type {
   IReadFileOptions,
   IWriteFileOptions,
@@ -921,6 +929,40 @@ ipcMain.handle('ai-models:fetch', async (_event, provider: string, baseUrl?: str
     baseUrl
   );
 });
+
+// ================================
+// Chat IPC Handlers
+// ================================
+
+ipcMain.handle('chat:init-session', (event, request: IChatInitRequest) => {
+  const langchain = getLangChainService();
+  const webContents = event.sender;
+  return langchain.initSession(request, webContents);
+});
+
+ipcMain.handle('chat:stream-message', async (event, request: IChatStreamRequest) => {
+  const langchain = getLangChainService();
+  const webContents = event.sender;
+  await langchain.streamMessage(request, webContents);
+});
+
+ipcMain.handle('chat:stop-stream', (_event, sessionId: string) => {
+  const langchain = getLangChainService();
+  langchain.stopStream(sessionId);
+});
+
+ipcMain.handle('chat:switch-model', (_event, request: IChatSwitchModelRequest) => {
+  const langchain = getLangChainService();
+  langchain.switchModel(request);
+});
+
+ipcMain.handle(
+  'chat:set-memory-strategy',
+  (_event, sessionId: string, strategy: string, config: unknown) => {
+    const langchain = getLangChainService();
+    langchain.setMemoryStrategy(sessionId, strategy as MemoryStrategy, config as IMemoryConfig);
+  }
+);
 
 // Security: Prevent new window creation
 app.on('web-contents-created', (_, contents) => {

@@ -58,19 +58,18 @@ export class ChatSessionsRepository extends BaseRepository<IChatSession, string>
    * Get recent non-archived sessions ordered by updatedAt descending
    */
   async getRecentSessions(limit = 50): Promise<IChatSession[]> {
-    return this.table
-      .where('isArchived')
-      .equals(0) // Dexie stores booleans as 0/1
-      .reverse()
-      .sortBy('updatedAt')
-      .then((sessions) => sessions.slice(0, limit));
+    // Note: isArchived is stored as a boolean, which IndexedDB cannot index.
+    // We use orderBy('updatedAt') for sorting and filter in JS instead.
+    const all = await this.table.orderBy('updatedAt').reverse().toArray();
+    return all.filter((s) => !s.isArchived).slice(0, limit);
   }
 
   /**
    * Get archived sessions
    */
   async getArchivedSessions(): Promise<IChatSession[]> {
-    return this.filter((s) => s.isArchived);
+    const all = await this.table.toArray();
+    return all.filter((s) => !!s.isArchived);
   }
 
   /**

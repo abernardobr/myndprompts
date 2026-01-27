@@ -303,17 +303,17 @@ src-electron/
 - [x] Task 2: Add database schema v7 migration with new tables
 - [x] Task 3: Create chat repositories (sessions, messages, memory, PDF)
 - [x] Task 4: Implement LangChainService in Electron main process
-- [ ] Task 5: Add chat IPC handlers and preload ChatAPI bridge
-- [ ] Task 6: Create chat Pinia store
-- [ ] Task 7: Create useStreamingMessage composable
-- [ ] Task 8: Build core chat UI components (container, input, message list)
-- [ ] Task 9: Build message rendering components (streaming text, thinking, artifacts)
-- [ ] Task 10: Build PDF canvas components
-- [ ] Task 11: Build memory strategy UI
-- [ ] Task 12: Integrate chat into main layout
-- [ ] Task 13: Add localization for all 10 locales
-- [ ] Task 14: Install package dependencies
-- [ ] Task 15: Verification and testing
+- [x] Task 5: Add chat IPC handlers and preload ChatAPI bridge
+- [x] Task 6: Create chat Pinia store
+- [x] Task 7: Create useStreamingMessage composable
+- [x] Task 8: Build core chat UI components (container, input, message list)
+- [x] Task 9: Build message rendering components (streaming text, thinking, artifacts)
+- [x] Task 10: Build PDF canvas components
+- [x] Task 11: Build memory strategy UI
+- [x] Task 12: Integrate chat into main layout
+- [x] Task 13: Add localization for all 10 locales
+- [x] Task 14: Install package dependencies
+- [x] Task 15: Verification and testing
 
 ---
 

@@ -90,6 +90,14 @@ export type IStreamEvent =
 // ================================
 
 /**
+ * A file attached as context to a chat message.
+ */
+export interface IContextFile {
+  filePath: string;
+  fileName: string;
+}
+
+/**
  * Request to start streaming a message to an AI model.
  */
 export interface IChatStreamRequest {
@@ -101,6 +109,7 @@ export interface IChatStreamRequest {
   memoryConfig: IMemoryConfig;
   parentMessageId?: string;
   systemPrompt?: string;
+  contextFiles?: IContextFile[];
 }
 
 /**

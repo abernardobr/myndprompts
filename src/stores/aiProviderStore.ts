@@ -15,7 +15,43 @@ import type {
   IConfiguredModel,
   AIProviderType,
 } from '@/services/storage/entities';
+import type { MemoryStrategy, IMemoryConfig } from '@/services/chat/types';
 import { AI_PROVIDER_META, AI_PROVIDER_ORDER } from '@/constants/ai-providers';
+
+// ================================
+// Chat Defaults (persisted in localStorage)
+// ================================
+
+interface IChatDefaults {
+  memoryStrategy: MemoryStrategy;
+  windowSize: number;
+  maxTokens: number;
+}
+
+const CHAT_DEFAULTS_KEY = 'myndprompts:chat-defaults';
+
+const DEFAULT_CHAT_DEFAULTS: IChatDefaults = {
+  memoryStrategy: 'buffer-window',
+  windowSize: 10,
+  maxTokens: 2000,
+};
+
+function loadChatDefaults(): IChatDefaults {
+  try {
+    const raw = localStorage.getItem(CHAT_DEFAULTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<IChatDefaults>;
+      return { ...DEFAULT_CHAT_DEFAULTS, ...parsed };
+    }
+  } catch {
+    // ignore
+  }
+  return { ...DEFAULT_CHAT_DEFAULTS };
+}
+
+function persistChatDefaults(defaults: IChatDefaults): void {
+  localStorage.setItem(CHAT_DEFAULTS_KEY, JSON.stringify(defaults));
+}
 
 export const useAIProviderStore = defineStore('aiProviders', () => {
   const providerRepo = getAIProvidersRepository();
@@ -27,6 +63,7 @@ export const useAIProviderStore = defineStore('aiProviders', () => {
 
   const providers = ref<IAIProviderConfig[]>([]);
   const configuredModels = ref<IConfiguredModel[]>([]);
+  const chatDefaults = ref<IChatDefaults>(loadChatDefaults());
   const isInitialized = ref(false);
   const isLoading = ref(false);
 
@@ -164,10 +201,34 @@ export const useAIProviderStore = defineStore('aiProviders', () => {
     return modelRepo.modelExists(provider, modelId);
   }
 
+  /**
+   * Update chat defaults (memory strategy, window size, max tokens).
+   */
+  function updateChatDefaults(updates: Partial<IChatDefaults>): void {
+    chatDefaults.value = { ...chatDefaults.value, ...updates };
+    persistChatDefaults(chatDefaults.value);
+  }
+
+  /**
+   * Build an IMemoryConfig from chat defaults.
+   */
+  function getDefaultMemoryConfig(): IMemoryConfig {
+    const d = chatDefaults.value;
+    const config: IMemoryConfig = {};
+    if (d.memoryStrategy === 'buffer-window' || d.memoryStrategy === 'summary-buffer') {
+      config.windowSize = d.windowSize;
+    }
+    if (d.memoryStrategy === 'summary' || d.memoryStrategy === 'summary-buffer') {
+      config.maxTokens = d.maxTokens;
+    }
+    return config;
+  }
+
   return {
     // State
     providers,
     configuredModels,
+    chatDefaults,
     isInitialized,
     isLoading,
 
@@ -192,5 +253,7 @@ export const useAIProviderStore = defineStore('aiProviders', () => {
     removeModel,
     setDefaultModel,
     modelExists,
+    updateChatDefaults,
+    getDefaultMemoryConfig,
   };
 });

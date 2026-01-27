@@ -9,12 +9,14 @@
 import { computed } from 'vue';
 import { useUIStore, type PanelTab } from '@/stores/uiStore';
 import { useI18n } from 'vue-i18n';
+import ChatContainer from '@/components/chat/ChatContainer.vue';
 
 const { t: _t } = useI18n({ useScope: 'global' });
 const uiStore = useUIStore();
 
 const activePanel = computed(() => uiStore.activePanel);
 const panelCollapsed = computed(() => uiStore.panelCollapsed);
+const panelMaximized = computed(() => uiStore.panelMaximized);
 
 interface PanelTabItem {
   id: PanelTab;
@@ -23,28 +25,18 @@ interface PanelTabItem {
   badge?: number;
 }
 
-const panelTabs: PanelTabItem[] = [
-  { id: 'output', label: 'Output', icon: 'terminal' },
-  { id: 'problems', label: 'Problems', icon: 'error_outline', badge: 0 },
-  { id: 'gitChanges', label: 'Git Changes', icon: 'git' },
-  { id: 'aiChat', label: 'AI Chat', icon: 'smart_toy' },
-];
+const panelTabs: PanelTabItem[] = [{ id: 'aiChat', label: 'AI Chat', icon: 'smart_toy' }];
 
 function selectTab(tabId: PanelTab): void {
   uiStore.setActivePanel(tabId);
-}
-
-function _togglePanel(): void {
-  uiStore.togglePanel();
 }
 
 function closePanel(): void {
   uiStore.setPanelCollapsed(true);
 }
 
-function _maximizePanel(): void {
-  // Placeholder for maximize functionality
-  // console.log('Maximize panel');
+function toggleMaximize(): void {
+  uiStore.togglePanelMaximized();
 }
 </script>
 
@@ -84,10 +76,10 @@ function _maximizePanel(): void {
           dense
           round
           size="sm"
-          icon="open_in_full"
-          @click="maximizePanel"
+          :icon="panelMaximized ? 'close_fullscreen' : 'open_in_full'"
+          @click="toggleMaximize"
         >
-          <q-tooltip>Maximize Panel</q-tooltip>
+          <q-tooltip>{{ panelMaximized ? 'Restore Panel' : 'Maximize Panel' }}</q-tooltip>
         </q-btn>
         <q-btn
           flat
@@ -105,64 +97,12 @@ function _maximizePanel(): void {
 
     <!-- Panel content -->
     <div class="bottom-panel__content">
-      <!-- Output tab -->
-      <div
-        v-if="activePanel === 'output'"
-        class="bottom-panel__pane"
-      >
-        <div class="bottom-panel__empty">
-          <q-icon
-            name="terminal"
-            size="32px"
-            class="text-grey-6 q-mb-sm"
-          />
-          <p class="text-grey-6 text-caption">No output to display</p>
-        </div>
-      </div>
-
-      <!-- Problems tab -->
-      <div
-        v-else-if="activePanel === 'problems'"
-        class="bottom-panel__pane"
-      >
-        <div class="bottom-panel__empty">
-          <q-icon
-            name="check_circle"
-            size="32px"
-            class="text-green q-mb-sm"
-          />
-          <p class="text-grey-6 text-caption">No problems detected</p>
-        </div>
-      </div>
-
-      <!-- Git Changes tab -->
-      <div
-        v-else-if="activePanel === 'gitChanges'"
-        class="bottom-panel__pane"
-      >
-        <div class="bottom-panel__empty">
-          <q-icon
-            name="git"
-            size="32px"
-            class="text-grey-6 q-mb-sm"
-          />
-          <p class="text-grey-6 text-caption">Git integration coming soon</p>
-        </div>
-      </div>
-
       <!-- AI Chat tab -->
       <div
-        v-else-if="activePanel === 'aiChat'"
+        v-if="activePanel === 'aiChat'"
         class="bottom-panel__pane"
       >
-        <div class="bottom-panel__empty">
-          <q-icon
-            name="smart_toy"
-            size="32px"
-            class="text-grey-6 q-mb-sm"
-          />
-          <p class="text-grey-6 text-caption">AI Chat will be available in Task 12</p>
-        </div>
+        <ChatContainer />
       </div>
     </div>
   </div>
