@@ -612,6 +612,12 @@ export default {
         'Sei sicuro di voler rimuovere Git da questo progetto? Questo eliminerà la cartella .git e tutta la cronologia dei commit. Questa azione non può essere annullata.',
       gitRemoved: 'Repository Git rimosso con successo',
       gitRemoveFailed: 'Impossibile rimuovere il repository Git',
+      discardChanges: 'Annulla modifiche',
+      discardChangesTitle: 'Annullare le modifiche?',
+      discardChangesMessage: 'Sei sicuro di voler annullare le modifiche a:',
+      discardChangesWarning:
+        'Questo ripristinerà il file al suo ultimo stato committato. Questa azione non può essere annullata.',
+      restoreFile: 'Ripristina file',
     },
     branch: {
       title: 'Branch',

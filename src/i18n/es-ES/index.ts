@@ -619,6 +619,12 @@ export default {
         '¿Estás seguro de que deseas eliminar Git de este proyecto? Esto eliminará la carpeta .git y todo el historial de commits. Esta acción no se puede deshacer.',
       gitRemoved: 'Repositorio Git eliminado con éxito',
       gitRemoveFailed: 'Error al eliminar el repositorio Git',
+      discardChanges: 'Descartar cambios',
+      discardChangesTitle: '¿Descartar cambios?',
+      discardChangesMessage: '¿Estás seguro de que deseas descartar los cambios en:',
+      discardChangesWarning:
+        'Esto revertirá el archivo a su último estado confirmado. Esta acción no se puede deshacer.',
+      restoreFile: 'Restaurar archivo',
     },
     branch: {
       title: 'Ramas',

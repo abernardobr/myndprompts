@@ -620,6 +620,12 @@ export default {
         'Tem a certeza de que deseja remover o Git deste projeto? Isto irá eliminar a pasta .git e todo o histórico de commits. Esta ação não pode ser desfeita.',
       gitRemoved: 'Repositório Git removido com sucesso',
       gitRemoveFailed: 'Falha ao remover repositório Git',
+      discardChanges: 'Descartar alterações',
+      discardChangesTitle: 'Descartar alterações?',
+      discardChangesMessage: 'Tem a certeza de que deseja descartar as alterações em:',
+      discardChangesWarning:
+        'Isto irá reverter o ficheiro para o seu último estado confirmado. Esta ação não pode ser desfeita.',
+      restoreFile: 'Restaurar ficheiro',
     },
     branch: {
       title: 'Branches',

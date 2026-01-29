@@ -612,6 +612,12 @@ export default {
         "Êtes-vous sûr de vouloir supprimer Git de ce projet ? Cela supprimera le dossier .git et tout l'historique des commits. Cette action est irréversible.",
       gitRemoved: 'Dépôt Git supprimé avec succès',
       gitRemoveFailed: 'Échec de la suppression du dépôt Git',
+      discardChanges: 'Annuler les modifications',
+      discardChangesTitle: 'Annuler les modifications ?',
+      discardChangesMessage: 'Êtes-vous sûr de vouloir annuler les modifications de :',
+      discardChangesWarning:
+        'Cela rétablira le fichier à son dernier état validé. Cette action est irréversible.',
+      restoreFile: 'Restaurer le fichier',
     },
     branch: {
       title: 'Branches',

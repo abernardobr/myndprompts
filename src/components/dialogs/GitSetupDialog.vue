@@ -117,6 +117,50 @@ function toggleAllFiles(): void {
   }
 }
 
+// Discard changes state
+const fileToDiscard = ref<string | null>(null);
+const showDiscardConfirm = ref(false);
+const isDiscarding = ref(false);
+
+// Show discard confirmation
+function confirmDiscardChanges(filePath: string, event: Event): void {
+  event.stopPropagation();
+  fileToDiscard.value = filePath;
+  showDiscardConfirm.value = true;
+}
+
+// Discard changes for a file
+async function discardFileChanges(): Promise<void> {
+  if (fileToDiscard.value === null) return;
+
+  isDiscarding.value = true;
+  try {
+    const success = await gitStore.discardChanges(fileToDiscard.value);
+    if (success) {
+      $q.notify({
+        type: 'positive',
+        message: 'Changes discarded',
+        position: 'top',
+        timeout: 2000,
+      });
+      // Remove from selection if it was selected
+      selectedFiles.value.delete(fileToDiscard.value);
+      selectedFiles.value = new Set(selectedFiles.value);
+    } else {
+      $q.notify({
+        type: 'negative',
+        message: gitStore.error ?? 'Failed to discard changes',
+        position: 'top',
+        timeout: 3000,
+      });
+    }
+  } finally {
+    isDiscarding.value = false;
+    showDiscardConfirm.value = false;
+    fileToDiscard.value = null;
+  }
+}
+
 // Select all files when status changes
 watch(
   () => [
@@ -1047,6 +1091,18 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                               getDirname(joinPath(gitStore.repoPath || '', file.filePath))
                             }}</span>
                           </div>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            size="sm"
+                            icon="mdi-undo"
+                            color="grey"
+                            class="git-setup-dialog__discard-btn"
+                            @click="confirmDiscardChanges(file.filePath, $event)"
+                          >
+                            <q-tooltip>{{ t('dialogs.gitSetup.discardChanges') }}</q-tooltip>
+                          </q-btn>
                         </div>
                       </div>
                     </template>
@@ -1089,6 +1145,18 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                               getDirname(joinPath(gitStore.repoPath || '', file.filePath))
                             }}</span>
                           </div>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            size="sm"
+                            icon="mdi-undo"
+                            color="grey"
+                            class="git-setup-dialog__discard-btn"
+                            @click="confirmDiscardChanges(file.filePath, $event)"
+                          >
+                            <q-tooltip>{{ t('dialogs.gitSetup.discardChanges') }}</q-tooltip>
+                          </q-btn>
                         </div>
                       </div>
                     </template>
@@ -1131,6 +1199,18 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                               getDirname(joinPath(gitStore.repoPath || '', file.filePath))
                             }}</span>
                           </div>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            size="sm"
+                            icon="mdi-undo"
+                            color="grey"
+                            class="git-setup-dialog__discard-btn"
+                            @click="confirmDiscardChanges(file.filePath, $event)"
+                          >
+                            <q-tooltip>{{ t('dialogs.gitSetup.restoreFile') }}</q-tooltip>
+                          </q-btn>
                         </div>
                       </div>
                     </template>
@@ -1400,6 +1480,36 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
         </div>
       </q-card-section>
     </q-card>
+
+    <!-- Discard changes confirmation dialog -->
+    <q-dialog v-model="showDiscardConfirm">
+      <q-card style="min-width: 350px">
+        <q-card-section>
+          <div class="text-h6">{{ t('dialogs.gitSetup.discardChangesTitle') }}</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <p>{{ t('dialogs.gitSetup.discardChangesMessage') }}</p>
+          <p class="text-weight-medium">{{ fileToDiscard ? getBasename(fileToDiscard) : '' }}</p>
+          <p class="text-caption text-grey">{{ t('dialogs.gitSetup.discardChangesWarning') }}</p>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn
+            v-close-popup
+            flat
+            :label="t('common.cancel')"
+          />
+          <q-btn
+            flat
+            color="negative"
+            :label="t('dialogs.gitSetup.discardChanges')"
+            :loading="isDiscarding"
+            @click="discardFileChanges"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-dialog>
 </template>
 
@@ -1540,7 +1650,18 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
 
     &:hover {
       background: var(--file-hover-bg, rgba(0, 0, 0, 0.04));
+
+      .git-setup-dialog__discard-btn {
+        opacity: 1;
+      }
     }
+  }
+
+  &__discard-btn {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    margin-top: -4px;
+    margin-left: auto;
   }
 
   &__file-info {

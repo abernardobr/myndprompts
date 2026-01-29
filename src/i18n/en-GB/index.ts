@@ -630,6 +630,12 @@ export default {
         'Are you sure you want to remove Git from this project? This will delete the .git folder and all commit history. This action cannot be undone.',
       gitRemoved: 'Git repository removed successfully',
       gitRemoveFailed: 'Failed to remove Git repository',
+      discardChanges: 'Discard changes',
+      discardChangesTitle: 'Discard changes?',
+      discardChangesMessage: 'Are you sure you want to discard changes to:',
+      discardChangesWarning:
+        'This will revert the file to its last committed state. This action cannot be undone.',
+      restoreFile: 'Restore file',
     },
     branch: {
       title: 'Branches',

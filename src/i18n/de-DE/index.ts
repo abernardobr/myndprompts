@@ -612,6 +612,12 @@ export default {
         'Sind Sie sicher, dass Sie Git aus diesem Projekt entfernen möchten? Dadurch wird der .git-Ordner und die gesamte Commit-Historie gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.',
       gitRemoved: 'Git-Repository erfolgreich entfernt',
       gitRemoveFailed: 'Fehler beim Entfernen des Git-Repositories',
+      discardChanges: 'Änderungen verwerfen',
+      discardChangesTitle: 'Änderungen verwerfen?',
+      discardChangesMessage: 'Sind Sie sicher, dass Sie die Änderungen verwerfen möchten an:',
+      discardChangesWarning:
+        'Dadurch wird die Datei auf ihren letzten commiteten Zustand zurückgesetzt. Diese Aktion kann nicht rückgängig gemacht werden.',
+      restoreFile: 'Datei wiederherstellen',
     },
     branch: {
       title: 'Branches',
