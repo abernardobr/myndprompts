@@ -114,6 +114,16 @@ async function doCommit(): Promise<void> {
   if (!commitMessage.value.trim() || !hasStagedChanges.value) return;
 
   isCommitting.value = true;
+
+  // Refresh status before committing to ensure we have the latest state
+  await gitStore.refreshStatus();
+
+  // Check again after refresh in case status changed
+  if (!hasStagedChanges.value) {
+    isCommitting.value = false;
+    return;
+  }
+
   const success = await gitStore.commit(commitMessage.value.trim());
   if (success) {
     commitMessage.value = '';
@@ -149,10 +159,12 @@ function toggleSection(section: 'staged' | 'changes' | 'untracked'): void {
   expandedSections.value[section] = !expandedSections.value[section];
 }
 
-// Initialize Git store when mounted
+// Refresh Git status when panel is mounted
 onMounted(async () => {
-  // GitPanel doesn't initialize git by itself - projects have their own git status
-  // The gitStore is initialized per-project when needed
+  // Refresh status when opening the git panel to ensure latest state
+  if (gitStore.isRepo) {
+    await gitStore.refreshStatus();
+  }
 });
 
 // Watch for app initialization - not needed as git is initialized per-project

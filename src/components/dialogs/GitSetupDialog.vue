@@ -10,6 +10,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useQuasar } from 'quasar';
 import { useGitStore } from '@/stores/gitStore';
+import { getBasename, getDirname, joinPath } from '@/utils/path.utils';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -70,6 +71,67 @@ const untrackedCount = ref(0);
 const aheadCount = ref(0);
 const behindCount = ref(0);
 
+// File selection for commit
+const selectedFiles = ref<Set<string>>(new Set());
+
+// Get all uncommitted files
+const allUncommittedFiles = computed(() => {
+  const files: string[] = [];
+  gitStore.stagedFiles.forEach((f) => files.push(f.filePath));
+  gitStore.modifiedFiles.forEach((f) => files.push(f.filePath));
+  gitStore.deletedFiles.forEach((f) => files.push(f.filePath));
+  gitStore.untrackedFiles.forEach((f) => files.push(f.filePath));
+  return files;
+});
+
+// Check if all files are selected
+const allFilesSelected = computed(() => {
+  return (
+    allUncommittedFiles.value.length > 0 &&
+    allUncommittedFiles.value.every((f) => selectedFiles.value.has(f))
+  );
+});
+
+// Check if some files are selected
+const someFilesSelected = computed(() => {
+  return selectedFiles.value.size > 0 && !allFilesSelected.value;
+});
+
+// Toggle file selection
+function toggleFileSelection(filePath: string): void {
+  if (selectedFiles.value.has(filePath)) {
+    selectedFiles.value.delete(filePath);
+  } else {
+    selectedFiles.value.add(filePath);
+  }
+  // Trigger reactivity
+  selectedFiles.value = new Set(selectedFiles.value);
+}
+
+// Toggle all files selection
+function toggleAllFiles(): void {
+  if (allFilesSelected.value) {
+    selectedFiles.value = new Set();
+  } else {
+    selectedFiles.value = new Set(allUncommittedFiles.value);
+  }
+}
+
+// Select all files when status changes
+watch(
+  () => [
+    gitStore.stagedFiles,
+    gitStore.modifiedFiles,
+    gitStore.deletedFiles,
+    gitStore.untrackedFiles,
+  ],
+  () => {
+    // Auto-select all files
+    selectedFiles.value = new Set(allUncommittedFiles.value);
+  },
+  { deep: true }
+);
+
 // Check Git status when dialog opens
 watch(
   () => props.modelValue,
@@ -95,6 +157,9 @@ async function checkGitStatus(): Promise<void> {
   try {
     // Initialize Git store for this path
     await gitStore.initialize(props.projectPath);
+
+    // Always refresh status to get the latest state
+    await gitStore.refreshStatus();
 
     isGitRepo.value = gitStore.isRepo;
     currentBranch.value = gitStore.currentBranch;
@@ -354,11 +419,25 @@ async function commitAll(): Promise<void> {
     return;
   }
 
+  if (selectedFiles.value.size === 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'Please select at least one file to commit',
+      position: 'top',
+      timeout: 3000,
+    });
+    return;
+  }
+
   isCommitting.value = true;
 
   try {
-    // Stage all changes
-    await gitStore.stageFiles('all');
+    // Refresh status before committing to ensure we have the latest state
+    await gitStore.refreshStatus();
+
+    // Stage only selected files
+    const filesToStage = Array.from(selectedFiles.value);
+    await gitStore.stageFiles(filesToStage);
 
     // Commit
     const success = await gitStore.commit(commitMessage.value);
@@ -869,7 +948,9 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
 
             <!-- Commit panel -->
             <q-tab-panel name="commit">
-              <div class="git-setup-dialog__panel-content">
+              <div
+                class="git-setup-dialog__panel-content git-setup-dialog__panel-content--scrollable"
+              >
                 <div
                   v-if="!hasUncommittedChanges"
                   class="git-setup-dialog__no-changes"
@@ -896,19 +977,206 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
                     type="textarea"
                     :label="t('gitPanel.commitMessage')"
                     :placeholder="t('gitPanel.commitPlaceholder')"
-                    :rows="4"
-                    autogrow
+                    :rows="3"
                     class="q-mb-md"
                   />
 
                   <q-btn
                     color="primary"
                     icon="mdi-source-commit"
-                    :label="t('gitPanel.commit')"
+                    :label="`${t('gitPanel.commit')} (${selectedFiles.size})`"
                     :loading="isCommitting"
-                    :disable="!commitMessage.trim()"
+                    :disable="!commitMessage.trim() || selectedFiles.size === 0"
+                    class="q-mb-md"
                     @click="commitAll"
                   />
+
+                  <!-- Changed files list -->
+                  <div class="git-setup-dialog__files-list">
+                    <!-- Select All header -->
+                    <div
+                      v-if="allUncommittedFiles.length > 0"
+                      class="git-setup-dialog__select-all"
+                    >
+                      <q-checkbox
+                        :model-value="allFilesSelected"
+                        :indeterminate="someFilesSelected"
+                        dense
+                        @update:model-value="toggleAllFiles"
+                      />
+                      <span class="git-setup-dialog__select-all-label">
+                        {{ allFilesSelected ? 'Deselect all' : 'Select all' }}
+                        ({{ selectedFiles.size }}/{{ allUncommittedFiles.length }})
+                      </span>
+                    </div>
+                    <!-- Staged files -->
+                    <template v-if="gitStore.stagedFiles.length > 0">
+                      <div class="git-setup-dialog__files-section">
+                        <div class="git-setup-dialog__files-header text-positive">
+                          <q-icon
+                            name="mdi-plus-circle"
+                            size="16px"
+                          />
+                          <span>Staged ({{ gitStore.stagedFiles.length }})</span>
+                        </div>
+                        <div
+                          v-for="file in gitStore.stagedFiles"
+                          :key="'staged-' + file.filePath"
+                          class="git-setup-dialog__file-item"
+                          @click="toggleFileSelection(file.filePath)"
+                        >
+                          <q-checkbox
+                            :model-value="selectedFiles.has(file.filePath)"
+                            dense
+                            @click.stop
+                            @update:model-value="toggleFileSelection(file.filePath)"
+                          />
+                          <q-icon
+                            name="mdi-file-document-outline"
+                            size="14px"
+                            color="positive"
+                          />
+                          <div
+                            class="git-setup-dialog__file-info"
+                            :title="file.filePath"
+                          >
+                            <span class="git-setup-dialog__file-name">{{
+                              getBasename(file.filePath)
+                            }}</span>
+                            <span class="git-setup-dialog__file-dir">{{
+                              getDirname(joinPath(gitStore.repoPath || '', file.filePath))
+                            }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+
+                    <!-- Modified files -->
+                    <template v-if="gitStore.modifiedFiles.length > 0">
+                      <div class="git-setup-dialog__files-section">
+                        <div class="git-setup-dialog__files-header text-warning">
+                          <q-icon
+                            name="mdi-pencil"
+                            size="16px"
+                          />
+                          <span>Modified ({{ gitStore.modifiedFiles.length }})</span>
+                        </div>
+                        <div
+                          v-for="file in gitStore.modifiedFiles"
+                          :key="'modified-' + file.filePath"
+                          class="git-setup-dialog__file-item"
+                          @click="toggleFileSelection(file.filePath)"
+                        >
+                          <q-checkbox
+                            :model-value="selectedFiles.has(file.filePath)"
+                            dense
+                            @click.stop
+                            @update:model-value="toggleFileSelection(file.filePath)"
+                          />
+                          <q-icon
+                            name="mdi-file-document-edit-outline"
+                            size="14px"
+                            color="warning"
+                          />
+                          <div
+                            class="git-setup-dialog__file-info"
+                            :title="file.filePath"
+                          >
+                            <span class="git-setup-dialog__file-name">{{
+                              getBasename(file.filePath)
+                            }}</span>
+                            <span class="git-setup-dialog__file-dir">{{
+                              getDirname(joinPath(gitStore.repoPath || '', file.filePath))
+                            }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+
+                    <!-- Deleted files -->
+                    <template v-if="gitStore.deletedFiles.length > 0">
+                      <div class="git-setup-dialog__files-section">
+                        <div class="git-setup-dialog__files-header text-negative">
+                          <q-icon
+                            name="mdi-delete"
+                            size="16px"
+                          />
+                          <span>Deleted ({{ gitStore.deletedFiles.length }})</span>
+                        </div>
+                        <div
+                          v-for="file in gitStore.deletedFiles"
+                          :key="'deleted-' + file.filePath"
+                          class="git-setup-dialog__file-item"
+                          @click="toggleFileSelection(file.filePath)"
+                        >
+                          <q-checkbox
+                            :model-value="selectedFiles.has(file.filePath)"
+                            dense
+                            @click.stop
+                            @update:model-value="toggleFileSelection(file.filePath)"
+                          />
+                          <q-icon
+                            name="mdi-file-remove-outline"
+                            size="14px"
+                            color="negative"
+                          />
+                          <div
+                            class="git-setup-dialog__file-info"
+                            :title="file.filePath"
+                          >
+                            <span class="git-setup-dialog__file-name">{{
+                              getBasename(file.filePath)
+                            }}</span>
+                            <span class="git-setup-dialog__file-dir">{{
+                              getDirname(joinPath(gitStore.repoPath || '', file.filePath))
+                            }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+
+                    <!-- Untracked files -->
+                    <template v-if="gitStore.untrackedFiles.length > 0">
+                      <div class="git-setup-dialog__files-section">
+                        <div class="git-setup-dialog__files-header text-grey">
+                          <q-icon
+                            name="mdi-file-question-outline"
+                            size="16px"
+                          />
+                          <span>Untracked ({{ gitStore.untrackedFiles.length }})</span>
+                        </div>
+                        <div
+                          v-for="file in gitStore.untrackedFiles"
+                          :key="'untracked-' + file.filePath"
+                          class="git-setup-dialog__file-item"
+                          @click="toggleFileSelection(file.filePath)"
+                        >
+                          <q-checkbox
+                            :model-value="selectedFiles.has(file.filePath)"
+                            dense
+                            @click.stop
+                            @update:model-value="toggleFileSelection(file.filePath)"
+                          />
+                          <q-icon
+                            name="mdi-file-outline"
+                            size="14px"
+                            color="grey"
+                          />
+                          <div
+                            class="git-setup-dialog__file-info"
+                            :title="file.filePath"
+                          >
+                            <span class="git-setup-dialog__file-name">{{
+                              getBasename(file.filePath)
+                            }}</span>
+                            <span class="git-setup-dialog__file-dir">{{
+                              getDirname(joinPath(gitStore.repoPath || '', file.filePath))
+                            }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
                 </div>
               </div>
             </q-tab-panel>
@@ -1206,6 +1474,104 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
 
   &__panel-content {
     padding: 16px;
+
+    &--scrollable {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  }
+
+  &__files-list {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+    border-radius: 4px;
+    background: var(--files-list-bg, rgba(0, 0, 0, 0.02));
+  }
+
+  &__select-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+    background: var(--select-all-bg, rgba(0, 0, 0, 0.03));
+  }
+
+  &__select-all-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--select-all-color, #555);
+  }
+
+  &__files-section {
+    padding: 8px 0;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    }
+  }
+
+  &__files-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  &__file-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+
+    .q-checkbox {
+      margin-top: -2px;
+    }
+
+    .q-icon {
+      margin-top: 2px;
+    }
+
+    &:hover {
+      background: var(--file-hover-bg, rgba(0, 0, 0, 0.04));
+    }
+  }
+
+  &__file-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  &__file-dir {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--file-dir-color, #777);
+  }
+
+  &__file-path {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--file-path-color, #666);
   }
 
   &__quick-actions {
@@ -1277,11 +1643,25 @@ const totalChanges = computed(() => stagedCount.value + unstagedCount.value + un
   --changes-bg: rgba(255, 152, 0, 0.15);
   --remote-bg: rgba(255, 255, 255, 0.05);
   --no-remote-bg: rgba(255, 255, 255, 0.05);
+  --border-color: rgba(255, 255, 255, 0.12);
+  --files-list-bg: rgba(255, 255, 255, 0.03);
+  --file-hover-bg: rgba(255, 255, 255, 0.06);
+  --file-path-color: #bbb;
+  --file-dir-color: #aaa;
+  --select-all-bg: rgba(255, 255, 255, 0.05);
+  --select-all-color: #ccc;
 }
 
 .body--light .git-setup-dialog {
   --changes-bg: rgba(255, 152, 0, 0.1);
   --remote-bg: rgba(0, 0, 0, 0.03);
   --no-remote-bg: rgba(0, 0, 0, 0.03);
+  --border-color: rgba(0, 0, 0, 0.12);
+  --files-list-bg: rgba(0, 0, 0, 0.02);
+  --file-hover-bg: rgba(0, 0, 0, 0.04);
+  --file-path-color: #666;
+  --file-dir-color: #777;
+  --select-all-bg: rgba(0, 0, 0, 0.03);
+  --select-all-color: #555;
 }
 </style>
