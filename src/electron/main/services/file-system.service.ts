@@ -669,6 +669,11 @@ export class FileSystemService {
     const files: IFileInfo[] = [];
 
     for (const entry of entries) {
+      // Skip hidden directories and files like .git
+      if (entry.name.startsWith('.')) {
+        continue;
+      }
+
       const entryPath = path.join(validPath, entry.name);
 
       if (entry.isDirectory()) {

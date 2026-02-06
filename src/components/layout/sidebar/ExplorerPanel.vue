@@ -47,6 +47,7 @@ import {
   getRelativePath,
   hasExtension,
   isChildPath,
+  normalizePath,
 } from '@/utils/path.utils';
 
 const $q = useQuasar();
@@ -234,7 +235,7 @@ function buildPromptsFolder(prompts: IPromptFile[]): ITreeNode {
   for (const prompt of prompts) {
     let foundProject = false;
     for (const project of projects) {
-      if (prompt.filePath.startsWith(project.folderPath + '/')) {
+      if (normalizePath(prompt.filePath).startsWith(normalizePath(project.folderPath) + '/')) {
         const existing = projectPrompts.get(project.folderPath) ?? [];
         existing.push(prompt);
         projectPrompts.set(project.folderPath, existing);
@@ -253,6 +254,7 @@ function buildPromptsFolder(prompts: IPromptFile[]): ITreeNode {
   // Add projects
   for (const project of projects) {
     const projectPromptsList = projectPrompts.get(project.folderPath) ?? [];
+    const projectChildren = buildDirectoryChildren(project.folderPath, projectPromptsList, 1);
     children.push({
       id: project.folderPath,
       label: project.name,
@@ -261,8 +263,8 @@ function buildPromptsFolder(prompts: IPromptFile[]): ITreeNode {
       filePath: project.folderPath,
       isProject: true,
       isDropTarget: true,
-      count: projectPromptsList.length,
-      children: buildDirectoryChildren(project.folderPath, projectPromptsList, 1),
+      count: countAllFiles(projectChildren),
+      children: projectChildren,
     });
   }
 
@@ -286,7 +288,7 @@ function buildPromptsFolder(prompts: IPromptFile[]): ITreeNode {
     label: 'Prompts',
     icon: 'folder',
     type: 'folder',
-    count: prompts.length,
+    count: countAllFiles(children),
     isDropTarget: true,
     children,
   };
@@ -311,10 +313,10 @@ function buildDirectoryChildren(
     if (parts.length === 1) {
       // Direct child
       directPrompts.push(prompt);
-    } else {
+    } else if (parts.length > 1 && parts[0]) {
       // In a subdirectory
       const subDir = parts[0];
-      const subDirPath = joinPath(dirPath, subDir);
+      const subDirPath = normalizePath(joinPath(dirPath, subDir));
       const existing = subDirs.get(subDirPath) ?? [];
       existing.push(prompt);
       subDirs.set(subDirPath, existing);
@@ -322,10 +324,12 @@ function buildDirectoryChildren(
   }
 
   // Also include empty directories from the structure cache
-  const emptyDirs = directoryStructures.value.get(dirPath) ?? [];
+  const normalizedDirPath = normalizePath(dirPath);
+  const emptyDirs = directoryStructures.value.get(normalizedDirPath) ?? [];
   for (const emptyDirPath of emptyDirs) {
-    if (!subDirs.has(emptyDirPath)) {
-      subDirs.set(emptyDirPath, []);
+    const normalizedEmptyPath = normalizePath(emptyDirPath);
+    if (!subDirs.has(normalizedEmptyPath)) {
+      subDirs.set(normalizedEmptyPath, []);
     }
   }
 
@@ -334,6 +338,7 @@ function buildDirectoryChildren(
 
   for (const [subDirPath, subPrompts] of sortedSubDirs) {
     const dirName = getBasename(subDirPath) || subDirPath;
+    const subChildren = buildDirectoryChildren(subDirPath, subPrompts, depth + 1);
     children.push({
       id: subDirPath,
       label: dirName,
@@ -343,8 +348,8 @@ function buildDirectoryChildren(
       parentPath: dirPath,
       depth,
       isDropTarget: true,
-      count: subPrompts.length,
-      children: buildDirectoryChildren(subDirPath, subPrompts, depth + 1),
+      count: countAllFiles(subChildren),
+      children: subChildren,
     });
   }
 
@@ -366,7 +371,7 @@ function buildDirectoryChildren(
   }
 
   // Add non-markdown files from the cache
-  const nonMdFiles = directoryFiles.value.get(dirPath) ?? [];
+  const nonMdFiles = directoryFiles.value.get(normalizedDirPath) ?? [];
   for (const file of nonMdFiles) {
     children.push({
       id: file.path,
@@ -381,6 +386,19 @@ function buildDirectoryChildren(
   }
 
   return children;
+}
+
+// Count all files (prompts + non-markdown files) recursively in a tree
+function countAllFiles(nodes: ITreeNode[]): number {
+  let count = 0;
+  for (const node of nodes) {
+    if (node.type === 'prompt' || node.type === 'file') {
+      count++;
+    } else if (node.children) {
+      count += countAllFiles(node.children);
+    }
+  }
+  return count;
 }
 
 // Get icon for prompt based on metadata
@@ -592,19 +610,22 @@ async function loadDirectoryStructure(
       .filter((f) => !f.name.startsWith('.') && !f.name.endsWith('.md'))
       .map((f) => ({ path: f.path, name: f.name }));
 
+    // Normalize the dirPath for consistent cache keys across platforms
+    const cacheKey = normalizePath(dirPath);
+
     // Create new Map instances to ensure Vue reactivity detects the change
     const newDirStructures = new Map(directoryStructures.value);
     if (childDirs.length > 0) {
-      newDirStructures.set(dirPath, childDirs);
+      newDirStructures.set(cacheKey, childDirs);
     }
     directoryStructures.value = newDirStructures;
 
     const newDirFiles = new Map(directoryFiles.value);
     if (nonMdFiles.length > 0) {
-      newDirFiles.set(dirPath, nonMdFiles);
+      newDirFiles.set(cacheKey, nonMdFiles);
     } else {
       // Clear if no files (in case directory was emptied)
-      newDirFiles.delete(dirPath);
+      newDirFiles.delete(cacheKey);
     }
     directoryFiles.value = newDirFiles;
 
@@ -629,22 +650,28 @@ async function loadDirectoryStructure(
 
 // Clear a deleted directory from the local cache
 function clearDirectoryFromCache(deletedPath: string): void {
+  const normalizedDeleted = normalizePath(deletedPath);
+
   // Remove the directory itself from any parent's list
   directoryStructures.value.forEach((childDirs, parentPath) => {
-    const filtered = childDirs.filter((d) => d !== deletedPath && !d.startsWith(deletedPath + '/'));
+    const filtered = childDirs.filter(
+      (d) =>
+        normalizePath(d) !== normalizedDeleted &&
+        !normalizePath(d).startsWith(normalizedDeleted + '/')
+    );
     if (filtered.length !== childDirs.length) {
       directoryStructures.value.set(parentPath, filtered);
     }
   });
 
   // Remove any entries where the deleted path was the parent
-  directoryStructures.value.delete(deletedPath);
-  directoryFiles.value.delete(deletedPath);
+  directoryStructures.value.delete(normalizedDeleted);
+  directoryFiles.value.delete(normalizedDeleted);
 
   // Also remove any nested paths under the deleted directory
   const keysToDelete: string[] = [];
   directoryStructures.value.forEach((_, key) => {
-    if (key.startsWith(deletedPath + '/')) {
+    if (normalizePath(key).startsWith(normalizedDeleted + '/')) {
       keysToDelete.push(key);
     }
   });
@@ -2008,8 +2035,9 @@ async function handleDrop(event: DragEvent, targetNode: ITreeNode): Promise<void
   if (!sourceFilePath) return;
 
   // Don't drop on same directory
-  const sourceDir = sourceFilePath.substring(0, sourceFilePath.lastIndexOf('/'));
-  if (sourceDir === targetDirPath) {
+  const normalizedSource = normalizePath(sourceFilePath);
+  const sourceDir = normalizedSource.substring(0, normalizedSource.lastIndexOf('/'));
+  if (sourceDir === normalizePath(targetDirPath)) {
     draggedNode.value = null;
     return;
   }
@@ -2258,9 +2286,14 @@ onMounted(async () => {
     ]);
     await promptStore.refreshAllPrompts();
 
-    // Load directory structures for all projects
+    // Load directory structures for all projects (recursive=true to load all subdirectories and their files)
     for (const project of allProjects.value) {
-      await loadDirectoryStructure(project.folderPath);
+      try {
+        // recursive=true ensures all subdirectories are loaded, including non-markdown files (PDF, Excel, Word, etc.)
+        await loadDirectoryStructure(project.folderPath, true);
+      } catch (err) {
+        console.warn(`Failed to load directory structure for ${project.folderPath}:`, err);
+      }
     }
   } catch (err) {
     console.warn('Failed to initialize file stores:', err);
